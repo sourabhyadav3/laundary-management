@@ -8,6 +8,7 @@ import {
   FiFileText,
   FiCreditCard,
   FiMapPin,
+  FiSettings,
 } from 'react-icons/fi';
 import RoleSidebar from './RoleSidebar';
 
@@ -19,6 +20,7 @@ const menuItems = [
   { label: 'Invoices', icon: <FiFileText />, to: '/counter/invoices', permission: 'view_invoice_status' },
   { label: 'Payments', icon: <FiCreditCard />, to: '/counter/payments', permission: 'view_payments' },
   { label: 'Order Tracking', icon: <FiMapPin />, to: '/counter/tracking', permission: 'view_orders' },
+  { label: 'Settings', icon: <FiSettings />, to: '/counter/settings' },
 ];
 
 const CounterSidebar = () => (

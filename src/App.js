@@ -32,11 +32,13 @@ import CounterOrderList from './Pages/counter/OrderList';
 import CounterInvoices from './Pages/counter/Invoices';
 import CounterPayments from './Pages/counter/Payments';
 import CounterOrderTracking from './Pages/counter/OrderTracking';
+import CounterSettings from './Pages/counter/Settings';
 
 import DeliveryDashboard from './Pages/delivery/Dashboard';
 import AssignedPickups from './Pages/delivery/AssignedPickups';
 import AssignedDeliveries from './Pages/delivery/AssignedDeliveries';
 import CompletedJobs from './Pages/delivery/CompletedJobs';
+import DeliverySettings from './Pages/delivery/Settings';
 
 import { AdminStateProvider } from './context/AdminStateContext';
 import AdminLayout from './layouts/AdminLayout';
@@ -83,6 +85,7 @@ function App() {
           <Route path="payments" element={<CounterPayments />} />
           <Route path="tracking" element={<CounterOrderTracking />} />
           <Route path="lcd-display" element={<LcdDisplay />} />
+          <Route path="settings" element={<CounterSettings />} />
         </Route>
 
         <Route
@@ -102,6 +105,7 @@ function App() {
           <Route path="orders" element={<CounterOrderList />} />
           <Route path="drivers" element={<Drivers />} />
           <Route path="tracking" element={<CounterOrderTracking />} />
+          <Route path="settings" element={<DeliverySettings />} />
         </Route>
 
         <Route

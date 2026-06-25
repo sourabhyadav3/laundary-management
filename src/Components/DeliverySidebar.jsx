@@ -1,5 +1,5 @@
 import React from 'react';
-import { FiHome, FiPackage, FiTruck, FiCheckCircle, FiPlusCircle, FiList, FiUsers, FiMapPin } from 'react-icons/fi';
+import { FiHome, FiPackage, FiTruck, FiCheckCircle, FiPlusCircle, FiList, FiUsers, FiMapPin, FiSettings } from 'react-icons/fi';
 import RoleSidebar from './RoleSidebar';
 
 const menuItems = [
@@ -11,6 +11,7 @@ const menuItems = [
   { label: 'Order', icon: <FiList />, to: '/delivery/orders', permission: 'view_orders' },
   { label: 'Driver', icon: <FiUsers />, to: '/delivery/drivers', permission: 'view_logistics' },
   { label: 'Orders tracking', icon: <FiMapPin />, to: '/delivery/tracking', permission: 'view_orders' },
+  { label: 'Settings', icon: <FiSettings />, to: '/delivery/settings' },
 ];
 
 const DeliverySidebar = () => (

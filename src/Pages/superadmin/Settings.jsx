@@ -8,10 +8,8 @@ import {
   FiLogOut,
   FiLock,
   FiEdit2,
-  FiCreditCard,
-  FiUpload,
 } from 'react-icons/fi';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import { useSettings, DEFAULT_SETTINGS } from '../../context/SettingsContext';
 import { useTheme } from '../../context/ThemeContext';
@@ -22,7 +20,6 @@ const SECTIONS = [
   { id: 'business', label: 'Business Profile', icon: FiBriefcase },
   { id: 'theme', label: 'Theme Settings', icon: FiSun },
   { id: 'account', label: 'Account Settings', icon: FiUser },
-  { id: 'payment', label: 'Payment Settings', icon: FiCreditCard },
 ];
 
 const inputClass =
@@ -31,12 +28,12 @@ const labelClass = 'block text-sm font-medium text-primary';
 
 const Settings = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { settings, updateSection, resetSection } = useSettings();
   const { theme, toggleTheme } = useTheme();
-  const [activeSection, setActiveSection] = useState('business');
+  const [activeSection, setActiveSection] = useState(location.state?.section || 'business');
 
   const [businessForm, setBusinessForm] = useState({ ...settings.business });
-  const [paymentForm, setPaymentForm] = useState({ ...(settings.payment || { upiQrCode: '' }) });
 
 
   const storedUser = JSON.parse(localStorage.getItem('user') || '{}');
@@ -60,33 +57,13 @@ const Settings = () => {
     toast.info('Business profile reset');
   };
 
-  const handleSavePayment = () => {
-    updateSection('payment', paymentForm);
-    toast.success('Payment settings saved');
-  };
-
-  const handleUpiQrUpload = (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-    if (!file.type.startsWith('image/')) { toast.error('Please upload an image file'); return; }
-    if (file.size > 2 * 1024 * 1024) { toast.error('Image must be under 2 MB'); return; }
-    const reader = new FileReader();
-    reader.onload = (ev) => setPaymentForm((prev) => ({ ...prev, upiQrCode: ev.target.result }));
-    reader.readAsDataURL(file);
-  };
-
-  const handleRemoveUpiQr = () => {
-    setPaymentForm((prev) => ({ ...prev, upiQrCode: '' }));
-    updateSection('payment', { upiQrCode: '' });
-    toast.info('UPI QR removed');
-  };
-
-
 
   const handleSaveProfile = () => {
-    localStorage.setItem('user', JSON.stringify(accountForm));
+    const updatedUser = { ...storedUser, ...accountForm };
+    localStorage.setItem('user', JSON.stringify(updatedUser));
     toast.success('Profile updated');
     setShowProfileModal(false);
+    window.location.reload();
   };
 
   const handleChangePassword = () => {
@@ -226,53 +203,6 @@ const Settings = () => {
           </div>
         );
 
-      case 'payment':
-        return (
-          <div className="space-y-6">
-            <h2 className="text-xl font-semibold text-primary">Payment Settings</h2>
-            <p className="text-sm text-secondary">Upload your UPI QR code so customers can scan and pay directly at the counter.</p>
-
-            <div className="rounded-2xl border border-border bg-surface-alt p-6 space-y-4">
-              <div className="flex items-center gap-3 mb-2">
-                <span className="text-2xl">📱</span>
-                <div>
-                  <p className="font-semibold text-primary">UPI QR Code</p>
-                  <p className="text-xs text-secondary">Displayed when customers choose UPI at checkout</p>
-                </div>
-              </div>
-
-              {paymentForm.upiQrCode ? (
-                <div className="flex flex-col items-center gap-4">
-                  <img src={paymentForm.upiQrCode} alt="UPI QR Code" className="h-48 w-48 rounded-2xl border-2 border-violet-400/40 object-contain shadow-lg" />
-                  <div className="flex gap-3">
-                    <label className="cursor-pointer rounded-xl bg-blue-500/10 px-4 py-2 text-sm font-semibold text-blue-600 hover:bg-blue-500/20 transition flex items-center gap-2">
-                      <FiUpload size={14} /> Replace QR
-                      <input type="file" accept="image/*" className="hidden" onChange={handleUpiQrUpload} />
-                    </label>
-                    <button type="button" onClick={handleRemoveUpiQr} className="rounded-xl bg-rose-500/10 px-4 py-2 text-sm font-semibold text-rose-600 hover:bg-rose-500/20 transition">Remove</button>
-                  </div>
-                </div>
-              ) : (
-                <label className="flex flex-col items-center justify-center gap-3 cursor-pointer rounded-2xl border-2 border-dashed border-border hover:border-violet-400 bg-surface p-10 transition-all duration-200">
-                  <span className="text-4xl">📲</span>
-                  <p className="font-semibold text-primary">Upload UPI QR Code</p>
-                  <p className="text-xs text-secondary">PNG, JPG — Max 2 MB</p>
-                  <span className="mt-2 flex items-center gap-2 rounded-xl bg-violet-500/10 px-4 py-2 text-sm font-semibold text-violet-600">
-                    <FiUpload size={14} /> Choose File
-                  </span>
-                  <input type="file" accept="image/*" className="hidden" onChange={handleUpiQrUpload} />
-                </label>
-              )}
-            </div>
-
-            <div className="flex flex-wrap gap-3">
-              <button type="button" onClick={handleSavePayment} className="dashboard-hero-pill flex items-center gap-2 hover:bg-blue-500/10">
-                <FiSave size={18} />
-                <span className="font-semibold">Save Payment Settings</span>
-              </button>
-            </div>
-          </div>
-        );
 
       default:
         return null;

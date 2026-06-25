@@ -1,6 +1,6 @@
 // src/components/Navbar.jsx
 import React, { useEffect, useRef, useState, useContext } from 'react';
-import { FiBell, FiChevronDown, FiLogOut, FiMaximize2, FiMinimize2, FiMapPin, FiShoppingBag, FiMonitor } from 'react-icons/fi';
+import { FiBell, FiChevronDown, FiLogOut, FiMaximize2, FiMinimize2, FiMapPin, FiShoppingBag, FiMonitor, FiUser } from 'react-icons/fi';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import ThemeToggle from './ThemeToggle';
@@ -269,28 +269,23 @@ const Navbar = () => {
                 <span className="text-sm font-semibold text-primary">{userName}</span>
                 <span className="text-xs uppercase tracking-[0.22em] text-secondary">{getTranslatedRole(userRole)}</span>
               </div>
-              {/* <button
+              <button
                 type="button"
                 className="profile-dropdown-item"
                 onClick={() => {
-                  toast.info('Profile view coming soon');
+                  const role = String(userRole || '').toLowerCase();
+                  if (role.includes('super')) navigate('/superadmin/settings', { state: { section: 'account' } });
+                  else if (role.includes('admin')) navigate('/admin/settings', { state: { section: 'account' } });
+                  else if (role.includes('counter')) navigate('/counter/settings', { state: { section: 'account' } });
+                  else if (role.includes('delivery') || role.includes('rider')) navigate('/delivery/settings', { state: { section: 'account' } });
+                  else navigate('/counter/settings', { state: { section: 'account' } });
                   setProfileOpen(false);
                 }}
               >
                 <FiUser size={16} />
                 My Profile
-              </button> */}
-              {/* <button
-                type="button"
-                className="profile-dropdown-item"
-                onClick={() => {
-                  toast.info('Settings coming soon');
-                  setProfileOpen(false);
-                }}
-              >
-                <FiSettings size={16} />
-                Settings
-              </button> */}
+              </button>
+
               <button type="button" className="profile-dropdown-item text-rose-500 hover:bg-rose-50" onClick={handleLogout}>
                 <FiLogOut size={16} />
                 Logout

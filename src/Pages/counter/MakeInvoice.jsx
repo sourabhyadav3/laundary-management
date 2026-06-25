@@ -914,41 +914,41 @@ const MakeInvoice = () => {
             <div className="flex items-center gap-2 max-w-full min-w-0 flex-1">
               {/* Dynamic Status Logo */}
               {quickServiceMode?.includes('Express') ? (
-                  <div className="flex flex-col items-center justify-center bg-gradient-to-br from-red-500 to-rose-600 text-white px-3 py-2 rounded-xl shadow-[0_0_10px_rgba(239,68,68,0.5)] border border-red-400 w-auto min-w-[68px] h-14 shrink-0 animate-pulse">
+                  <div className="flex flex-col items-center justify-center bg-gradient-to-br from-red-500 to-rose-600 text-white px-4 py-2.5 rounded-xl shadow-[0_0_10px_rgba(239,68,68,0.5)] border border-red-400 w-auto min-w-[88px] h-16 shrink-0 animate-pulse">
                       <div className="flex items-center gap-1">
-                          <span className="text-[13px]">⚡</span>
-                          <span className="text-[11px] font-black tracking-widest text-white drop-shadow-md">{t('counter.makeInvoice.expressLabel')}</span>
+                          <span className="text-[14px]">⚡</span>
+                          <span className="text-[12px] font-black tracking-widest text-white drop-shadow-md">{t('counter.makeInvoice.expressLabel')}</span>
                       </div>
-                      <div className="flex gap-1.5 mt-0.5 opacity-95 text-[10px]">
+                      <div className="flex gap-1.5 mt-0.5 opacity-95 text-[11px]">
                           <span>🫧</span>
                           <span>💨</span>
                       </div>
                   </div>
               ) : (
                   <div
-                      className="group relative flex flex-col items-center justify-center overflow-hidden bg-gradient-to-br from-blue-600 via-blue-500 to-cyan-500 text-white px-3 py-2 rounded-xl shadow-[0_4px_16px_rgba(37,99,235,0.45)] border border-blue-300/40 w-auto min-w-[76px] h-14 shrink-0 transition-all duration-300 hover:scale-[1.06] hover:shadow-[0_6px_22px_rgba(37,99,235,0.55)] active:scale-[0.98] cursor-pointer"
+                      className="group relative flex flex-col items-center justify-center overflow-hidden bg-gradient-to-br from-blue-600 via-blue-500 to-cyan-500 text-white px-4 py-2.5 rounded-xl shadow-[0_4px_16px_rgba(37,99,235,0.45)] border border-blue-300/40 w-auto min-w-[92px] h-16 shrink-0 transition-all duration-300 hover:scale-[1.06] hover:shadow-[0_6px_22px_rgba(37,99,235,0.55)] active:scale-[0.98] cursor-pointer"
                       title={quickServiceMode || t('counter.makeInvoice.normalServiceShort')}
                     >
                       <div className="absolute inset-0 bg-gradient-to-tr from-white/0 via-white/20 to-white/0 -translate-x-full group-hover:translate-x-full transition-transform duration-700" />
-                      <span className="relative text-[10px] font-black tracking-[0.2em] text-white uppercase leading-none drop-shadow-md">
+                      <span className="relative text-[12px] font-black tracking-[0.22em] text-white uppercase leading-none drop-shadow-md">
                           {t('counter.makeInvoice.normalLabel')}
                       </span>
                       <div className="relative flex items-center gap-2 mt-1.5">
-                          <span className="text-[13px] transition-transform duration-300 group-hover:scale-125 group-hover:-translate-y-0.5">🫧</span>
-                          <span className="text-[10px] text-blue-100/80 font-bold">+</span>
-                          <span className="text-[13px] transition-transform duration-300 group-hover:scale-125 group-hover:-translate-y-0.5 delay-75">💨</span>
+                          <span className="text-[14px] transition-transform duration-300 group-hover:scale-125 group-hover:-translate-y-0.5">🫧</span>
+                          <span className="text-[11px] text-blue-100/80 font-bold">+</span>
+                          <span className="text-[14px] transition-transform duration-300 group-hover:scale-125 group-hover:-translate-y-0.5 delay-75">💨</span>
                       </div>
                   </div>
               )}
 
               {/* Service Buttons Row */}
-              <div className="flex items-center gap-1 bg-surface-alt/75 border border-border/60 p-1 rounded-xl overflow-x-auto min-w-0">
+              <div className="flex items-center gap-1.5 bg-surface-alt/75 border border-border/60 p-1.5 rounded-xl overflow-x-auto min-w-0 min-h-[64px]">
                   {services?.filter(s => s.status === 'Active').map((service) => (
                       <button
                           key={service.id}
                           type="button"
                           onClick={() => setQuickServiceMode(service.name)}
-                          className={`text-[9px] font-extrabold px-2 py-1.5 rounded-lg transition-all cursor-pointer whitespace-nowrap border ${
+                          className={`text-[11px] font-black px-3 py-2 rounded-lg transition-all cursor-pointer whitespace-nowrap border ${
                               quickServiceMode === service.name
                                   ? 'bg-purple-600 border-purple-700 text-white shadow-sm'
                                   : 'bg-white border-slate-300 text-black hover:bg-purple-50 hover:border-purple-300 dark:bg-slate-100 dark:border-slate-300 dark:text-black dark:hover:bg-purple-100'

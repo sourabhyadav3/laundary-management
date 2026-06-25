@@ -1,25 +1,20 @@
 import React, { useState } from 'react';
 import {
-  FiBriefcase,
   FiSun,
   FiUser,
-  FiSave,
-  FiRotateCcw,
-  FiLogOut,
   FiLock,
   FiEdit2,
+  FiLogOut,
 } from 'react-icons/fi';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
-import { useSettings, DEFAULT_SETTINGS } from '../../context/SettingsContext';
 import { useTheme } from '../../context/ThemeContext';
 import ThemeToggle from '../../Components/ThemeToggle';
 import Modal from '../../Components/Modal';
 
 const SECTIONS = [
-  { id: 'business', label: 'Business Profile', icon: FiBriefcase },
-  { id: 'theme', label: 'Theme Settings', icon: FiSun },
   { id: 'account', label: 'Account Settings', icon: FiUser },
+  { id: 'theme', label: 'Theme Settings', icon: FiSun },
 ];
 
 const inputClass =
@@ -28,41 +23,25 @@ const labelClass = 'block text-sm font-medium text-primary';
 
 const Settings = () => {
   const navigate = useNavigate();
-  const location = useLocation();
-  const { settings, updateSection, resetSection } = useSettings();
   const { theme, toggleTheme } = useTheme();
-  const [activeSection, setActiveSection] = useState(location.state?.section || 'business');
-
-  const [businessForm, setBusinessForm] = useState({ ...settings.business });
-
+  const [activeSection, setActiveSection] = useState('account');
 
   const storedUser = JSON.parse(localStorage.getItem('user') || '{}');
   const [accountForm, setAccountForm] = useState({
-    name: storedUser.name || 'Dana Lee',
-    email: storedUser.email || 'admin@tuhama.com',
-    role: storedUser.role || 'Admin',
+    name: storedUser.name || 'Counter Staff',
+    email: storedUser.email || 'counter@tuhama.com',
+    role: storedUser.role || 'Counter Staff',
   });
   const [showPasswordModal, setShowPasswordModal] = useState(false);
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [passwordForm, setPasswordForm] = useState({ current: '', next: '', confirm: '' });
 
-  const handleSaveBusiness = () => {
-    updateSection('business', businessForm);
-    toast.success('Business profile saved');
-  };
-
-  const handleResetBusiness = () => {
-    resetSection('business');
-    setBusinessForm({ ...DEFAULT_SETTINGS.business });
-    toast.info('Business profile reset');
-  };
-
-
   const handleSaveProfile = () => {
     const updatedUser = { ...storedUser, ...accountForm };
     localStorage.setItem('user', JSON.stringify(updatedUser));
-    toast.success('Profile updated');
+    toast.success('Profile updated successfully');
     setShowProfileModal(false);
+    // Reload page to reflect name changes in Navbar/Layout
     window.location.reload();
   };
 
@@ -88,55 +67,6 @@ const Settings = () => {
 
   const renderContent = () => {
     switch (activeSection) {
-      case 'business':
-        return (
-          <div className="space-y-6">
-            <h2 className="text-xl font-semibold text-primary">Business Profile</h2>
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div>
-                <label className={labelClass}>Business Name</label>
-                <input className={inputClass} value={businessForm.businessName} onChange={(e) => setBusinessForm({ ...businessForm, businessName: e.target.value })} />
-              </div>
-              <div>
-                <label className={labelClass}>Owner Name</label>
-                <input className={inputClass} value={businessForm.ownerName} onChange={(e) => setBusinessForm({ ...businessForm, ownerName: e.target.value })} />
-              </div>
-              <div>
-                <label className={labelClass}>Email</label>
-                <input type="email" className={inputClass} value={businessForm.email} onChange={(e) => setBusinessForm({ ...businessForm, email: e.target.value })} />
-              </div>
-              <div>
-                <label className={labelClass}>Phone Number</label>
-                <input className={inputClass} value={businessForm.phone} onChange={(e) => setBusinessForm({ ...businessForm, phone: e.target.value })} />
-              </div>
-              <div className="sm:col-span-2">
-                <label className={labelClass}>Address</label>
-                <input className={inputClass} value={businessForm.address} onChange={(e) => setBusinessForm({ ...businessForm, address: e.target.value })} />
-              </div>
-              <div>
-                <label className={labelClass}>GST Number</label>
-                <input className={inputClass} value={businessForm.gstNumber} onChange={(e) => setBusinessForm({ ...businessForm, gstNumber: e.target.value })} />
-              </div>
-              <div>
-                <label className={labelClass}>Website</label>
-                <input className={inputClass} value={businessForm.website} onChange={(e) => setBusinessForm({ ...businessForm, website: e.target.value })} />
-              </div>
-
-            </div>
-            <div className="flex flex-wrap gap-3">
-              <button type="button" onClick={handleSaveBusiness} className="dashboard-hero-pill flex items-center gap-2 hover:bg-blue-500/10">
-                <FiSave size={18} />
-                <span className="font-semibold">Save Changes</span>
-              </button>
-              <button type="button" onClick={handleResetBusiness} className="action-button flex items-center gap-2">
-                <FiRotateCcw size={16} />
-                Reset
-              </button>
-            </div>
-          </div>
-        );
-
-
       case 'theme':
         return (
           <div className="space-y-6">
@@ -175,7 +105,7 @@ const Settings = () => {
             <div className="rounded-2xl border border-border bg-surface-alt p-6">
               <div className="flex items-center gap-4">
                 <div className="flex h-16 w-16 items-center justify-center rounded-full bg-blue-500/20 text-xl font-bold text-blue-600">
-                  {(accountForm.name || 'A').split(' ').map((n) => n[0]).join('').slice(0, 2)}
+                  {(accountForm.name || 'C').split(' ').map((n) => n[0]).join('').slice(0, 2)}
                 </div>
                 <div>
                   <p className="text-lg font-semibold text-primary">{accountForm.name}</p>
@@ -203,7 +133,6 @@ const Settings = () => {
           </div>
         );
 
-
       default:
         return null;
     }
@@ -213,9 +142,9 @@ const Settings = () => {
     <div className="space-y-8">
       <section className="surface-card overflow-hidden border border-border shadow-xl">
         <div className="dashboard-hero p-8 md:p-10">
-          <p className="text-sm uppercase tracking-[0.3em] text-secondary">Admin Dashboard</p>
+          <p className="text-sm uppercase tracking-[0.3em] text-secondary">Counter Dashboard</p>
           <h1 className="mt-3 text-3xl font-semibold text-primary">Settings</h1>
-          <p className="mt-2 text-sm text-secondary">Manage business and application settings.</p>
+          <p className="mt-2 text-sm text-secondary">Manage your profile and application preferences.</p>
         </div>
       </section>
 
@@ -246,7 +175,7 @@ const Settings = () => {
       <Modal isOpen={showProfileModal} onClose={() => setShowProfileModal(false)} title="Edit Profile">
         <div className="space-y-4">
           <div>
-            <label className={labelClass}>Admin Name</label>
+            <label className={labelClass}>Name</label>
             <input className={inputClass} value={accountForm.name} onChange={(e) => setAccountForm({ ...accountForm, name: e.target.value })} />
           </div>
           <div>
