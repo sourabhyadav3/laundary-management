@@ -23,7 +23,7 @@ const roleColors = {
 
 const Staff = () => {
   const navigate = useNavigate();
-  const { staff, setStaff } = useContext(AdminStateContext);
+  const { staff, setStaff, deleteStaff } = useContext(AdminStateContext);
   const [searchTerm, setSearchTerm] = useState('');
   const [roleFilter, setRoleFilter] = useState('All');
   const [statusFilter, setStatusFilter] = useState('All');
@@ -75,8 +75,7 @@ const Staff = () => {
 
   const handleDeleteConfirm = () => {
     if (staffToDelete) {
-      setStaff(staff.filter((s) => s.id !== staffToDelete.id));
-      toast.success(`${staffToDelete.name} has been removed from the system`);
+      deleteStaff(staffToDelete.id || staffToDelete._id);
       setShowDeleteModal(false);
       setStaffToDelete(null);
     }

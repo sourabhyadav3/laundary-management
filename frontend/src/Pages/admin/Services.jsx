@@ -16,7 +16,7 @@ const emptyServiceForm = {
 };
 
 const LaundryServices = () => {
-  const { services, setServices, addService } = useContext(AdminStateContext);
+  const { services, addService, updateService, deleteService } = useContext(AdminStateContext);
   const [searchTerm, setSearchTerm] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('All');
   const [statusFilter, setStatusFilter] = useState('All');
@@ -36,6 +36,13 @@ const LaundryServices = () => {
       return matchesSearch && matchesCategory && matchesStatus;
     });
   }, [services, searchTerm, categoryFilter, statusFilter]);
+
+  const servicesWithDisplayId = useMemo(() => {
+    return filteredServices.map((service, index) => ({
+      ...service,
+      displayId: index + 1
+    }));
+  }, [filteredServices]);
 
   const handleViewService = (service) => {
     setSelectedService(service);
@@ -68,11 +75,12 @@ const LaundryServices = () => {
     setShowModal(false);
   };
 
-  const handleDelete = (service) => {
+  const handleDelete = async (service) => {
     if (window.confirm(`Delete service "${service.name}"?`)) {
-      setServices(services.filter((s) => s.id !== service.id));
-      toast.success(`Deleted service: ${service.name}`);
-      setShowModal(false);
+      const success = await deleteService(service.id);
+      if (success) {
+        setShowModal(false);
+      }
     }
   };
 
@@ -81,7 +89,7 @@ const LaundryServices = () => {
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
-  const handleSaveService = () => {
+  const handleSaveService = async () => {
     if (!formData.name.trim()) {
       toast.error('Service name is required');
       return;
@@ -103,11 +111,9 @@ const LaundryServices = () => {
     };
 
     if (isEditing) {
-      setServices(services.map((s) => (s.id === formData.id ? { ...s, ...payload, id: formData.id } : s)));
-      toast.success('Service updated successfully');
+      await updateService(formData.id, payload);
     } else {
-      addService(payload);
-      toast.success('Service added successfully');
+      await addService(payload);
     }
 
     setShowFormModal(false);
@@ -115,7 +121,7 @@ const LaundryServices = () => {
   };
 
   const tableColumns = [
-    { header: 'ID', accessor: 'id' },
+    { header: 'ID', accessor: 'displayId' },
     { header: 'Service Name', accessor: 'name' },
     { header: 'Category', accessor: 'category' },
     { header: 'Est. Time', accessor: 'estimatedTime' },
@@ -225,7 +231,7 @@ const LaundryServices = () => {
           </div>
         </div>
         <div className="mt-5">
-          <ReusableTable columns={tableColumns} data={filteredServices} />
+          <ReusableTable columns={tableColumns} data={servicesWithDisplayId} />
         </div>
       </section>
 

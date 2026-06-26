@@ -22,7 +22,7 @@ const StaffDetails = () => {
   const { staff } = useContext(AdminStateContext);
   const [activeTab, setActiveTab] = useState('details');
 
-  const staffMember = staff.find((s) => s.id === parseInt(id));
+  const staffMember = staff.find((s) => String(s.id || s._id || '') === String(id));
 
   if (!staffMember) {
     return (

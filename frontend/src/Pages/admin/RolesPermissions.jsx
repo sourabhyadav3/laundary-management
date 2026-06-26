@@ -87,7 +87,7 @@ const initialRolePermissions = {
     'manage_payments', 'view_services'
   ],
   'Delivery Staff': [
-    'view_dashboard', 'view_logistics', 'view_invoice_status', 'change_invoice_status', 'make_invoice', 'view_orders'
+    'view_dashboard', 'view_logistics', 'view_invoice_status', 'change_invoice_status'
   ],
 };
 const roleAllowedPermissionsWhitelist = {
@@ -105,7 +105,7 @@ const roleAllowedPermissionsWhitelist = {
     'manage_payments', 'view_services'
   ],
   'Delivery Staff': [
-    'view_dashboard', 'view_logistics', 'view_invoice_status', 'change_invoice_status', 'make_invoice', 'view_orders'
+    'view_dashboard', 'view_logistics', 'view_invoice_status', 'change_invoice_status'
   ],
 };
 
@@ -119,7 +119,14 @@ const RolesPermissions = () => {
     const saved = localStorage.getItem('spinclean_role_permissions_v3');
     if (saved) {
       try {
-        return JSON.parse(saved);
+        const parsed = JSON.parse(saved);
+        // Clean up loaded permissions to conform to whitelists
+        const cleaned = {};
+        Object.keys(parsed).forEach(role => {
+          const whitelist = roleAllowedPermissionsWhitelist[role] || [];
+          cleaned[role] = (parsed[role] || []).filter(p => whitelist.includes(p));
+        });
+        return cleaned;
       } catch (e) {}
     }
     return initialRolePermissions;

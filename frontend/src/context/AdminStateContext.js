@@ -1,60 +1,10 @@
-// // src/context/AdminStateContext.js
-// import React, { createContext, useState } from 'react';
-// import { mockCustomers, mockOrders, mockServices, mockStaff, mockPayments, mockPickups, mockDeliveries } from '../data/mockData';
-
-// export const AdminStateContext = createContext();
-
-// export const AdminStateProvider = ({ children }) => {
-//   const [customers, setCustomers] = useState(mockCustomers);
-//   const [orders, setOrders] = useState(mockOrders);
-//   const [services, setServices] = useState(mockServices);
-//   const [staff, setStaff] = useState(mockStaff);
-//   const [payments, setPayments] = useState(mockPayments);
-//   const [pickups, setPickups] = useState(mockPickups);
-//   const [deliveries, setDeliveries] = useState(mockDeliveries);
-
-//   // Simple helper functions (add, edit, delete) can be expanded later
-//   const addCustomer = (customer) => setCustomers([...customers, { id: Date.now(), ...customer }]);
-//   const addOrder = (order) => setOrders([...orders, { id: Date.now(), ...order }]);
-//   const updateOrderStatus = (orderId, status) => {
-//     setOrders(orders.map(o => (o.id === orderId ? { ...o, status } : o));
-//   };
-
-//   const value = {
-//     customers,
-//     addCustomer,
-//     orders,
-//     addOrder,
-//     updateOrderStatus,
-//     services,
-//     setServices,
-//     staff,
-//     setStaff,
-//     payments,
-//     setPayments,
-//     pickups,
-//     setPickups,
-//     deliveries,
-//     setDeliveries,
-//   };
-
-//   return <AdminStateContext.Provider value={value}>{children}</AdminStateContext.Provider>;
-// };
 // src/context/AdminStateContext.js
-
-import React, { createContext, useState } from 'react';
+import React, { createContext, useState, useEffect, useMemo } from 'react';
+import { toast } from 'react-toastify';
+import api from '../utils/api';
 import {
-  mockCustomers,
-  mockOrders,
-  mockServices,
-  mockStaff,
-  mockPayments,
-  mockPickups,
-  mockDeliveries,
-  mockCompletedJobs,
   mockRoles,
 } from '../data/mockData';
-import { CUSTOMER_AREAS } from '../constants/areas';
 
 export const GARMENT_CATALOG = [
   // Row 1
@@ -118,159 +68,49 @@ const INITIAL_CATALOG = GARMENT_CATALOG.map(item => ({
 export const AdminStateContext = createContext();
 
 export const AdminStateProvider = ({ children }) => {
-  const [customers, setCustomers] = useState(() => {
-    const saved = localStorage.getItem('customers_list');
-    if (saved) {
-      try {
-        return JSON.parse(saved);
-      } catch (e) {
-        console.error("Failed to parse saved customers", e);
+  // Local lists states populated from the APIs
+  const [rawCustomers, setCustomers] = useState([]);
+  const [orders, setOrders] = useState([]);
+  const customers = useMemo(() => {
+    const sortedChronologically = [...rawCustomers].sort((a, b) => {
+      const idA = a.id || a._id || '';
+      const idB = b.id || b._id || '';
+      return String(idA).localeCompare(String(idB), undefined, { numeric: true, sensitivity: 'base' });
+    });
+    const idMap = new Map();
+    sortedChronologically.forEach((c, index) => {
+      idMap.set(c.id || c._id, index + 1);
+    });
+
+    const orderCountMap = {};
+    orders.forEach(o => {
+      const cId = o.customerId || o.customer;
+      if (cId) {
+        orderCountMap[cId] = (orderCountMap[cId] || 0) + 1;
       }
-    }
-    return mockCustomers;
-  });
+    });
 
-  React.useEffect(() => {
-    localStorage.setItem('customers_list', JSON.stringify(customers));
-  }, [customers]);
-
-  const [orders, setOrders] = useState(() => {
-    const saved = localStorage.getItem('orders_list');
-    if (saved) {
-      try {
-        return JSON.parse(saved);
-      } catch (e) {
-        console.error("Failed to parse saved orders", e);
-      }
-    }
-    return mockOrders;
-  });
-
-  React.useEffect(() => {
-    localStorage.setItem('orders_list', JSON.stringify(orders));
-  }, [orders]);
-
-  const [services, setServices] = useState(() => {
-    const saved = localStorage.getItem('services_list');
-    if (saved) {
-      try {
-        return JSON.parse(saved);
-      } catch (e) {
-        console.error("Failed to parse saved services", e);
-      }
-    }
-    return mockServices;
-  });
-
-  React.useEffect(() => {
-    localStorage.setItem('services_list', JSON.stringify(services));
-  }, [services]);
-  const [staff, setStaff] = useState(() => {
-    const saved = localStorage.getItem('staff_list');
-    if (saved) {
-      try {
-        return JSON.parse(saved);
-      } catch (e) {
-        console.error("Failed to parse saved staff", e);
-      }
-    }
-    return mockStaff;
-  });
-
-  React.useEffect(() => {
-    localStorage.setItem('staff_list', JSON.stringify(staff));
-  }, [staff]);
-
-  const [payments, setPayments] = useState(() => {
-    const saved = localStorage.getItem('payments_list');
-    if (saved) {
-      try {
-        return JSON.parse(saved);
-      } catch (e) {
-        console.error("Failed to parse saved payments", e);
-      }
-    }
-    return mockPayments;
-  });
-
-  React.useEffect(() => {
-    localStorage.setItem('payments_list', JSON.stringify(payments));
-  }, [payments]);
-
-  const [pickups, setPickups] = useState(() => {
-    const saved = localStorage.getItem('pickups_list');
-    if (saved) {
-      try {
-        return JSON.parse(saved);
-      } catch (e) {
-        console.error("Failed to parse saved pickups", e);
-      }
-    }
-    return mockPickups;
-  });
-
-  React.useEffect(() => {
-    localStorage.setItem('pickups_list', JSON.stringify(pickups));
-  }, [pickups]);
-
-  const [deliveries, setDeliveries] = useState(() => {
-    const saved = localStorage.getItem('deliveries_list');
-    if (saved) {
-      try {
-        return JSON.parse(saved);
-      } catch (e) {
-        console.error("Failed to parse saved deliveries", e);
-      }
-    }
-    return mockDeliveries;
-  });
-
-  React.useEffect(() => {
-    localStorage.setItem('deliveries_list', JSON.stringify(deliveries));
-  }, [deliveries]);
-
-  const [completedJobs, setCompletedJobs] = useState(() => {
-    const saved = localStorage.getItem('completed_jobs_list');
-    if (saved) {
-      try {
-        return JSON.parse(saved);
-      } catch (e) {
-        console.error("Failed to parse saved completed jobs", e);
-      }
-    }
-    return mockCompletedJobs;
-  });
-
-  React.useEffect(() => {
-    localStorage.setItem('completed_jobs_list', JSON.stringify(completedJobs));
-  }, [completedJobs]);
-
-  const [roles, setRoles] = useState(mockRoles);
-
-  const [branches, setBranches] = useState(() => {
-    const saved = localStorage.getItem('branches_list');
-    if (saved) {
-      try {
-        return JSON.parse(saved);
-      } catch (e) {
-        console.error("Failed to parse saved branches", e);
-      }
-    }
-    return [
-      { id: 1, name: 'Ragheey', address: 'Ragheey Area', phone: '99999991', manager: 'Manager 1', status: 'Active' },
-      { id: 2, name: 'Mishrif', address: 'Mishrif Area', phone: '99999992', manager: 'Manager 2', status: 'Active' },
-      { id: 3, name: 'Andalus', address: 'Andalus Area', phone: '99999993', manager: 'Manager 3', status: 'Active' },
-      { id: 4, name: 'Ardiya', address: 'Ardiya Area', phone: '99999994', manager: 'Manager 4', status: 'Active' },
-      { id: 5, name: 'Khaitan', address: 'Khaitan Area', phone: '99999995', manager: 'Manager 5', status: 'Active' },
-      { id: 6, name: 'Qurain', address: 'Qurain Area', phone: '99999996', manager: 'Manager 6', status: 'Active' },
-      { id: 7, name: 'Jahra', address: 'Jahra Area', phone: '99999997', manager: 'Manager 7', status: 'Active' },
-      { id: 8, name: 'Rigai', address: 'Rigai Area', phone: '99999998', manager: 'Manager 8', status: 'Active' },
-    ];
-  });
-
-  React.useEffect(() => {
-    localStorage.setItem('branches_list', JSON.stringify(branches));
-  }, [branches]);
+    return rawCustomers.map(c => {
+      const cId = c.id || c._id;
+      return {
+        ...c,
+        displayId: idMap.get(cId) || 1,
+        totalOrders: orderCountMap[cId] || 0
+      };
+    });
+  }, [rawCustomers, orders]);
+  const [services, setServices] = useState([]);
+  const [staff, setStaff] = useState([]);
+  const [payments, setPayments] = useState([]);
+  const [pickups, setPickups] = useState([]);
+  const [deliveries, setDeliveries] = useState([]);
+  const [drivers, setDrivers] = useState([]);
+  const [branches, setBranches] = useState([]);
+  const [notifications, setNotifications] = useState([]);
+  
+  const [completedJobs, setCompletedJobs] = useState([]);
+  const [roles] = useState(mockRoles);
+  const [catalog, setCatalog] = useState(INITIAL_CATALOG);
 
   const [selectedBranch, setSelectedBranch] = useState(() => {
     try {
@@ -278,499 +118,541 @@ export const AdminStateProvider = ({ children }) => {
       if (storedUser) {
         const parsed = JSON.parse(storedUser);
         if (parsed && parsed.role !== 'Super Admin' && parsed.branchId) {
-          const bId = parseInt(parsed.branchId, 10);
-          if (!isNaN(bId)) return bId;
+          return parsed.branchId;
         }
       }
     } catch (e) {}
 
     const saved = localStorage.getItem('selected_branch');
     if (saved === 'All') return 'All';
-    if (saved !== null) {
-      const parsed = parseInt(saved, 10);
-      return isNaN(parsed) ? 'All' : parsed;
-    }
+    if (saved !== null) return saved;
     return 'All';
   });
 
-  React.useEffect(() => {
+  const [liveUpdateFilter, setLiveUpdateFilter] = useState('All Orders');
+
+  // Trigger branch selection cache changes
+  useEffect(() => {
     localStorage.setItem('selected_branch', selectedBranch);
   }, [selectedBranch]);
 
-  const [liveUpdateFilter, setLiveUpdateFilter] = useState('All Orders');
+  // Synchronous sync loader method
+  const fetchData = async () => {
+    const token = localStorage.getItem('token');
+    if (!token) return;
 
-  const [notifications, setNotifications] = useState(() => {
-    const saved = localStorage.getItem('notifications_list');
-    if (saved) {
-      try {
-        return JSON.parse(saved);
-      } catch (e) {
-        console.error("Failed to parse notifications", e);
-      }
-    }
-    return [
-      { id: 1, title: 'New Order', text: 'New order #1024 placed by Customer A', time: new Date(Date.now() - 5 * 60000).toISOString(), read: false, type: 'order' },
-      { id: 2, title: 'Delivery Update', text: 'Driver Ahmed picked up Order #1021', time: new Date(Date.now() - 30 * 60000).toISOString(), read: false, type: 'delivery' },
-      { id: 3, title: 'Inventory Alert', text: 'Low stock for Premium Detergent', time: new Date(Date.now() - 120 * 60000).toISOString(), read: true, type: 'system' }
-    ];
-  });
-
-  React.useEffect(() => {
-    localStorage.setItem('notifications_list', JSON.stringify(notifications));
-  }, [notifications]);
-
-  const markNotificationRead = (id) => {
-    setNotifications(prev => prev.map(n => n.id === id ? { ...n, read: true } : n));
-  };
-
-  const markAllNotificationsRead = () => {
-    setNotifications(prev => prev.map(n => ({ ...n, read: true })));
-  };
-
-  const clearAllNotifications = () => {
-    setNotifications([]);
-  };
-
-  const addNotification = (notif) => {
-    setNotifications(prev => [{ id: Date.now(), time: new Date().toISOString(), read: false, ...notif }, ...prev]);
-  };
-
-  const [drivers, setDrivers] = useState(() => {
-    const saved = localStorage.getItem('drivers_list');
-    if (saved) {
-      try {
-        const parsed = JSON.parse(saved);
-        // Ensure areas array is present and statuses are mapped to new english keys
-        const migrated = parsed.map((d, idx) => {
-          let updated = { ...d };
-          
-          let rawAreas = updated.areas || (updated.area ? [updated.area] : []);
-          if (typeof rawAreas === 'string') {
-            rawAreas = [rawAreas];
-          }
-          
-          updated.areas = rawAreas
-            .flatMap(a => typeof a === 'string' ? a.split(',').map(s => s.trim()) : a)
-            .filter(a => a && a !== '...' && a !== '…');
-            
-          if (updated.areas.length === 0) {
-            updated.areas = [CUSTOMER_AREAS[idx % CUSTOMER_AREAS.length]];
-          }
-
-          if (updated.status === 'بالتوصيل' || updated.status === 'In Delivery') {
-            updated.status = 'Available';
-          } else if (updated.status === 'موقف' || updated.status === 'Suspended') {
-            updated.status = 'Off Duty';
-          } else if (updated.status === 'بالعمل' || updated.status === 'Working') {
-            updated.status = 'Available';
-          }
-          return updated;
-        });
-        return migrated;
-      } catch (e) {
-        console.error("Failed to parse saved drivers", e);
-      }
-    }
-    // Populate with mock Delivery Staff initially
-    return mockStaff.filter(s => s.role === 'Delivery Staff').map((s, idx) => ({
-      id: s.id,
-      driverNo: `DRV-${100 + idx}`,
-      driverName: s.name,
-      mobile: s.phone || '99999999',
-      tel: '22222222',
-      areas: [CUSTOMER_AREAS[idx % CUSTOMER_AREAS.length]],
-      street: 'Hamad Al-Mubarak St',
-      part: '3',
-      jadda: '1',
-      houseNo: '12',
-      floor: '2',
-      flat: '4',
-      addressNotes: 'Near police station',
-      carNo: `CAR-${1000 + idx}`,
-      civilId: `29402940${1000 + idx}`,
-      nationality: 'Indian',
-      branch: 'Ragheey',
-      status: s.status === 'Active' ? 'Available' : 'Off Duty'
-    }));
-  });
-
-  React.useEffect(() => {
-    localStorage.setItem('drivers_list', JSON.stringify(drivers));
-  }, [drivers]);
-  
-  const [catalog, setCatalog] = useState(() => {
-    const saved = localStorage.getItem('garment_catalog');
-    if (saved) {
-      try {
-        return JSON.parse(saved);
-      } catch (e) {
-        console.error("Failed to parse saved catalog", e);
-      }
-    }
-    return INITIAL_CATALOG;
-  });
-
-  React.useEffect(() => {
-    localStorage.setItem('garment_catalog', JSON.stringify(catalog));
-  }, [catalog]);
-
-  const nextId = (items) =>
-    items.length ? Math.max(...items.map((item) => Number(item.id) || 0)) + 1 : 1;
-
-  const addBranch = (branch) => {
-    const id = branch.id ?? nextId(branches);
-    setBranches([{ ...branch, id }, ...branches]);
-  };
-
-  const addCustomer = (customer) => {
-    const id = customer.id ?? nextId(customers);
-    setCustomers([{ ...customer, id }, ...customers]);
-  };
-
-  const addOrder = (order) => {
-    const id = order.id ?? nextId(orders);
-    const timestamp = new Date();
-    const formattedDate = timestamp.toLocaleDateString('en-US', { year: 'numeric', month: '2-digit', day: '2-digit' });
-    const formattedTime = timestamp.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
-    
-    let userStr = 'System';
+    let hasStaffPermission = false;
     try {
-      const stored = localStorage.getItem('user');
-      if (stored) {
-        const parsed = JSON.parse(stored);
-        if (parsed && parsed.name) {
-          userStr = parsed.name;
+      const userStr = localStorage.getItem('user');
+      if (userStr) {
+        const user = JSON.parse(userStr);
+        if (user.role === 'Super Admin' || user.role === 'Admin') {
+          hasStaffPermission = true;
         }
       }
     } catch (e) {}
 
-    const initialTimeline = order.timeline || [
-      {
-        status: order.status || 'Waiting',
-        date: formattedDate,
-        time: formattedTime,
-        updatedBy: userStr
+    try {
+      const [
+        resCustomers, resOrders, resServices, resStaff,
+        resPayments, resPickups, resDeliveries, resDrivers,
+        resBranches, resNotifications, resCatalog
+      ] = await Promise.all([
+        api.get('/customers').catch(() => ({ data: [] })),
+        api.get('/orders').catch(() => ({ data: [] })),
+        api.get('/services').catch(() => ({ data: [] })),
+        hasStaffPermission
+          ? api.get('/staff').catch(() => ({ data: [] }))
+          : Promise.resolve({ data: [] }),
+        api.get('/payments').catch(() => ({ data: [] })),
+        api.get('/pickups').catch(() => ({ data: [] })),
+        api.get('/deliveries').catch(() => ({ data: [] })),
+        api.get('/drivers').catch(() => ({ data: [] })),
+        api.get('/branches').catch(() => ({ data: [] })),
+        api.get('/notifications').catch(() => ({ data: [] })),
+        api.get('/catalog').catch(() => ({ data: [] }))
+      ]);
+
+      setCustomers(resCustomers.data);
+      setOrders(resOrders.data);
+      setServices(resServices.data);
+      setStaff(resStaff.data);
+      setPayments(resPayments.data);
+      setPickups(resPickups.data);
+      setDeliveries(resDeliveries.data);
+      setDrivers(resDrivers.data);
+      setBranches(resBranches.data);
+      localStorage.setItem('branches_list', JSON.stringify(resBranches.data));
+      setNotifications(resNotifications.data);
+      if (resCatalog && resCatalog.data && resCatalog.data.length > 0) {
+        setCatalog(resCatalog.data);
       }
-    ];
 
-    const orderData = { ...order, id, deliveryStatus: order.deliveryStatus || order.status || 'Waiting', timeline: initialTimeline };
-    setOrders([...orders, orderData]);
+      // Derive completed jobs
+      const compJobs = [
+        ...resPickups.data.filter(p => p.status === 'Completed').map(p => ({
+          id: `p-${p.id}`,
+          type: 'Pickup',
+          jobId: p.pickupId,
+          customer: p.customer,
+          driver: p.assignedStaff,
+          date: p.pickupDate,
+          status: 'Completed',
+          amount: 0.0
+        })),
+        ...resDeliveries.data.filter(d => d.status === 'Delivered').map(d => ({
+          id: `d-${d.id}`,
+          type: 'Delivery',
+          jobId: d.deliveryId,
+          customer: d.customer,
+          driver: d.assignedStaff,
+          date: d.deliveryDate,
+          status: 'Completed',
+          amount: 0.0
+        }))
+      ];
+      setCompletedJobs(compJobs);
 
-    // Create a delivery job automatically for Home Delivery invoices
-    if (order.isHomeDelivery || order.deliveryType === 'Home Delivery') {
-      const customerObj = customers.find((c) => c.id === order.customerId || c.name === order.customerName);
-      
-      let customerAddress = '';
-      if (customerObj) {
-        const addressParts = [
-          customerObj.areaName ? `Area: ${customerObj.areaName}` : '',
-          customerObj.partNo ? `Block: ${customerObj.partNo}` : '',
-          customerObj.street ? `Street: ${customerObj.street}` : '',
-          customerObj.jadda ? `Jadah: ${customerObj.jadda}` : '',
-          customerObj.houseNo ? `House: ${customerObj.houseNo}` : '',
-          customerObj.levelNo ? `F: ${customerObj.levelNo}` : '',
-          customerObj.flatNo ? `Flat: ${customerObj.flatNo}` : '',
-        ].filter(Boolean).join(', ');
-        customerAddress = addressParts || customerObj.address || '';
-      }
-
-      const nextDeliveryId = deliveries.length ? Math.max(...deliveries.map(d => Number(d.id) || 0)) + 1 : 1;
-      const deliveryId = `DEL-${String(nextDeliveryId).padStart(3, '0')}`;
-
-      const newDelivery = {
-        id: nextDeliveryId,
-        deliveryId,
-        customer: order.customerName,
-        deliveryDate: order.deliveryDate || new Date().toISOString().split('T')[0],
-        assignedStaff: '',
-        orderCount: 1,
-        status: 'Scheduled',
-        address: customerAddress,
-        contactNumber: customerObj?.phone || '555-0000',
-        orderNumber: orderData.number,
-        serviceType: order.serviceType || 'Wash & Fold',
-        areaName: customerObj?.areaName || 'Salmiya',
-        partNo: customerObj?.partNo || '',
-        street: customerObj?.street || '',
-        jadda: customerObj?.jadda || '',
-        houseNo: customerObj?.houseNo || '',
-        levelNo: customerObj?.levelNo || '',
-        flatNo: customerObj?.flatNo || '',
-        createdFromInvoice: true,
-      };
-
-      setDeliveries((prev) => [newDelivery, ...prev]);
+    } catch (error) {
+      console.error('Error fetching initial REST database states:', error);
     }
   };
 
-  const addService = (service) => {
-    const id = service.id ?? nextId(services);
-    setServices([...services, { ...service, id }]);
+  // Run fetches on mount and poll for auth credentials shifts
+  useEffect(() => {
+    fetchData();
+    const timer = setInterval(() => {
+      const token = localStorage.getItem('token');
+      if (token && customers.length === 0 && orders.length === 0) {
+        fetchData();
+      }
+    }, 2000);
+    return () => clearInterval(timer);
+  }, [customers.length, orders.length]);
+
+  const addCatalogItem = async (item) => {
+    try {
+      const res = await api.post('/catalog', item);
+      setCatalog(prev => [...prev, res.data]);
+      return res.data;
+    } catch (e) {
+      console.error(e);
+      setCatalog(prev => [...prev, item]);
+      toast.error(e.response?.data?.message || 'Failed to add catalog item (using local fallback)');
+      return item;
+    }
   };
 
-  const addStaff = (member) => {
-    const id = member.id ?? nextId(staff);
-    setStaff([
-      ...staff,
-      {
-        ordersHandled: 0,
-        deliveriesCompleted: 0,
-        paymentsCollected: 0,
-        recentActivity: 'Joined the team',
-        joiningDate: new Date().toISOString().split('T')[0],
+  const updateCatalogItem = async (key, updatedItem) => {
+    try {
+      const res = await api.put(`/catalog/${key}`, updatedItem);
+      setCatalog(prev => prev.map(c => c.key === key ? res.data : c));
+      return res.data;
+    } catch (e) {
+      console.error(e);
+      setCatalog(prev => prev.map(c => c.key === key ? updatedItem : c));
+      toast.error(e.response?.data?.message || 'Failed to update catalog item (using local fallback)');
+      return updatedItem;
+    }
+  };
+
+  const deleteCatalogItem = async (key) => {
+    try {
+      await api.delete(`/catalog/${key}`);
+      setCatalog(prev => prev.filter(c => c.key !== key));
+      return true;
+    } catch (e) {
+      console.error(e);
+      setCatalog(prev => prev.filter(c => c.key !== key));
+      toast.error(e.response?.data?.message || 'Failed to delete catalog item (using local fallback)');
+      return true;
+    }
+  };
+
+  // Operations CRUD mapping directly to backend REST APIs
+  const addBranch = async (branch) => {
+    try {
+      const res = await api.post('/branches', branch);
+      setBranches(prev => [res.data, ...prev]);
+      toast.success('Branch added successfully');
+    } catch (e) {
+      toast.error(e.response?.data?.message || 'Failed to create branch');
+    }
+  };
+
+  const updateBranch = async (id, updatedBranch) => {
+    try {
+      const res = await api.put(`/branches/${id}`, updatedBranch);
+      setBranches(prev => prev.map(b => b.id === id ? res.data : b));
+      toast.success('Branch updated successfully');
+      return true;
+    } catch (e) {
+      toast.error(e.response?.data?.message || 'Failed to update branch');
+      return false;
+    }
+  };
+
+  const deleteBranch = async (id) => {
+    try {
+      await api.delete(`/branches/${id}`);
+      setBranches(prev => prev.filter(b => b.id !== id));
+      toast.success('Branch deleted successfully');
+      return true;
+    } catch (e) {
+      toast.error(e.response?.data?.message || 'Failed to delete branch');
+      return false;
+    }
+  };
+
+  const addCustomer = async (customer) => {
+    try {
+      const res = await api.post('/customers', customer);
+      setCustomers(prev => [res.data, ...prev]);
+      toast.success('Customer registered successfully');
+    } catch (e) {
+      toast.error(e.response?.data?.message || 'Failed to create customer');
+    }
+  };
+
+  const updateCustomer = async (id, updatedCustomer) => {
+    try {
+      const res = await api.put(`/customers/${id}`, updatedCustomer);
+      setCustomers(prev => prev.map(c => (c.id === id || c._id === id) ? res.data : c));
+      toast.success('Customer profile updated successfully');
+      return true;
+    } catch (e) {
+      toast.error(e.response?.data?.message || 'Failed to update customer');
+      return false;
+    }
+  };
+
+  const deleteCustomer = async (id) => {
+    try {
+      await api.delete(`/customers/${id}`);
+      setCustomers(prev => prev.filter(c => c.id !== id && c._id !== id));
+      toast.success('Customer deleted successfully');
+      return true;
+    } catch (e) {
+      toast.error(e.response?.data?.message || 'Failed to delete customer');
+      return false;
+    }
+  };
+
+  const addOrder = async (order) => {
+    try {
+      await api.post('/orders', order);
+      await fetchData(); // Reload states including auto-generated deliveries
+      toast.success('Order invoice created successfully');
+    } catch (e) {
+      toast.error(e.response?.data?.message || 'Failed to submit order');
+    }
+  };
+
+  const addPickup = async (pickup) => {
+    try {
+      const res = await api.post('/pickups', pickup);
+      await fetchData();
+      return res.data;
+    } catch (e) {
+      toast.error(e.response?.data?.message || 'Failed to schedule pickup');
+      return null;
+    }
+  };
+
+  const addDelivery = async (delivery) => {
+    try {
+      const res = await api.post('/deliveries', delivery);
+      await fetchData();
+      return res.data;
+    } catch (e) {
+      toast.error(e.response?.data?.message || 'Failed to schedule delivery');
+      return null;
+    }
+  };
+
+  const addService = async (service) => {
+    try {
+      const res = await api.post('/services', service);
+      setServices(prev => [res.data, ...prev]);
+      toast.success('Service catalog added');
+    } catch (e) {
+      toast.error(e.response?.data?.message || 'Failed to create service');
+    }
+  };
+
+  const updateService = async (id, updatedService) => {
+    try {
+      const res = await api.put(`/services/${id}`, updatedService);
+      setServices(prev => prev.map(s => s.id === id ? res.data : s));
+      toast.success('Service updated successfully');
+      return true;
+    } catch (e) {
+      toast.error(e.response?.data?.message || 'Failed to update service');
+      return false;
+    }
+  };
+
+  const deleteService = async (id) => {
+    try {
+      await api.delete(`/services/${id}`);
+      setServices(prev => prev.filter(s => s.id !== id));
+      toast.success('Service deleted successfully');
+      return true;
+    } catch (e) {
+      toast.error(e.response?.data?.message || 'Failed to delete service');
+      return false;
+    }
+  };
+
+  const deleteOrder = async (id) => {
+    try {
+      await api.delete(`/orders/${id}`);
+      setOrders(prev => prev.filter(o => o.id !== id));
+      toast.success('Invoice deleted successfully');
+      return true;
+    } catch (e) {
+      toast.error(e.response?.data?.message || 'Failed to delete invoice');
+      return false;
+    }
+  };
+
+  const addStaff = async (member) => {
+    try {
+      const res = await api.post('/staff', {
         ...member,
-        id,
-        name: member.name || member.fullName,
-      },
-    ]);
+        roleName: member.role,
+        password: member.password || 'staff123'
+      });
+      setStaff(prev => [res.data, ...prev]);
+      toast.success('Staff profile created successfully');
+    } catch (e) {
+      toast.error(e.response?.data?.message || 'Failed to add staff member');
+    }
   };
 
-  // Update Order Status
-  const updateOrderStatus = (orderId, status, holdComment) => {
-    const timestamp = new Date();
-    const formattedDate = timestamp.toLocaleDateString('en-US', { year: 'numeric', month: '2-digit', day: '2-digit' });
-    const formattedTime = timestamp.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
-    
-    let userStr = 'System';
+  const updateStaff = async (id, updatedMember) => {
     try {
-      const stored = localStorage.getItem('user');
-      if (stored) {
-        const parsed = JSON.parse(stored);
-        if (parsed && parsed.name) {
-          userStr = parsed.name;
-        }
-      }
-    } catch (e) {}
-
-    const newEntry = {
-      status,
-      date: formattedDate,
-      time: formattedTime,
-      updatedBy: userStr,
-      ...(status === 'Hold' && holdComment != null && holdComment !== ''
-        ? { comment: holdComment }
-        : {}),
-    };
-
-    setOrders((prevOrders) =>
-      prevOrders.map((o) => {
-        if (o.id === orderId) {
-          // If status becomes Delivered, also sync delivery status
-          if (status === 'Delivered') {
-            setTimeout(() => {
-              setDeliveries(prevDels => prevDels.map(d => {
-                if (d.orderNumber === o.number && d.status !== 'Delivered') {
-                  return { ...d, status: 'Delivered' };
-                }
-                return d;
-              }));
-            }, 0);
-          }
-          const currentTimeline = o.timeline || [];
-          if (currentTimeline.length > 0 && currentTimeline[currentTimeline.length - 1].status === status) {
-            return {
-              ...o,
-              status,
-              deliveryStatus: status,
-              ...(status === 'Hold' && holdComment != null
-                ? { holdComment }
-                : {}),
-            };
-          }
-          return {
-            ...o,
-            status,
-            deliveryStatus: status,
-            ...(status === 'Hold' && holdComment != null
-              ? { holdComment }
-              : {}),
-            timeline: [...currentTimeline, newEntry],
-          };
-        }
-        return o;
-      })
-    );
+      const res = await api.put(`/staff/${id}`, {
+        ...updatedMember,
+        roleName: updatedMember.role
+      });
+      setStaff(prev => prev.map(s => (s.id === id || s._id === id) ? res.data : s));
+      toast.success('Staff profile updated successfully');
+      return true;
+    } catch (e) {
+      toast.error(e.response?.data?.message || 'Failed to update staff member');
+      return false;
+    }
   };
 
-  const updatePickupStatus = (pickupId, status) => {
-    setPickups(prevPickups => {
-      const target = prevPickups.find(p => p.id === pickupId);
-      if (target && status === 'Completed' && target.assignedStaff) {
-        setDrivers(prevDrivers => prevDrivers.map(d => {
-          if (d.driverName === target.assignedStaff && d.status !== 'Off Duty') {
-            return { ...d, status: 'Available' };
-          }
-          return d;
-        }));
-      }
-
-      // Sync order status
-      if (target && target.orderNumber && (status === 'Completed' || status === 'Picked Up')) {
-        const ord = orders.find(o => o.number === target.orderNumber);
-        if (ord) {
-          setTimeout(() => {
-            updateOrderStatus(ord.id, 'In Store');
-          }, 0);
-        }
-      }
-
-      return prevPickups.map((p) => (p.id === pickupId ? { ...p, status } : p));
-    });
+  const deleteStaff = async (id) => {
+    try {
+      await api.delete(`/staff/${id}`);
+      setStaff(prev => prev.filter(s => s.id !== id && s._id !== id));
+      toast.success('Staff member deleted successfully');
+      return true;
+    } catch (e) {
+      toast.error(e.response?.data?.message || 'Failed to delete staff member');
+      return false;
+    }
   };
 
-  const updateDeliveryStatus = (deliveryId, status) => {
-    setDeliveries(prevDeliveries => {
-      const target = prevDeliveries.find(d => d.id === deliveryId);
-      if (target && (status === 'Delivered' || status === 'Failed') && target.assignedStaff) {
-        setDrivers(prevDrivers => prevDrivers.map(d => {
-          if (d.driverName === target.assignedStaff && d.status !== 'Off Duty') {
-            return { ...d, status: 'Available' };
-          }
-          return d;
-        }));
-      }
-
-      // Sync order status
-      if (target && target.orderNumber) {
-        let orderStatus = '';
-        if (status === 'Delivered') {
-          orderStatus = 'Delivered';
-        } else if (status === 'Out for Delivery') {
-          orderStatus = 'With Driver';
-        } else if (status === 'Failed') {
-          orderStatus = 'Hold';
-        }
-
-        if (orderStatus) {
-          const ord = orders.find(o => o.number === target.orderNumber);
-          if (ord) {
-            setTimeout(() => {
-              updateOrderStatus(ord.id, orderStatus);
-            }, 0);
-          }
-        }
-      }
-
-      return prevDeliveries.map((d) => (d.id === deliveryId ? { ...d, status } : d));
-    });
+  const lockStaff = async (id, isLocked) => {
+    try {
+      const res = await api.put(`/staff/${id}/lock`, { isLocked });
+      setStaff(prev => prev.map(s => (s.id === id || s._id === id) ? res.data : s));
+      toast.success(isLocked ? 'Staff account locked' : 'Staff account unlocked');
+      return true;
+    } catch (e) {
+      toast.error(e.response?.data?.message || 'Failed to update account lock state');
+      return false;
+    }
   };
 
-  const updateDeliveryJob = (updatedDelivery) => {
-    setDeliveries(prevDeliveries => {
-      const oldDelivery = prevDeliveries.find(d => d.id === updatedDelivery.id);
-      if (oldDelivery && oldDelivery.assignedStaff !== updatedDelivery.assignedStaff) {
-        if (oldDelivery.assignedStaff) {
-          releaseDriver(oldDelivery.assignedStaff);
-        }
-        if (updatedDelivery.assignedStaff) {
-          assignDriverToJob(updatedDelivery.assignedStaff, 'delivery');
-        }
-      }
-      
-      if (oldDelivery && oldDelivery.status !== updatedDelivery.status) {
-        let orderStatus = '';
-        if (updatedDelivery.status === 'Delivered') {
-          orderStatus = 'Delivered';
-        } else if (updatedDelivery.status === 'Out for Delivery') {
-          orderStatus = 'With Driver';
-        } else if (updatedDelivery.status === 'Failed') {
-          orderStatus = 'Hold';
-        }
-        
-        if (orderStatus && updatedDelivery.orderNumber) {
-          const ord = orders.find(o => o.number === updatedDelivery.orderNumber);
-          if (ord) {
-            setTimeout(() => {
-              updateOrderStatus(ord.id, orderStatus);
-            }, 0);
-          }
-        }
-      }
-
-      return prevDeliveries.map(d => d.id === updatedDelivery.id ? updatedDelivery : d);
-    });
+  const updateOrderStatus = async (orderId, status, holdComment) => {
+    try {
+      await api.put(`/orders/${orderId}/status`, { status, holdComment });
+      await fetchData(); // Synchronize all order status/delivery transitions
+      toast.success(`Order status updated to: ${status}`);
+    } catch (e) {
+      toast.error(e.response?.data?.message || 'Failed to progress order');
+    }
   };
 
-  const updatePickupJob = (updatedPickup) => {
-    setPickups(prevPickups => {
-      const oldPickup = prevPickups.find(p => p.id === updatedPickup.id);
-      if (oldPickup && oldPickup.assignedStaff !== updatedPickup.assignedStaff) {
-        if (oldPickup.assignedStaff) {
-          releaseDriver(oldPickup.assignedStaff);
+  const updateOrderPaymentStatus = async (orderId, paymentStatus) => {
+    try {
+      await api.put(`/orders/${orderId}/payment-status`, { paymentStatus });
+      await fetchData();
+      toast.success(`Payment status updated to: ${paymentStatus}`);
+    } catch (e) {
+      toast.error(e.response?.data?.message || 'Failed to update payment status');
+    }
+  };
+
+  const updatePickupStatus = async (pickupId, status) => {
+    try {
+      await api.put(`/pickups/${pickupId}/status`, { status });
+      await fetchData();
+      toast.success(`Pickup status progressed: ${status}`);
+    } catch (e) {
+      toast.error(e.response?.data?.message || 'Failed to update pickup status');
+    }
+  };
+
+  const updateDeliveryStatus = async (deliveryId, status) => {
+    try {
+      await api.put(`/deliveries/${deliveryId}/status`, { status });
+      await fetchData();
+      toast.success(`Delivery status progressed: ${status}`);
+    } catch (e) {
+      toast.error(e.response?.data?.message || 'Failed to update delivery status');
+    }
+  };
+
+  const updateDeliveryJob = async (updatedDelivery) => {
+    try {
+      await api.put(`/deliveries/${updatedDelivery.id}/assign`, {
+        assignedStaff: updatedDelivery.assignedStaff
+      });
+      if (updatedDelivery.status && updatedDelivery.status !== 'Scheduled') {
+        await api.put(`/deliveries/${updatedDelivery.id}/status`, {
+          status: updatedDelivery.status
+        });
+      }
+      await fetchData();
+      toast.success('Delivery dispatch assignment updated');
+    } catch (e) {
+      toast.error(e.response?.data?.message || 'Failed to update delivery job');
+    }
+  };
+
+  const updatePickupJob = async (updatedPickup) => {
+    try {
+      await api.put(`/pickups/${updatedPickup.id}/assign`, {
+        assignedStaff: updatedPickup.assignedStaff
+      });
+      if (updatedPickup.status && updatedPickup.status !== 'Scheduled') {
+        await api.put(`/pickups/${updatedPickup.id}/status`, {
+          status: updatedPickup.status
+        });
+      }
+      await fetchData();
+      toast.success('Pickup dispatch assignment updated');
+    } catch (e) {
+      toast.error(e.response?.data?.message || 'Failed to update pickup job');
+    }
+  };
+
+  const addDriver = async (driver) => {
+    try {
+      const res = await api.post('/drivers', driver);
+      setDrivers(prev => [res.data, ...prev]);
+      toast.success('Driver profile added successfully');
+    } catch (e) {
+      toast.error(e.response?.data?.message || 'Failed to register driver');
+    }
+  };
+
+  const updateDriver = async (updatedDriver) => {
+    try {
+      const res = await api.put(`/drivers/${updatedDriver.id}`, updatedDriver);
+      setDrivers(prev => prev.map(d => d.id === updatedDriver.id ? res.data : d));
+      toast.success('Driver profile updated');
+    } catch (e) {
+      toast.error(e.response?.data?.message || 'Failed to update driver');
+    }
+  };
+
+  const deleteDriver = async (id) => {
+    try {
+      await api.delete(`/drivers/${id}`);
+      setDrivers(prev => prev.filter(d => d.id !== id));
+      toast.success('Driver profile deleted');
+    } catch (e) {
+      toast.error(e.response?.data?.message || 'Failed to delete driver');
+    }
+  };
+
+  const assignDriverToJob = async (driverName, jobType) => {
+    try {
+      const driver = drivers.find(d => d.driverName === driverName);
+      if (driver) {
+        const updatedDriver = { ...driver, status: 'Assigned' };
+        await updateDriver(updatedDriver);
+      }
+    } catch (e) {
+      console.error('Error assigning driver to job:', e);
+    }
+  };
+
+  const markNotificationRead = async (id) => {
+    try {
+      await api.put(`/notifications/${id}/read`);
+      setNotifications(prev => prev.map(n => n.id === id ? { ...n, read: true } : n));
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const markAllNotificationsRead = async () => {
+    try {
+      for (const n of notifications) {
+        if (!n.read) {
+          await api.put(`/notifications/${n.id}/read`);
         }
-        if (updatedPickup.assignedStaff) {
-          assignDriverToJob(updatedPickup.assignedStaff, 'pickup');
-        }
       }
-      
-      if (oldPickup && oldPickup.status !== updatedPickup.status) {
-        if (updatedPickup.status === 'Completed' || updatedPickup.status === 'Picked Up') {
-          if (updatedPickup.orderNumber) {
-            const ord = orders.find(o => o.number === updatedPickup.orderNumber);
-            if (ord) {
-              setTimeout(() => {
-                updateOrderStatus(ord.id, 'In Store');
-              }, 0);
-            }
-          }
-        }
+      setNotifications(prev => prev.map(n => ({ ...n, read: true })));
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const clearAllNotifications = async () => {
+    try {
+      for (const n of notifications) {
+        await api.delete(`/notifications/${n.id}`);
       }
-
-      return prevPickups.map(p => p.id === updatedPickup.id ? updatedPickup : p);
-    });
+      setNotifications([]);
+      toast.info('Notifications feed cleared');
+    } catch (e) {
+      console.error(e);
+    }
   };
 
-  const assignDriverToJob = (driverName, jobType) => {
-    if (!driverName) return;
-    setDrivers(prevDrivers => prevDrivers.map(d => {
-      if (d.driverName === driverName && d.status !== 'Off Duty') {
-        const nextStatus = jobType === 'delivery' ? 'On Delivery' : 'Assigned';
-        return { ...d, status: nextStatus };
-      }
-      return d;
-    }));
-  };
-
-  const releaseDriver = (driverName) => {
-    if (!driverName) return;
-    setDrivers(prevDrivers => prevDrivers.map(d => {
-      if (d.driverName === driverName && d.status !== 'Off Duty') {
-        return { ...d, status: 'Available' };
-      }
-      return d;
-    }));
-  };
-
-  const addDriver = (driver) => {
-    const id = driver.id ?? nextId(drivers);
-    setDrivers([...drivers, { ...driver, id }]);
-  };
-
-  const updateDriver = (updatedDriver) => {
-    setDrivers(drivers.map(d => d.id === updatedDriver.id ? updatedDriver : d));
-  };
-
-  const deleteDriver = (id) => {
-    setDrivers(drivers.filter(d => d.id !== id));
+  const addNotification = async (notif) => {
+    // Standard system notifications local logging fallback
+    setNotifications(prev => [
+      { id: String(Date.now()), time: new Date().toISOString(), read: false, ...notif },
+      ...prev
+    ]);
   };
 
   const value = {
     customers,
     addCustomer,
+    updateCustomer,
+    deleteCustomer,
     setCustomers,
 
     orders,
     addOrder,
     updateOrderStatus,
+    updateOrderPaymentStatus,
+    deleteOrder,
     setOrders,
 
     services,
     setServices,
     addService,
+    updateService,
+    deleteService,
 
     staff,
     setStaff,
     addStaff,
+    updateStaff,
+    deleteStaff,
+    lockStaff,
 
     payments,
     setPayments,
@@ -779,11 +661,13 @@ export const AdminStateProvider = ({ children }) => {
     setPickups,
     updatePickupStatus,
     updatePickupJob,
+    addPickup,
 
     deliveries,
     setDeliveries,
     updateDeliveryStatus,
     updateDeliveryJob,
+    addDelivery,
 
     drivers,
     setDrivers,
@@ -791,20 +675,22 @@ export const AdminStateProvider = ({ children }) => {
     updateDriver,
     deleteDriver,
     assignDriverToJob,
-    releaseDriver,
 
     completedJobs,
     setCompletedJobs,
 
     roles,
-    setRoles,
-
     catalog,
     setCatalog,
+    addCatalogItem,
+    updateCatalogItem,
+    deleteCatalogItem,
 
     branches,
     setBranches,
     addBranch,
+    updateBranch,
+    deleteBranch,
 
     selectedBranch,
     setSelectedBranch,

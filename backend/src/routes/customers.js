@@ -1,0 +1,215 @@
+const express = require('express');
+const Customer = require('../models/Customer');
+const { authenticate, requirePermission } = require('../middleware/auth');
+
+const router = express.Router();
+
+const formatCustomer = (customer) => {
+  return {
+    id: customer._id.toString(),
+    name: customer.name,
+    email: customer.email || '',
+    phone: customer.phone,
+    areaName: customer.areaName,
+    partNo: customer.partNo || '',
+    street: customer.street || '',
+    jadda: customer.jadda || '',
+    houseNo: customer.houseNo || '',
+    levelNo: customer.levelNo || '',
+    flatNo: customer.flatNo || '',
+    status: customer.status,
+    totalSpent: customer.totalSpent,
+    loyaltyPoints: customer.loyaltyPoints,
+    branchId: customer.branch ? customer.branch.toString() : '',
+    branch: customer.branch ? customer.branch.toString() : '',
+    customerNo: customer.customerNo || '',
+    arabicName: customer.arabicName || '',
+    englishName: customer.englishName || '',
+    customDiscountRate: customer.customDiscountRate || 0,
+    customerLevel: customer.customerLevel || '',
+    phones: customer.phones || [],
+    paciNo: customer.paciNo || '',
+    addressNotes: customer.addressNotes || '',
+    registrationDate: customer.registrationDate || '',
+    date: customer.date || '',
+    insuranceAmount: customer.insuranceAmount || 0,
+    invoicesCount: customer.invoicesCount || 0,
+    lastInvoiceDate: customer.lastInvoiceDate || '',
+    freeBalance: customer.freeBalance || 0,
+    freeTotal: customer.freeTotal || 0,
+    notes: customer.notes || ''
+  };
+};
+
+// @route   GET /api/customers
+// @desc    Get all customers
+router.get('/', authenticate, requirePermission('manage_customers'), async (req, res) => {
+  try {
+    const { branchId } = req.query;
+    const filter = {};
+    if (req.user.branch) {
+      filter.branch = req.user.branch;
+    } else if (branchId && branchId !== 'All') {
+      filter.branch = branchId;
+    }
+    const customers = await Customer.find(filter).sort({ createdAt: -1 });
+    res.json(customers.map(formatCustomer));
+  } catch (error) {
+    console.error('Get customers error:', error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+});
+
+// @route   POST /api/customers
+// @desc    Create a customer
+router.post('/', authenticate, requirePermission('manage_customers'), async (req, res) => {
+  try {
+    const {
+      name, email, phone, areaName, partNo, street, jadda, houseNo, levelNo, flatNo, status,
+      customerNo, arabicName, englishName, customDiscountRate, customerLevel, phones,
+      paciNo, addressNotes, registrationDate, date, insuranceAmount, invoicesCount,
+      lastInvoiceDate, freeBalance, freeTotal, notes, branchId
+    } = req.body;
+
+    const primaryName = englishName || name || arabicName || 'Unnamed';
+    const primaryPhone = (phones && phones[0]) || phone || '';
+
+    if (!primaryName || !primaryPhone || !areaName) {
+      return res.status(400).json({ message: 'Name, phone, and areaName are required.' });
+    }
+
+    const phoneToFind = primaryPhone;
+    const existingCustomer = await Customer.findOne({
+      $or: [
+        { phone: phoneToFind },
+        { phones: phoneToFind }
+      ]
+    });
+    if (existingCustomer) {
+      return res.status(400).json({ message: 'A customer with this phone number already exists.' });
+    }
+
+    const customer = new Customer({
+      name: primaryName,
+      email,
+      phone: primaryPhone,
+      areaName,
+      partNo,
+      street,
+      jadda,
+      houseNo,
+      levelNo,
+      flatNo,
+      status: status || 'Active',
+      totalSpent: 0.0,
+      loyaltyPoints: 0,
+      branch: req.user.branch || branchId || req.body.branch || null,
+      customerNo,
+      arabicName,
+      englishName: englishName || primaryName,
+      customDiscountRate,
+      customerLevel,
+      phones: phones || [primaryPhone],
+      paciNo,
+      addressNotes,
+      registrationDate,
+      date,
+      insuranceAmount,
+      invoicesCount,
+      lastInvoiceDate,
+      freeBalance,
+      freeTotal,
+      notes
+    });
+
+    await customer.save();
+    res.status(201).json(formatCustomer(customer));
+  } catch (error) {
+    console.error('Create customer error:', error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+});
+
+// @route   PUT /api/customers/:id
+// @desc    Update a customer
+router.put('/:id', authenticate, requirePermission('manage_customers'), async (req, res) => {
+  try {
+    const {
+      name, email, phone, areaName, partNo, street, jadda, houseNo, levelNo, flatNo, status,
+      totalSpent, loyaltyPoints, customerNo, arabicName, englishName, customDiscountRate,
+      customerLevel, phones, paciNo, addressNotes, registrationDate, date, insuranceAmount,
+      invoicesCount, lastInvoiceDate, freeBalance, freeTotal, notes, branchId
+    } = req.body;
+
+    const customer = await Customer.findById(req.params.id);
+    if (!customer) {
+      return res.status(404).json({ message: 'Customer not found.' });
+    }
+
+    const primaryName = englishName || name || arabicName;
+    const primaryPhone = (phones && phones[0]) || phone;
+
+    if (primaryName) {
+      customer.name = primaryName;
+      customer.englishName = englishName || primaryName;
+    }
+    if (email !== undefined) customer.email = email;
+    if (primaryPhone) customer.phone = primaryPhone;
+    if (areaName) customer.areaName = areaName;
+    if (partNo !== undefined) customer.partNo = partNo;
+    if (street !== undefined) customer.street = street;
+    if (jadda !== undefined) customer.jadda = jadda;
+    if (houseNo !== undefined) customer.houseNo = houseNo;
+    if (levelNo !== undefined) customer.levelNo = levelNo;
+    if (flatNo !== undefined) customer.flatNo = flatNo;
+    if (status) customer.status = status;
+    if (totalSpent !== undefined) customer.totalSpent = totalSpent;
+    if (loyaltyPoints !== undefined) customer.loyaltyPoints = loyaltyPoints;
+    
+    if (customerNo !== undefined) customer.customerNo = customerNo;
+    if (arabicName !== undefined) customer.arabicName = arabicName;
+    if (customDiscountRate !== undefined) customer.customDiscountRate = customDiscountRate;
+    if (customerLevel !== undefined) customer.customerLevel = customerLevel;
+    if (phones !== undefined) customer.phones = phones;
+    if (paciNo !== undefined) customer.paciNo = paciNo;
+    if (addressNotes !== undefined) customer.addressNotes = addressNotes;
+    if (registrationDate !== undefined) customer.registrationDate = registrationDate;
+    if (date !== undefined) customer.date = date;
+    if (insuranceAmount !== undefined) customer.insuranceAmount = insuranceAmount;
+    if (invoicesCount !== undefined) customer.invoicesCount = invoicesCount;
+    if (lastInvoiceDate !== undefined) customer.lastInvoiceDate = lastInvoiceDate;
+    if (freeBalance !== undefined) customer.freeBalance = freeBalance;
+    if (freeTotal !== undefined) customer.freeTotal = freeTotal;
+    if (notes !== undefined) customer.notes = notes;
+    
+    if (branchId !== undefined) {
+      customer.branch = branchId;
+    } else if (req.body.branch !== undefined) {
+      customer.branch = req.body.branch;
+    }
+
+    await customer.save();
+    res.json(formatCustomer(customer));
+  } catch (error) {
+    console.error('Update customer error:', error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+});
+
+// @route   DELETE /api/customers/:id
+// @desc    Delete a customer
+router.delete('/:id', authenticate, requirePermission('manage_customers'), async (req, res) => {
+  try {
+    const customer = await Customer.findById(req.params.id);
+    if (!customer) {
+      return res.status(404).json({ message: 'Customer not found.' });
+    }
+    await Customer.deleteOne({ _id: customer._id });
+    res.json({ message: 'Customer deleted successfully.' });
+  } catch (error) {
+    console.error('Delete customer error:', error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+});
+
+module.exports = router;

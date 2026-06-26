@@ -1,4 +1,6 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
+import api from '../utils/api';
+import { toast } from 'react-toastify';
 
 const STORAGE_KEY = 'spinclean-settings';
 
@@ -40,60 +42,102 @@ const DEFAULT_SETTINGS = {
 const SettingsContext = createContext();
 
 export const SettingsProvider = ({ children }) => {
-  const [settings, setSettings] = useState(() => {
+  const [settings, setSettings] = useState(DEFAULT_SETTINGS);
+
+  // Fetch settings from database on mount
+  const loadSettings = async () => {
+    const token = localStorage.getItem('token');
+    if (!token) return;
+
     try {
-      const stored = localStorage.getItem(STORAGE_KEY);
-      if (stored) {
-        const parsed = JSON.parse(stored);
-        if (parsed.system) {
-          if (parsed.system.currency !== 'KWD') {
-            parsed.system.currency = 'KWD';
-          }
-          if (parsed.system.timezone !== 'Asia/Kuwait') {
-            parsed.system.timezone = 'Asia/Kuwait';
-          }
-        }
-        return { ...DEFAULT_SETTINGS, ...parsed };
+      const res = await api.get('/settings');
+      if (res.data) {
+        setSettings(res.data);
       }
-    } catch {
-      /* use defaults */
+    } catch (e) {
+      console.error('Failed to load store settings from API:', e);
     }
-    return DEFAULT_SETTINGS;
-  });
+  };
 
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
-  }, [settings]);
+    loadSettings();
+    const interval = setInterval(() => {
+      const token = localStorage.getItem('token');
+      if (token && settings.business.businessName === 'Tuhama PRO' && settings.system.currency === 'KWD') {
+        loadSettings();
+      }
+    }, 3000);
+    return () => clearInterval(interval);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
-  const updateSection = (section, data) => {
-    setSettings((prev) => {
-      const next = {
-        ...prev,
-        [section]: { ...prev[section], ...data },
-      };
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
-      return next;
-    });
+  const updateSection = async (section, data) => {
+    const updatedSection = { ...settings[section], ...data };
+    const nextSettings = {
+      ...settings,
+      [section]: updatedSection,
+    };
+
+    setSettings(nextSettings);
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(nextSettings));
+
+    try {
+      await api.put('/settings', nextSettings);
+      toast.success('Settings updated successfully');
+    } catch (e) {
+      toast.error('Failed to save settings to server');
+    }
   };
 
-  const resetSection = (section) => {
-    setSettings((prev) => {
-      const next = {
-        ...prev,
-        [section]: { ...DEFAULT_SETTINGS[section] },
-      };
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
-      return next;
-    });
+  const resetSection = async (section) => {
+    const nextSettings = {
+      ...settings,
+      [section]: { ...DEFAULT_SETTINGS[section] },
+    };
+
+    setSettings(nextSettings);
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(nextSettings));
+
+    try {
+      await api.put('/settings', nextSettings);
+      toast.success('Section settings reset');
+    } catch (e) {
+      toast.error('Failed to reset settings on server');
+    }
   };
 
-  const resetAll = () => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(DEFAULT_SETTINGS));
+  const resetAll = async () => {
     setSettings(DEFAULT_SETTINGS);
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(DEFAULT_SETTINGS));
+
+    try {
+      await api.put('/settings', DEFAULT_SETTINGS);
+      toast.success('All settings reset to defaults');
+    } catch (e) {
+      toast.error('Failed to reset store settings');
+    }
+  };
+
+  const changePassword = async (currentPassword, newPassword) => {
+    try {
+      await api.post('/auth/change-password', { currentPassword, newPassword });
+      toast.success('Password changed successfully');
+      return true;
+    } catch (e) {
+      toast.error(e.response?.data?.message || 'Failed to change password');
+      return false;
+    }
+  };
+
+  const logout = () => {
+    localStorage.removeItem('user');
+    localStorage.removeItem('token');
+    localStorage.removeItem('refreshToken');
+    toast.success('Logged out successfully');
   };
 
   return (
-    <SettingsContext.Provider value={{ settings, updateSection, resetSection, resetAll }}>
+    <SettingsContext.Provider value={{ settings, updateSection, resetSection, resetAll, changePassword, logout }}>
       {children}
     </SettingsContext.Provider>
   );

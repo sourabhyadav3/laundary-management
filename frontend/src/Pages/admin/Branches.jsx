@@ -5,18 +5,24 @@ import { AdminStateContext } from '../../context/AdminStateContext';
 import { toast } from 'react-toastify';
 
 const Branches = () => {
-  const { branches, setBranches } = useContext(AdminStateContext);
+  const { branches, deleteBranch } = useContext(AdminStateContext);
   const [searchTerm, setSearchTerm] = useState('');
 
   const handleDelete = (id) => {
     if (window.confirm('Are you sure you want to delete this branch?')) {
-      setBranches(branches.filter(b => b.id !== id));
-      toast.success('Branch deleted successfully');
+      deleteBranch(id);
     }
   };
 
   const filteredBranches = [...branches]
-    .sort((a, b) => Number(b.id) - Number(a.id))
+    .sort((a, b) => {
+      const numA = Number(a.id);
+      const numB = Number(b.id);
+      if (!isNaN(numA) && !isNaN(numB)) {
+        return numB - numA;
+      }
+      return a.name.localeCompare(b.name);
+    })
     .filter(b => 
       b.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       b.address.toLowerCase().includes(searchTerm.toLowerCase())

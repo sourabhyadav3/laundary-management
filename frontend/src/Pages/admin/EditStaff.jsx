@@ -7,9 +7,9 @@ import { toast } from 'react-toastify';
 const EditStaff = () => {
   const navigate = useNavigate();
   const { id } = useParams();
-  const { staff, branches, setStaff } = useContext(AdminStateContext);
+  const { staff, branches, updateStaff } = useContext(AdminStateContext);
 
-  const staffMember = staff.find((s) => s.id === parseInt(id));
+  const staffMember = staff.find((s) => String(s.id || s._id || '') === String(id));
 
   const [formData, setFormData] = useState({
     fullName: staffMember?.name || '',
@@ -74,19 +74,20 @@ const EditStaff = () => {
   const handleSubmit = (e) => {
     e.preventDefault();
     if (validateForm()) {
-      const updatedStaff = staff.map(s => s.id === parseInt(id) ? { 
-        ...s, 
-        name: formData.fullName, 
-        email: formData.email, 
-        phone: formData.phone, 
-        address: formData.address, 
-        role: formData.role, 
-        status: formData.status, 
-        assignedBranch: formData.assignedBranch 
-      } : s);
-      setStaff(updatedStaff);
-      toast.success(`${formData.fullName}'s information has been updated`);
-      navigate(`/admin/staff/${staffMember.id}`);
+      const updatedFields = {
+        name: formData.fullName,
+        email: formData.email,
+        phone: formData.phone,
+        address: formData.address,
+        role: formData.role,
+        status: formData.status,
+        branchId: formData.assignedBranch
+      };
+      updateStaff(staffMember.id || staffMember._id, updatedFields).then((success) => {
+        if (success) {
+          navigate(`/admin/staff/${staffMember.id || staffMember._id}`);
+        }
+      });
     }
   };
 
@@ -224,9 +225,12 @@ const EditStaff = () => {
                   }`}
                 >
                   <option value="">Select Branch</option>
-                  {branches?.map?.(b => (
-                    <option key={b.id} value={b.id}>{b.name}</option>
-                  ))}
+                  {branches?.map?.(b => {
+                    const bId = b.id || b._id;
+                    return (
+                      <option key={bId} value={bId}>{b.name}</option>
+                    );
+                  })}
                 </select>
                 {errors.assignedBranch && <p className="mt-1 text-xs text-rose-600">{errors.assignedBranch}</p>}
               </div>

@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, Link, useLocation } from 'react-router-dom';
-import { mockOrders } from '../../data/mockData';
 import { formatCurrency, getDisplayTotal, getReceiptUrl, findReceiptOrder, decodeReceiptData } from '../../utils/exportUtils';
 import { translations } from '../../context/translations';
 
@@ -19,17 +18,61 @@ const translateService = (service) => {
 
 const translateBranch = (branchIdOrName) => {
   if (!branchIdOrName) return { en: 'Main Branch', ar: 'الفرع الرئيسي' };
-  const name = String(branchIdOrName).toLowerCase();
-  if (name.includes('ragheey') || name === '1') return { en: 'Ragheey', ar: 'الرقعي' };
-  if (name.includes('mishrif') || name === '2') return { en: 'Mishrif', ar: 'مشرف' };
-  if (name.includes('andalus') || name === '3') return { en: 'Andalus', ar: 'الأندلس' };
+  const rawId = String(branchIdOrName).trim();
+  const name = rawId.toLowerCase();
+
+  // 1. Try to find in localStorage cached branches
+  try {
+    const cached = localStorage.getItem('branches_list');
+    if (cached) {
+      const list = JSON.parse(cached);
+      if (Array.isArray(list)) {
+        const found = list.find(b => 
+          String(b.id || b._id || '').toLowerCase() === name ||
+          String(b.name || '').toLowerCase() === name
+        );
+        if (found) {
+          const nameLower = String(found.name).toLowerCase();
+          if (nameLower.includes('ragheey') || nameLower.includes('rigai')) {
+            return { en: found.name, ar: 'الرقعي' };
+          }
+          if (nameLower.includes('mishrif')) {
+            return { en: found.name, ar: 'مشرف' };
+          }
+          if (nameLower.includes('andalus')) {
+            return { en: found.name, ar: 'الأندلس' };
+          }
+          if (nameLower.includes('ardiya')) {
+            return { en: found.name, ar: 'العارضية' };
+          }
+          if (nameLower.includes('khaitan')) {
+            return { en: found.name, ar: 'خيطان' };
+          }
+          if (nameLower.includes('qurain')) {
+            return { en: found.name, ar: 'القرين' };
+          }
+          if (nameLower.includes('jahra')) {
+            return { en: found.name, ar: 'الجهراء' };
+          }
+          return { en: found.name, ar: found.name };
+        }
+      }
+    }
+  } catch (e) {
+    console.error('Error looking up branch from localStorage:', e);
+  }
+
+  // 2. Direct database seeded ObjectId mapping or code mapping
+  if (name === '6a3cf82764fc882a198272c5' || name.includes('ragheey') || name === '1') return { en: 'Ragheey', ar: 'الرقعي' };
+  if (name === '6a3cf82764fc882a198272c6' || name.includes('mishrif') || name === '2') return { en: 'Mishrif', ar: 'مشرف' };
+  if (name === '6a3cf82764fc882a198272c7' || name.includes('andalus') || name === '3') return { en: 'Andalus', ar: 'الأندلس' };
   if (name.includes('ardiya') || name === '4') return { en: 'Ardiya', ar: 'العارضية' };
   if (name.includes('khaitan') || name === '5') return { en: 'Khaitan', ar: 'خيطان' };
   if (name.includes('qurain') || name === '6') return { en: 'Qurain', ar: 'القرين' };
   if (name.includes('jahra') || name === '7') return { en: 'Jahra', ar: 'الجهراء' };
-  if (name.includes('rigai') || name === '8') return { en: 'Rigai', ar: 'الرقعي' };
-  
-  const capitalized = String(branchIdOrName).charAt(0).toUpperCase() + String(branchIdOrName).slice(1);
+  if (name === '6a3d01028b85970b21c6dc45' || name.includes('rigai') || name === '8') return { en: 'Rigai', ar: 'الرقعي' };
+
+  const capitalized = rawId.charAt(0).toUpperCase() + rawId.slice(1);
   return { en: capitalized, ar: capitalized };
 };
 
@@ -75,8 +118,8 @@ const PublicReceipt = () => {
       setLoading(false);
       return;
     }
-    // 2. Fall back to localStorage snapshots / orders_list / mockOrders
-    const foundOrder = findReceiptOrder(id, mockOrders);
+    // 2. Fall back to localStorage snapshots / orders_list
+    const foundOrder = findReceiptOrder(id, []);
     setOrder(foundOrder);
     setLoading(false);
   }, [id, location.search, location.hash]);

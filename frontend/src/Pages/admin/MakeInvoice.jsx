@@ -56,7 +56,7 @@ const CARD_COLORS_DARK = [
 ];
 
 const MakeInvoice = () => {
-    const { customers, orders, addOrder, setCustomers, catalog, setCatalog, selectedBranch, payments, setPayments, services } = useContext(AdminStateContext);
+    const { customers, orders, addOrder, setCustomers, catalog, setCatalog, selectedBranch, payments, setPayments, services, addCatalogItem, updateCatalogItem, deleteCatalogItem } = useContext(AdminStateContext);
     const navigate = useNavigate();
     const { language, t, tr } = useLanguage();
     const { theme } = useTheme();
@@ -150,15 +150,16 @@ const MakeInvoice = () => {
     const [showEditCatalogModal, setShowEditCatalogModal] = useState(false);
     const [editCatalogForm, setEditCatalogForm] = useState({ idx: null, ...EMPTY_CATALOG_FORM });
 
-    const removeCatalogItem = (idx) => {
+    const removeCatalogItem = async (idx) => {
         const item = catalog[idx];
-        setCatalog(prev => {
-            const newList = prev.filter((_, i) => i !== idx);
-            if (newList.length === 0) {
-                setRemoveCatalogMode(false);
-            }
-            return newList;
-        });
+        if (deleteCatalogItem) {
+            await deleteCatalogItem(item.key);
+        } else {
+            setCatalog(prev => prev.filter((_, i) => i !== idx));
+        }
+        if (catalog.length <= 1) {
+            setRemoveCatalogMode(false);
+        }
         toast.success(`"${item.name}" removed from catalog`);
     };
 
@@ -195,7 +196,7 @@ const MakeInvoice = () => {
         return '👕'; // default
     };
 
-    const handleAddCatalogSubmit = () => {
+    const handleAddCatalogSubmit = async () => {
         if (!newCatalogForm.name.trim()) {
             toast.error(t('counter.makeInvoice.garmentNameRequired') || 'Garment name is required');
             return;
@@ -224,13 +225,17 @@ const MakeInvoice = () => {
             hasSizes: newCatalogForm.hasSizes,
             sizes: newCatalogForm.hasSizes ? newCatalogForm.sizes : []
         };
-        setCatalog(prev => [...prev, newItem]);
+        if (addCatalogItem) {
+            await addCatalogItem(newItem);
+        } else {
+            setCatalog(prev => [...prev, newItem]);
+        }
         setNewCatalogForm({ ...EMPTY_CATALOG_FORM });
         setShowAddCatalogModal(false);
         toast.success(language === 'ar' ? `تمت إضافة "${getGarmentDisplayName(newItem)}" إلى الكتالوج` : `"${rawName}" added to catalog`);
     };
 
-    const handleEditCatalogSubmit = () => {
+    const handleEditCatalogSubmit = async () => {
         if (!editCatalogForm.name.trim()) {
             toast.error(t('counter.makeInvoice.garmentNameRequired') || 'Garment name is required');
             return;
@@ -244,30 +249,33 @@ const MakeInvoice = () => {
             return;
         }
 
-        setCatalog(prev => {
-            const newCatalog = [...prev];
-            const originalItem = newCatalog[editCatalogForm.idx];
-            const defaultItem = GARMENT_CATALOG.find(d => d.key === originalItem.key);
-            const isNameEdited = defaultItem ? (rawName !== defaultItem.name) : true;
-            const nameAr = dictAr || (language === 'ar' ? rawName : originalItem.nameAr || dictAr || '');
-            const primaryPrice = editCatalogForm.hasSizes
-                ? Number(editCatalogForm.price) || Number(originalItem.price) || 0
-                : getPrimaryCatalogPrice(editCatalogForm.prices);
-            newCatalog[editCatalogForm.idx] = {
-                ...originalItem,
-                name: rawName,
-                nameAr: nameAr || dictAr || rawName,
-                icon: editCatalogForm.icon,
-                price: primaryPrice,
-                prices: editCatalogForm.hasSizes ? originalItem.prices : prices,
-                isNameEdited: isNameEdited,
-                color: editCatalogForm.color || '#3b82f6',
-                image: editCatalogForm.image || null,
-                hasSizes: editCatalogForm.hasSizes,
-                sizes: editCatalogForm.hasSizes ? editCatalogForm.sizes : []
-            };
-            return newCatalog;
-        });
+        const originalItem = catalog[editCatalogForm.idx];
+        const defaultItem = GARMENT_CATALOG.find(d => d.key === originalItem.key);
+        const isNameEdited = defaultItem ? (rawName !== defaultItem.name) : true;
+        const nameAr = dictAr || (language === 'ar' ? rawName : originalItem.nameAr || dictAr || '');
+        const primaryPrice = editCatalogForm.hasSizes
+            ? Number(editCatalogForm.price) || Number(originalItem.price) || 0
+            : getPrimaryCatalogPrice(editCatalogForm.prices);
+
+        const updatedItem = {
+            ...originalItem,
+            name: rawName,
+            nameAr: nameAr || dictAr || rawName,
+            icon: editCatalogForm.icon,
+            price: primaryPrice,
+            prices: editCatalogForm.hasSizes ? originalItem.prices : prices,
+            isNameEdited: isNameEdited,
+            color: editCatalogForm.color || '#3b82f6',
+            image: editCatalogForm.image || null,
+            hasSizes: editCatalogForm.hasSizes,
+            sizes: editCatalogForm.hasSizes ? editCatalogForm.sizes : []
+        };
+
+        if (updateCatalogItem) {
+            await updateCatalogItem(originalItem.key, updatedItem);
+        } else {
+            setCatalog(prev => prev.map(c => c.key === originalItem.key ? updatedItem : c));
+        }
         toast.success(language === 'ar' ? 'تم التحديث بنجاح' : `"${rawName}" updated successfully`);
         setShowEditCatalogModal(false);
     };
@@ -1506,8 +1514,16 @@ const MakeInvoice = () => {
                 <div className="flex items-center gap-2">
                     <button
                         type="button"
-                        onClick={() => setForm((prev) => ({ ...prev, deliveryMode: 'branch' }))}
-                        className={`text-[11px] font-black px-4 py-2 rounded-xl transition-all cursor-pointer whitespace-nowrap border ${
+                        onClick={() => {
+                            if (orderItems.length > 0) {
+                                toast.warning(language === 'ar' ? 'لا يمكن تغيير نوع التوصيل بعد إضافة عناصر إلى الفاتورة. يرجى مسح العناصر أولاً.' : 'Cannot change delivery type after items are added to invoice. Please clear items first.');
+                                return;
+                            }
+                            setForm((prev) => ({ ...prev, deliveryMode: 'branch' }));
+                        }}
+                        className={`text-[11px] font-black px-4 py-2 rounded-xl transition-all whitespace-nowrap border ${
+                            orderItems.length > 0 ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer'
+                        } ${
                             form.deliveryMode !== 'home'
                                 ? 'bg-blue-600 border-blue-700 text-white shadow-sm'
                                 : 'bg-white border-slate-300 text-black hover:bg-blue-50 hover:border-blue-300 dark:bg-slate-100 dark:border-slate-300 dark:text-black dark:hover:bg-blue-100'
@@ -1517,8 +1533,16 @@ const MakeInvoice = () => {
                     </button>
                     <button
                         type="button"
-                        onClick={() => setForm((prev) => ({ ...prev, deliveryMode: 'home' }))}
-                        className={`text-[11px] font-black px-4 py-2 rounded-xl transition-all cursor-pointer whitespace-nowrap border ${
+                        onClick={() => {
+                            if (orderItems.length > 0) {
+                                toast.warning(language === 'ar' ? 'لا يمكن تغيير نوع التوصيل بعد إضافة عناصر إلى الفاتورة. يرجى مسح العناصر أولاً.' : 'Cannot change delivery type after items are added to invoice. Please clear items first.');
+                                return;
+                            }
+                            setForm((prev) => ({ ...prev, deliveryMode: 'home' }));
+                        }}
+                        className={`text-[11px] font-black px-4 py-2 rounded-xl transition-all whitespace-nowrap border ${
+                            orderItems.length > 0 ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer'
+                        } ${
                             form.deliveryMode === 'home'
                                 ? 'bg-emerald-600 border-emerald-700 text-white shadow-sm'
                                 : 'bg-white border-slate-300 text-black hover:bg-emerald-50 hover:border-emerald-300 dark:bg-slate-100 dark:border-slate-300 dark:text-black dark:hover:bg-emerald-100'

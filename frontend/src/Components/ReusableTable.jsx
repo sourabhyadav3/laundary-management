@@ -9,9 +9,9 @@ const ReusableTable = ({ columns, data, getRowStyle, getRowClassName }) => {
       <table className="min-w-full">
         <thead className="bg-surface-alt">
           <tr>
-            {columns.map((col) => (
+            {columns.map((col, colIdx) => (
               <th
-                key={col.accessor}
+                key={col.accessor ? `${col.accessor}-${colIdx}` : colIdx}
                 className="px-5 py-4 text-left text-xs font-semibold uppercase tracking-[0.3em] text-muted"
               >
                 {tr(col.header)}
@@ -40,7 +40,7 @@ const ReusableTable = ({ columns, data, getRowStyle, getRowClassName }) => {
                     tdStyle.paddingLeft = '16px'; // adjust spacing for accent line
                   }
                   return (
-                    <td key={col.accessor} className="px-5 py-4 text-sm text-primary" style={tdStyle}>
+                    <td key={col.accessor ? `${col.accessor}-${colIdx}` : colIdx} className="px-5 py-4 text-sm text-primary" style={tdStyle}>
                       {value}
                     </td>
                   );

@@ -22,7 +22,7 @@ const emptyOrderForm = {
 };
 
 const Orders = () => {
-  const { orders, customers, services, addOrder, setCustomers, catalog, updateOrderStatus, setOrders, selectedBranch, branches, liveUpdateFilter } = useContext(AdminStateContext);
+  const { orders, customers, services, addOrder, setCustomers, catalog, updateOrderStatus, deleteOrder, setOrders, selectedBranch, branches, liveUpdateFilter } = useContext(AdminStateContext);
   const [searchTerm, setSearchTerm] = useState('');
   const storedUser = JSON.parse(localStorage.getItem('user') || '{}');
   
@@ -62,7 +62,12 @@ const Orders = () => {
 
         return matchesBranch && matchesSearch && matchesStatus && matchesPayment && matchesLiveUpdate;
       })
-      .sort((a, b) => Number(b.id) - Number(a.id));
+      .sort((a, b) => {
+        const numA = Number(a.id);
+        const numB = Number(b.id);
+        if (!isNaN(numA) && !isNaN(numB)) return numB - numA;
+        return String(b.id || '').localeCompare(String(a.id || ''), undefined, { numeric: true, sensitivity: 'base' });
+      });
   }, [orders, searchTerm, statusFilter, paymentFilter, selectedBranch, liveUpdateFilter]);
 
   const handleViewOrder = (order) => {
@@ -161,8 +166,7 @@ const Orders = () => {
 
   const handleDeleteOrder = (orderId) => {
     if (window.confirm('Are you sure you want to delete this order?')) {
-      setOrders(orders.filter((o) => o.id !== orderId));
-      toast.success('Order deleted successfully');
+      deleteOrder(orderId);
     }
   };
 

@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import { FiMail, FiLock, FiEye, FiEyeOff, FiLoader, FiAlertCircle, FiCheck, FiArrowRight, FiMapPin } from 'react-icons/fi';
-import { mockStaff } from '../data/mockData';
+import api from '../utils/api';
 
 const defaultBranches = [
   { id: 1, name: 'Ragheey' },
@@ -18,14 +18,6 @@ const defaultBranches = [
 const LoginForm = () => {
   const navigate = useNavigate();
 
-  // State variables
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
-  const [rememberMe, setRememberMe] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
-  const [selectedBranchId, setSelectedBranchId] = useState(1);
-
   // Load branches
   const savedBranchesStr = localStorage.getItem('branches_list');
   let branchesList = defaultBranches;
@@ -35,15 +27,28 @@ const LoginForm = () => {
     } catch (e) {}
   }
 
+  // State variables
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [rememberMe, setRememberMe] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [selectedBranchId, setSelectedBranchId] = useState(() => {
+    if (branchesList && branchesList.length > 0) {
+      return branchesList[0].id || branchesList[0]._id || '';
+    }
+    return 1;
+  });
+
   // Validation errors
   const [errors, setErrors] = useState({});
 
   // Helper autofills for testing
   const testingAccounts = [
-    { label: 'Super Admin', email: 'superadmin@tuhama.com', pass: 'superadmin123' },
-    { label: 'Admin', email: 'admin@tuhama.com', pass: 'admin123' },
-    { label: 'Counter Staff', email: 'counter@tuhama.com', pass: 'counter123' },
-    { label: 'Delivery Staff', email: 'delivery@tuhama.com', pass: 'delivery123' }
+    { label: 'Super Admin', email: 'superadmin@tuhama.com', pass: 'admin123' },
+    { label: 'Admin', email: 'dana@tuhama.com', pass: 'admin123' },
+    { label: 'Counter Staff', email: 'evan@tuhama.com', pass: 'staff123' },
+    { label: 'Delivery Staff', email: 'frank@tuhama.com', pass: 'rider123' }
   ];
 
   const handleAutofill = (acc) => {
@@ -93,153 +98,51 @@ const LoginForm = () => {
 
     setIsLoading(true);
 
-    // Simulate standard network delay (1.5 seconds) for premium feel
-    setTimeout(() => {
+    api.post('/auth/login', {
+      email,
+      password,
+      branchId: selectedBranchId
+    })
+    .then((response) => {
       setIsLoading(false);
+      const { token, refreshToken, user } = response.data;
 
-      const emailLower = email.toLowerCase().trim();
-
-      // Load staff list
-      const savedStaffStr = localStorage.getItem('staff_list');
-      let staffList = mockStaff;
-      if (savedStaffStr) {
-        try {
-          staffList = JSON.parse(savedStaffStr);
-        } catch (e) {}
+      // Save credentials to localStorage
+      localStorage.setItem('token', token);
+      localStorage.setItem('refreshToken', refreshToken);
+      localStorage.setItem('user', JSON.stringify(user));
+      if (user.role === 'Super Admin') {
+        localStorage.setItem('selected_branch', selectedBranchId);
+      } else {
+        localStorage.setItem('selected_branch', user.branchId);
       }
 
-      // Check if there is a match in staffList by email or resolve test accounts
-      let targetEmail = emailLower;
-      if (emailLower === 'admin@tuhama.com') {
-        targetEmail = 'dana@tuhama.com';
-      } else if (emailLower === 'counter@tuhama.com') {
-        targetEmail = 'evan@tuhama.com';
-      } else if (emailLower === 'delivery@tuhama.com') {
-        targetEmail = 'frank@tuhama.com';
-      }
+      toast.success(`Welcome back, ${user.name}!`, {
+        position: "top-right",
+        theme: "dark"
+      });
 
-      const staffRecord = staffList.find(s => s.email && s.email.toLowerCase().trim() === targetEmail);
-
-      // Enforce lock verification
-      if (staffRecord && staffRecord.isLocked) {
-        toast.error("Access denied. Your account is locked. Please contact the Super Admin.", {
-          position: 'top-right',
-          theme: 'dark',
-          autoClose: 5000
-        });
-        return;
-      }
-
-      const chosenBranch = branchesList.find(b => b.id === Number(selectedBranchId)) || { id: 1, name: 'Ragheey' };
-      localStorage.setItem('selected_branch', chosenBranch.id);
-
-      if (emailLower === 'superadmin@tuhama.com' || emailLower.includes('superadmin')) {
-        localStorage.setItem(
-          'user',
-          JSON.stringify({ name: 'Super Admin', role: 'Super Admin', email: emailLower, branchId: chosenBranch.id, branch: chosenBranch.name })
-        );
-        toast.success('Welcome back, Super Admin!', {
-          position: "top-right",
-          theme: "dark"
-        });
+      // Role based routing redirection
+      if (user.role === 'Super Admin') {
         navigate('/superadmin/dashboard');
-      } else if (emailLower === 'admin@tuhama.com' || (staffRecord && staffRecord.role === 'Admin')) {
-        const record = staffRecord || staffList.find(s => s.role === 'Admin' && s.email === 'dana@tuhama.com');
-
-        localStorage.setItem(
-          'user',
-          JSON.stringify({ 
-            name: record?.name || 'Dana Lee', 
-            role: 'Admin', 
-            email: emailLower, 
-            branchId: chosenBranch.id, 
-            branch: chosenBranch.name
-          })
-        );
-        toast.success('Welcome back, System Administrator!', {
-          position: "top-right",
-          theme: "dark"
-        });
+      } else if (user.role === 'Admin') {
         navigate('/admin/dashboard');
-      } else if (emailLower === 'counter@tuhama.com' || (staffRecord && staffRecord.role === 'Counter Staff')) {
-        const record = staffRecord || { name: 'Evan Wu' };
-        localStorage.setItem(
-          'user',
-          JSON.stringify({ 
-            name: record.name, 
-            role: 'Counter Staff', 
-            email: emailLower, 
-            branchId: chosenBranch.id,
-            branch: chosenBranch.name 
-          })
-        );
-        toast.success('Welcome back, Counter Lead!', {
-          position: "top-right",
-          theme: "dark"
-        });
+      } else if (user.role === 'Counter Staff') {
         navigate('/counter/dashboard');
-      } else if (emailLower === 'delivery@tuhama.com' || (staffRecord && staffRecord.role === 'Delivery Staff')) {
-        const record = staffRecord || { name: 'Frank Brown' };
-        localStorage.setItem(
-          'user',
-          JSON.stringify({ 
-            name: record.name, 
-            role: 'Delivery Staff', 
-            email: emailLower, 
-            branchId: chosenBranch.id,
-            branch: chosenBranch.name 
-          })
-        );
-        toast.success('Welcome back, Delivery Specialist!', {
-          position: "top-right",
-          theme: "dark"
-        });
+      } else if (user.role === 'Delivery Staff') {
         navigate('/delivery/dashboard');
       } else {
-        // Fallback for other emails
-        if (emailLower.includes('admin')) {
-          localStorage.setItem(
-            'user',
-            JSON.stringify({ name: 'Dana Lee', role: 'Admin', email: emailLower, branchId: chosenBranch.id, branch: chosenBranch.name })
-          );
-          toast.success('Welcome back, System Administrator!', {
-            position: "top-right",
-            theme: "dark"
-          });
-          navigate('/admin/dashboard');
-        } else if (emailLower.includes('counter')) {
-          localStorage.setItem(
-            'user',
-            JSON.stringify({ name: 'Evan Wu', role: 'Counter Staff', email: emailLower, branchId: chosenBranch.id, branch: chosenBranch.name })
-          );
-          toast.success('Welcome back, Counter Lead!', {
-            position: "top-right",
-            theme: "dark"
-          });
-          navigate('/counter/dashboard');
-        } else if (emailLower.includes('delivery')) {
-          localStorage.setItem(
-            'user',
-            JSON.stringify({ name: 'Frank Brown', role: 'Delivery Staff', email: emailLower, branchId: chosenBranch.id, branch: chosenBranch.name })
-          );
-          toast.success('Welcome back, Delivery Specialist!', {
-            position: "top-right",
-            theme: "dark"
-          });
-          navigate('/delivery/dashboard');
-        } else {
-          localStorage.setItem(
-            'user',
-            JSON.stringify({ name: 'John Doe', role: 'Admin', email: emailLower, branchId: chosenBranch.id, branch: chosenBranch.name })
-          );
-          toast.success('Login Successful! Defaulting to Admin Portal.', {
-            position: "top-right",
-            theme: "dark"
-          });
-          navigate('/admin/dashboard');
-        }
+        navigate('/admin/dashboard'); // Fallback
       }
-    }, 1500);
+    })
+    .catch((err) => {
+      setIsLoading(false);
+      const errMsg = err.response?.data?.message || 'Login failed. Please verify credentials.';
+      toast.error(errMsg, {
+        position: 'top-right',
+        theme: 'dark'
+      });
+    });
   };
 
   const handleForgotPassword = (e) => {
@@ -338,15 +241,18 @@ const LoginForm = () => {
               id="branch-input"
               className="form-input appearance-none"
               value={selectedBranchId}
-              onChange={(e) => setSelectedBranchId(Number(e.target.value))}
+              onChange={(e) => setSelectedBranchId(e.target.value)}
               disabled={isLoading}
               style={{ background: 'rgba(15, 23, 42, 0.45)', color: '#fff', cursor: 'pointer', WebkitAppearance: 'none', MozAppearance: 'none' }}
             >
-              {branchesList.map((b) => (
-                <option key={b.id} value={b.id} style={{ background: '#0f172a', color: '#fff' }}>
-                  {b.name}
-                </option>
-              ))}
+              {branchesList.map((b) => {
+                const bId = b.id || b._id;
+                return (
+                  <option key={bId} value={bId} style={{ background: '#0f172a', color: '#fff' }}>
+                    {b.name}
+                  </option>
+                );
+              })}
             </select>
             <FiMapPin className="input-icon-prefix" />
           </div>

@@ -29,7 +29,7 @@ const labelClass = 'block text-sm font-medium text-primary';
 const Settings = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { settings, updateSection, resetSection } = useSettings();
+  const { settings, updateSection, resetSection, changePassword, logout } = useSettings();
   const { theme, toggleTheme } = useTheme();
   const [activeSection, setActiveSection] = useState(location.state?.section || 'business');
 
@@ -66,7 +66,7 @@ const Settings = () => {
     window.location.reload();
   };
 
-  const handleChangePassword = () => {
+  const handleChangePassword = async () => {
     if (!passwordForm.next || passwordForm.next.length < 8) {
       toast.error('New password must be at least 8 characters');
       return;
@@ -75,14 +75,15 @@ const Settings = () => {
       toast.error('Passwords do not match');
       return;
     }
-    toast.success('Password changed successfully');
-    setShowPasswordModal(false);
-    setPasswordForm({ current: '', next: '', confirm: '' });
+    const success = await changePassword(passwordForm.current, passwordForm.next);
+    if (success) {
+      setShowPasswordModal(false);
+      setPasswordForm({ current: '', next: '', confirm: '' });
+    }
   };
 
   const handleLogout = () => {
-    localStorage.removeItem('user');
-    toast.success('Logged out');
+    logout();
     navigate('/');
   };
 

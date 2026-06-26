@@ -31,7 +31,12 @@ const Invoices = () => {
             (o.number.toLowerCase().includes(searchTerm.toLowerCase()) ||
               o.customerName.toLowerCase().includes(searchTerm.toLowerCase()))
         )
-        .sort((a, b) => Number(b.id) - Number(a.id)),
+        .sort((a, b) => {
+          const numA = Number(a.id);
+          const numB = Number(b.id);
+          if (!isNaN(numA) && !isNaN(numB)) return numB - numA;
+          return String(b.id || '').localeCompare(String(a.id || ''), undefined, { numeric: true, sensitivity: 'base' });
+        }),
     [orders, searchTerm, selectedBranch]
   );
 

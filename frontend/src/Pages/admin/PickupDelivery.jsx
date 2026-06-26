@@ -84,7 +84,7 @@ const getAssignableDrivers = (driversList, customerArea, currentlyAssigned = '')
 
 const PickupDelivery = () => {
   const { t, language } = useLanguage();
-  const { pickups, deliveries, setPickups, setDeliveries, drivers, customers, orders, assignDriverToJob, updatePickupJob, updateDeliveryJob } = useContext(AdminStateContext);
+  const { pickups, deliveries, setPickups, setDeliveries, drivers, customers, orders, assignDriverToJob, updatePickupJob, updateDeliveryJob, addPickup, addDelivery, selectedBranch } = useContext(AdminStateContext);
   const [searchTerm, setSearchTerm] = useState('');
   const [pickupStatusFilter, setPickupStatusFilter] = useState('All');
   const [selectedCustomerId, setSelectedCustomerId] = useState('');
@@ -818,23 +818,27 @@ const PickupDelivery = () => {
       return;
     }
 
-    const maxId = pickups.length ? Math.max(...pickups.map(p => Number(p.id) || 0)) : 0;
-    const newId = maxId + 1;
-    const requestId = `PKP-${String(newId).padStart(3, '0')}`;
-
-    const newPickup = {
-      id: newId,
-      requestId,
-      status: 'Scheduled',
-      ...addPickupData,
+    const activeBranch = selectedBranch === 'All' ? (selectedCustomerObj?.branchId || selectedCustomerObj?.branch || '') : selectedBranch;
+    const pickupPayload = {
+      customer: addPickupData.customer,
+      pickupDate: addPickupData.pickupDate,
+      assignedStaff: addPickupData.assignedStaff || '',
+      notes: addPickupData.notes || '',
+      address: addPickupData.address || '',
+      contactNumber: selectedCustomerObj?.phone || '',
+      areaName: selectedCustomerObj?.areaName || '',
+      branchId: activeBranch
     };
 
-    setPickups([newPickup, ...pickups]);
-    if (addPickupData.assignedStaff) {
-      assignDriverToJob(addPickupData.assignedStaff, 'pickup');
-    }
-    toast.success(`Pickup Request ${requestId} scheduled successfully`);
-    setShowAddPickupModal(false);
+    addPickup(pickupPayload).then((data) => {
+      if (data) {
+        if (addPickupData.assignedStaff) {
+          assignDriverToJob(addPickupData.assignedStaff, 'pickup');
+        }
+        toast.success(`Pickup Request ${data.pickupId} scheduled successfully`);
+        setShowAddPickupModal(false);
+      }
+    });
   };
 
   const handleSaveNewDelivery = (e) => {
@@ -848,23 +852,28 @@ const PickupDelivery = () => {
       return;
     }
 
-    const maxId = deliveries.length ? Math.max(...deliveries.map(d => Number(d.id) || 0)) : 0;
-    const newId = maxId + 1;
-    const deliveryId = `DEL-${String(newId).padStart(3, '0')}`;
-
-    const newDelivery = {
-      id: newId,
-      deliveryId,
-      status: 'Scheduled',
-      ...addDeliveryData,
+    const activeBranch = selectedBranch === 'All' ? (selectedCustomerObj?.branchId || selectedCustomerObj?.branch || '') : selectedBranch;
+    const deliveryPayload = {
+      customer: addDeliveryData.customer,
+      deliveryDate: addDeliveryData.deliveryDate,
+      assignedStaff: addDeliveryData.assignedStaff || '',
+      orderNumber: 'ORD-MANUAL',
+      orderCount: addDeliveryData.orderCount || 1,
+      address: addDeliveryData.address || '',
+      contactNumber: selectedCustomerObj?.phone || '',
+      areaName: selectedCustomerObj?.areaName || '',
+      branchId: activeBranch
     };
 
-    setDeliveries([newDelivery, ...deliveries]);
-    if (addDeliveryData.assignedStaff) {
-      assignDriverToJob(addDeliveryData.assignedStaff, 'delivery');
-    }
-    toast.success(`Delivery ${deliveryId} scheduled successfully`);
-    setShowAddDeliveryModal(false);
+    addDelivery(deliveryPayload).then((data) => {
+      if (data) {
+        if (addDeliveryData.assignedStaff) {
+          assignDriverToJob(addDeliveryData.assignedStaff, 'delivery');
+        }
+        toast.success(`Delivery ${data.deliveryId} scheduled successfully`);
+        setShowAddDeliveryModal(false);
+      }
+    });
   };
 
   const pickupColumns = [

@@ -4,6 +4,7 @@ import {
   FiSearch, 
   FiPlus, 
   FiEye, 
+  FiEdit2,
   FiLock, 
   FiUnlock, 
   FiTrash2, 
@@ -27,12 +28,13 @@ const statusColors = {
 };
 
 const Users = () => {
-  const { staff, setStaff, branches } = useContext(AdminStateContext);
+  const { staff, setStaff, addStaff, updateStaff, deleteStaff, lockStaff, branches } = useContext(AdminStateContext);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('All');
   const [roleFilter, setRoleFilter] = useState('All');
   
   const [showModal, setShowModal] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
   const [currentUser, setCurrentUser] = useState(null);
 
   const [showViewModal, setShowViewModal] = useState(false);
@@ -60,16 +62,26 @@ const Users = () => {
   }, [staff, searchTerm, statusFilter, roleFilter]);
 
   const handleOpenAdd = () => {
+    setIsEditing(false);
     setCurrentUser({
       name: '',
       email: '',
       phone: '',
       branch: branches[0]?.name || 'All Branches',
-      branchId: branches[0]?.id || 1,
+      branchId: branches[0]?.id || branches[0]?._id || '',
       status: 'Active',
       password: '',
       role: 'Admin',
       isLocked: false
+    });
+    setShowModal(true);
+  };
+
+  const handleOpenEdit = (user) => {
+    setIsEditing(true);
+    setCurrentUser({
+      ...user,
+      password: ''
     });
     setShowModal(true);
   };
@@ -80,30 +92,7 @@ const Users = () => {
   };
 
   const handleToggleLock = (user) => {
-    const updatedStaff = staff.map(s => {
-      if (s.id === user.id) {
-        const isLocked = !s.isLocked;
-        // Also update status as visually appropriate
-        const status = isLocked ? 'Suspended' : 'Active';
-        return { ...s, isLocked, status };
-      }
-      return s;
-    });
-
-    setStaff(updatedStaff);
-    const lockedState = !user.isLocked;
-    
-    if (lockedState) {
-      toast.warning(`${user.name}'s account has been LOCKED. They can no longer log in.`, {
-        position: 'top-right',
-        theme: 'dark'
-      });
-    } else {
-      toast.success(`${user.name}'s account has been UNLOCKED successfully.`, {
-        position: 'top-right',
-        theme: 'dark'
-      });
-    }
+    lockStaff(user.id || user._id, !user.isLocked);
   };
 
   const handleDeleteClick = (user) => {
@@ -113,8 +102,7 @@ const Users = () => {
 
   const handleDeleteConfirm = () => {
     if (userToDelete) {
-      setStaff(staff.filter((s) => s.id !== userToDelete.id));
-      toast.success(`${userToDelete.name} has been removed.`);
+      deleteStaff(userToDelete.id || userToDelete._id);
       setShowDeleteModal(false);
       setUserToDelete(null);
     }
@@ -122,22 +110,31 @@ const Users = () => {
 
   const handleSaveUser = (e) => {
     e.preventDefault();
-    if (!currentUser.name || !currentUser.email || !currentUser.password) {
+    if (!currentUser.name || !currentUser.email) {
       toast.error('Please fill required fields.');
       return;
     }
+    if (!isEditing && !currentUser.password) {
+      toast.error('Password is required.');
+      return;
+    }
 
-    const newId = staff.length > 0 ? Math.max(...staff.map(s => s.id)) + 1 : 1;
-    setStaff([...staff, { 
-      ...currentUser, 
-      id: newId, 
-      joiningDate: new Date().toISOString().split('T')[0],
-      ordersHandled: 0,
-      deliveriesCompleted: 0,
-      paymentsCollected: 0,
-      recentActivity: 'Joined the team'
-    }]);
-    toast.success('User added successfully.');
+    if (isEditing) {
+      const updatedFields = {
+        name: currentUser.name,
+        email: currentUser.email,
+        phone: currentUser.phone,
+        role: currentUser.role,
+        branchId: currentUser.branchId,
+        status: currentUser.status
+      };
+      if (currentUser.password) {
+        updatedFields.password = currentUser.password;
+      }
+      updateStaff(currentUser.id || currentUser._id, updatedFields);
+    } else {
+      addStaff(currentUser);
+    }
     setShowModal(false);
   };
 
@@ -211,6 +208,16 @@ const Users = () => {
             title="View Details"
           >
             <FiEye size={16} />
+          </button>
+
+          {/* Edit User details */}
+          <button 
+            className="icon-button-small text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-950/20" 
+            onClick={() => handleOpenEdit(row)} 
+            aria-label="Edit User"
+            title="Edit User"
+          >
+            <FiEdit2 size={16} />
           </button>
 
           {/* Toggle Lock / Unlock */}
@@ -324,7 +331,7 @@ const Users = () => {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm">
           <div className="surface-card w-full max-w-lg rounded-3xl border border-border p-8 shadow-2xl flex flex-col max-h-[90vh]">
             <div className="flex-none flex items-center justify-between gap-4 pb-6 border-b border-border mb-6">
-              <h2 className="text-2xl font-semibold text-primary">Add New User</h2>
+              <h2 className="text-2xl font-semibold text-primary">{isEditing ? 'Edit User' : 'Add New User'}</h2>
               <button onClick={() => setShowModal(false)} className="text-secondary hover:text-primary">✕</button>
             </div>
             
@@ -378,19 +385,22 @@ const Users = () => {
                   required
                   value={currentUser.branchId || ''}
                   onChange={(e) => {
-                    const selectedBranch = branches.find(b => b.id === parseInt(e.target.value));
+                    const selectedBranch = branches.find(b => (b.id || b._id) === e.target.value);
                     setCurrentUser({
                       ...currentUser,
-                      branchId: selectedBranch ? selectedBranch.id : null,
+                      branchId: selectedBranch ? (selectedBranch.id || selectedBranch._id) : null,
                       branch: selectedBranch ? selectedBranch.name : ''
                     });
                   }}
                   className="w-full rounded-2xl border border-border bg-surface px-4 py-2 text-primary focus:outline-none focus:ring-2 focus:ring-purple-400/40"
                 >
                   <option value="">Select a branch...</option>
-                  {branches.map(b => (
-                    <option key={b.id} value={b.id}>{b.name}</option>
-                  ))}
+                  {branches.map(b => {
+                    const bId = b.id || b._id;
+                    return (
+                      <option key={bId} value={bId}>{b.name}</option>
+                    );
+                  })}
                 </select>
               </div>
               <div>
@@ -406,10 +416,12 @@ const Users = () => {
                 </select>
               </div>
               <div>
-                <label className="block text-sm font-semibold text-secondary mb-1">Password *</label>
+                <label className="block text-sm font-semibold text-secondary mb-1">
+                  Password {isEditing ? '(Leave blank to keep current)' : '*'}
+                </label>
                 <input
                   type="password"
-                  required
+                  required={!isEditing}
                   value={currentUser.password || ''}
                   onChange={(e) => setCurrentUser({...currentUser, password: e.target.value})}
                   className="w-full rounded-2xl border border-border bg-surface px-4 py-2 text-primary focus:outline-none focus:ring-2 focus:ring-purple-400/40"
@@ -421,7 +433,7 @@ const Users = () => {
                   type="submit"
                   className="btn-solid-primary flex-1 rounded-3xl py-3 font-semibold transition"
                 >
-                  Save User
+                  {isEditing ? 'Save Changes' : 'Save User'}
                 </button>
                 <button
                   type="button"

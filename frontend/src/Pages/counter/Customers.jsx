@@ -8,7 +8,7 @@ import { formatCurrency, formatDate } from '../../utils/exportUtils';
 import { CUSTOMER_AREAS } from '../../constants/areas';
 
 const Customers = () => {
-  const { customers, setCustomers, addCustomer } = useContext(AdminStateContext);
+  const { customers, setCustomers, addCustomer, updateCustomer, selectedBranch } = useContext(AdminStateContext);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCustomer, setSelectedCustomer] = useState(null);
   const [showViewModal, setShowViewModal] = useState(false);
@@ -16,19 +16,28 @@ const Customers = () => {
   const [isEditing, setIsEditing] = useState(false);
   const [formData, setFormData] = useState(null);
 
-
+  const storedUser = JSON.parse(localStorage.getItem('user') || '{}');
 
   const filteredCustomers = useMemo(
     () => {
-      const sorted = [...customers].sort((a, b) => Number(b.id) - Number(a.id));
+      const sorted = [...customers].sort((a, b) => {
+        const numA = Number(a.id);
+        const numB = Number(b.id);
+        if (!isNaN(numA) && !isNaN(numB)) return numB - numA;
+        return String(b.id || '').localeCompare(String(a.id || ''), undefined, { numeric: true, sensitivity: 'base' });
+      });
       return sorted.filter(
-        (c) =>
-          c.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          c.phone.includes(searchTerm) ||
-          String(c.id).includes(searchTerm)
+        (c) => {
+          const matchesBranch = !selectedBranch || selectedBranch === 'All' || String(c.branchId) === String(selectedBranch) || String(c.branch) === String(selectedBranch);
+          return matchesBranch && (
+            c.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            c.phone.includes(searchTerm) ||
+            String(c.displayId || c.id).includes(searchTerm)
+          );
+        }
       );
     },
-    [customers, searchTerm]
+    [customers, searchTerm, selectedBranch]
   );
 
   const openAdd = () => {
@@ -115,7 +124,7 @@ const Customers = () => {
     if (!isEditing) {
       if (customerNo) {
         // Check if this ID already exists
-        const exists = customers.some(c => String(c.id) === String(customerNo) || String(c.customerNo) === String(customerNo));
+        const exists = customers.some(c => String(c.id || c._id) === String(customerNo) || String(c.customerNo) === String(customerNo));
         if (exists) {
           toast.error('Customer ID already exists. Please use a different ID.');
           return;
@@ -123,17 +132,23 @@ const Customers = () => {
         customerId = customerNo;
       } else {
         // Auto-generate next numeric ID if left empty
-        const maxId = customers.length ? Math.max(...customers.map(c => Number(c.id) || 0)) : 0;
+        const maxId = customers.length ? Math.max(...customers.map(c => Number(c.customerNo) || 0)) : 0;
         customerId = maxId + 1;
         customerNo = String(customerId);
       }
     } else {
       if (customerNo) {
-        // Check if another customer already has this ID
-        const exists = customers.some(c => String(c.id) !== String(formData.id) && (String(c.id) === String(customerNo) || String(c.customerNo) === String(customerNo)));
-        if (exists) {
-          toast.error('Customer ID already exists. Please use a different ID.');
-          return;
+        // Find the original customer being edited
+        const originalCustomer = customers.find(c => String(c.id || c._id) === String(formData.id));
+        const originalNo = originalCustomer ? String(originalCustomer.customerNo || '') : '';
+        
+        if (String(customerNo) !== originalNo) {
+          // Check if another customer already has this ID
+          const exists = customers.some(c => String(c.id || c._id) !== String(formData.id) && (String(c.id || c._id) === String(customerNo) || String(c.customerNo) === String(customerNo)));
+          if (exists) {
+            toast.error('Customer ID already exists. Please use a different ID.');
+            return;
+          }
         }
         customerId = customerNo;
       }
@@ -146,6 +161,8 @@ const Customers = () => {
       name: updatedName,
       phone: updatedPhone,
       address: addressParts || formData.address || 'N/A',
+      branchId: (selectedBranch !== 'All' ? selectedBranch : null) || storedUser.branchId || storedUser.branch || null,
+      branch: (selectedBranch !== 'All' ? selectedBranch : null) || storedUser.branchId || storedUser.branch || null
     };
 
     if (!finalCustomer.englishName) {
@@ -158,11 +175,9 @@ const Customers = () => {
     }
 
     if (isEditing) {
-      setCustomers(customers.map((c) => (c.id === finalCustomer.id ? finalCustomer : c)));
-      toast.success('Customer updated successfully');
+      updateCustomer(finalCustomer.id, finalCustomer);
     } else {
       addCustomer(finalCustomer);
-      toast.success('Customer added successfully');
     }
     setShowFormModal(false);
   };
@@ -256,147 +271,97 @@ const Customers = () => {
       </section>
 
       <Modal isOpen={showViewModal} onClose={() => setShowViewModal(false)} title="Customer Details" size="lg">
-        {selectedCustomer && (
-          <div className="space-y-6">
-            {/* Customer Identity */}
-            <div>
-              <h4 className="text-sm font-semibold uppercase tracking-wider text-secondary mb-3 border-b border-border pb-1">Customer Identity</h4>
-              <div className="grid gap-4 sm:grid-cols-2">
-                <div>
-                  <p className="text-xs uppercase tracking-[0.3em] text-secondary">Customer ID</p>
-                  <p className="mt-1 font-semibold text-primary">CUS-{String(selectedCustomer.id).padStart(4, '0')}</p>
-                </div>
-                <div>
-                  <p className="text-xs uppercase tracking-[0.3em] text-secondary">Customer No</p>
-                  <p className="mt-1 font-semibold text-primary">{selectedCustomer.customerNo || 'N/A'}</p>
-                </div>
-                <div>
-                  <p className="text-xs uppercase tracking-[0.3em] text-secondary">English Name</p>
-                  <p className="mt-1 font-semibold text-primary">{selectedCustomer.englishName || selectedCustomer.name || 'N/A'}</p>
-                </div>
-                <div>
-                  <p className="text-xs uppercase tracking-[0.3em] text-secondary">Arabic Name</p>
-                  <p className="mt-1 font-semibold text-primary">{selectedCustomer.arabicName || 'N/A'}</p>
-                </div>
-                <div>
-                  <p className="text-xs uppercase tracking-[0.3em] text-secondary">Discount</p>
-                  <p className="mt-1 font-semibold text-rose-500">
-                    {selectedCustomer.customerLevel === 'Custom Discount' 
-                      ? `Custom Discount (${selectedCustomer.customDiscountRate || 0}%)` 
-                      : selectedCustomer.customerLevel 
-                        ? `${selectedCustomer.customerLevel}%` 
-                        : 'No Discount (0%)'}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-xs uppercase tracking-[0.3em] text-secondary">Status</p>
-                  <p className={`mt-1 inline-block px-3 py-1 rounded-full text-xs font-semibold ${selectedCustomer.status === 'Active' ? 'bg-emerald-500/10 text-emerald-600' : 'bg-red-500/10 text-red-600'}`}>
-                    {selectedCustomer.status || 'Active'}
-                  </p>
+        {selectedCustomer && (() => {
+          const renderField = (label, val, formatFn, key) => {
+            if (val === undefined || val === null) return null;
+            const sVal = String(val).trim();
+            if (sVal === '' || sVal === 'N/A' || sVal === '0' || sVal === '0.000') return null;
+            
+            let display = sVal;
+            if (formatFn) {
+              display = formatFn(val);
+            }
+            return (
+              <div key={key || label}>
+                <p className="text-xs uppercase tracking-[0.3em] text-secondary">{label}</p>
+                <p className="mt-1 font-semibold text-primary">{display}</p>
+              </div>
+            );
+          };
+
+          const hasAddress = selectedCustomer.areaName || selectedCustomer.street || selectedCustomer.partNo || selectedCustomer.jadda || selectedCustomer.levelNo || selectedCustomer.houseNo || selectedCustomer.flatNo || selectedCustomer.paciNo || selectedCustomer.addressNotes;
+          const hasBilling = selectedCustomer.registrationDate || selectedCustomer.insuranceAmount || selectedCustomer.invoicesCount || selectedCustomer.lastInvoiceDate || selectedCustomer.freeBalance || selectedCustomer.freeTotal || selectedCustomer.email || selectedCustomer.notes;
+
+          return (
+            <div className="space-y-6">
+              {/* Customer Identity */}
+              <div>
+                <h4 className="text-sm font-semibold uppercase tracking-wider text-secondary mb-3 border-b border-border pb-1">Customer Identity</h4>
+                <div className="grid gap-4 sm:grid-cols-2">
+                  {renderField("Customer ID", selectedCustomer.displayId)}
+                  {renderField("Customer No", selectedCustomer.customerNo)}
+                  {renderField("English Name", selectedCustomer.englishName || selectedCustomer.name)}
+                  {renderField("Arabic Name", selectedCustomer.arabicName)}
+                  {selectedCustomer.customDiscountRate && Number(selectedCustomer.customDiscountRate) > 0 ? (
+                    <div key="discount">
+                      <p className="text-xs uppercase tracking-[0.3em] text-secondary">Discount</p>
+                      <p className="mt-1 font-semibold text-rose-500">
+                        Custom Discount ({selectedCustomer.customDiscountRate}%)
+                      </p>
+                    </div>
+                  ) : null}
+                  {renderField("Status", selectedCustomer.status)}
                 </div>
               </div>
-            </div>
 
-            {/* Phone Numbers */}
-            <div className="bg-blue-500/5 rounded-2xl p-4">
-              <h4 className="text-sm font-semibold uppercase tracking-wider text-blue-600 mb-3">Phone Numbers</h4>
-              <div className="grid gap-3 sm:grid-cols-2">
-                <div>
-                  <p className="text-xs font-medium text-secondary">Primary Phone No.</p>
-                  <p className="mt-0.5 font-semibold text-primary">{selectedCustomer.phone || 'N/A'}</p>
+              {/* Phone Numbers */}
+              <div className="bg-blue-500/5 rounded-2xl p-4">
+                <h4 className="text-sm font-semibold uppercase tracking-wider text-blue-600 mb-3">Phone Numbers</h4>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  {renderField("Primary Phone No.", selectedCustomer.phone)}
+                  {selectedCustomer.phones && selectedCustomer.phones.slice(1).map((phone, idx) => {
+                    return renderField(`Alternate No. ${idx + 1}`, phone, null, `alt-phone-${idx}`);
+                  })}
                 </div>
-                {selectedCustomer.phones && selectedCustomer.phones.slice(1).map((phone, idx) => phone && (
-                  <div key={idx}>
-                    <p className="text-xs font-medium text-secondary">Alternate No. {idx + 1}</p>
-                    <p className="mt-0.5 font-semibold text-primary">{phone}</p>
+              </div>
+
+              {/* Address & Location */}
+              {hasAddress ? (
+                <div>
+                  <h4 className="text-sm font-semibold uppercase tracking-wider text-secondary mb-3 border-b border-border pb-1">Address & Location</h4>
+                  <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-4">
+                    {renderField("Area Name", selectedCustomer.areaName)}
+                    {renderField("Street", selectedCustomer.street)}
+                    {renderField("Part No", selectedCustomer.partNo)}
+                    {renderField("Jadda", selectedCustomer.jadda)}
+                    {renderField("Level No", selectedCustomer.levelNo)}
+                    {renderField("House No", selectedCustomer.houseNo)}
+                    {renderField("Flat No", selectedCustomer.flatNo)}
+                    {renderField("Paci No.", selectedCustomer.paciNo)}
+                    {renderField("Address Notes", selectedCustomer.addressNotes)}
                   </div>
-                ))}
-              </div>
-            </div>
+                </div>
+              ) : null}
 
-            {/* Address & Location */}
-            <div>
-              <h4 className="text-sm font-semibold uppercase tracking-wider text-secondary mb-3 border-b border-border pb-1">Address & Location</h4>
-              <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-4">
-                <div>
-                  <p className="text-xs uppercase tracking-[0.3em] text-secondary">Area Name</p>
-                  <p className="mt-1 font-semibold text-primary">{selectedCustomer.areaName || 'N/A'}</p>
+              {/* Billing & Financial Details */}
+              {hasBilling ? (
+                <div className="bg-slate-500/5 rounded-2xl p-4">
+                  <h4 className="text-sm font-semibold uppercase tracking-wider text-secondary mb-3">Billing & Financial Details</h4>
+                  <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-3">
+                    {renderField("Registration Date", selectedCustomer.registrationDate, (val) => formatDate(val))}
+                    {renderField("Insurance Paid", selectedCustomer.insuranceAmount, (val) => formatCurrency(val))}
+                    {renderField("Invoices Count", selectedCustomer.invoicesCount)}
+                    {renderField("Last Invoice Date", selectedCustomer.lastInvoiceDate, (val) => formatDate(val))}
+                    {renderField("Free Balance", selectedCustomer.freeBalance, (val) => formatCurrency(val))}
+                    {renderField("Free Total", selectedCustomer.freeTotal, (val) => formatCurrency(val))}
+                    {renderField("Email", selectedCustomer.email)}
+                    {renderField("General Notes", selectedCustomer.notes)}
+                  </div>
                 </div>
-                <div>
-                  <p className="text-xs uppercase tracking-[0.3em] text-secondary">Street</p>
-                  <p className="mt-1 font-semibold text-primary">{selectedCustomer.street || 'N/A'}</p>
-                </div>
-                <div>
-                  <p className="text-xs uppercase tracking-[0.3em] text-secondary">Part No</p>
-                  <p className="mt-1 font-semibold text-primary">{selectedCustomer.partNo || 'N/A'}</p>
-                </div>
-                <div>
-                  <p className="text-xs uppercase tracking-[0.3em] text-secondary">Jadda</p>
-                  <p className="mt-1 font-semibold text-primary">{selectedCustomer.jadda || 'N/A'}</p>
-                </div>
-                <div>
-                  <p className="text-xs uppercase tracking-[0.3em] text-secondary">Level No</p>
-                  <p className="mt-1 font-semibold text-primary">{selectedCustomer.levelNo || 'N/A'}</p>
-                </div>
-                <div>
-                  <p className="text-xs uppercase tracking-[0.3em] text-secondary">House No</p>
-                  <p className="mt-1 font-semibold text-primary">{selectedCustomer.houseNo || 'N/A'}</p>
-                </div>
-                <div>
-                  <p className="text-xs uppercase tracking-[0.3em] text-secondary">Flat No</p>
-                  <p className="mt-1 font-semibold text-primary">{selectedCustomer.flatNo || 'N/A'}</p>
-                </div>
-                <div>
-                  <p className="text-xs uppercase tracking-[0.3em] text-secondary">Paci No.</p>
-                  <p className="mt-1 font-semibold text-primary">{selectedCustomer.paciNo || 'N/A'}</p>
-                </div>
-                <div className="col-span-full">
-                  <p className="text-xs uppercase tracking-[0.3em] text-secondary">Address Notes</p>
-                  <p className="mt-1 font-semibold text-primary">{selectedCustomer.addressNotes || 'N/A'}</p>
-                </div>
-              </div>
+              ) : null}
             </div>
-
-            {/* Billing & Financial Details */}
-            <div className="bg-slate-500/5 rounded-2xl p-4">
-              <h4 className="text-sm font-semibold uppercase tracking-wider text-secondary mb-3">Billing & Financial Details</h4>
-              <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-3">
-                <div>
-                  <p className="text-xs uppercase tracking-[0.3em] text-secondary">Registration Date</p>
-                  <p className="mt-1 font-semibold text-primary">{formatDate(selectedCustomer.registrationDate)}</p>
-                </div>
-                <div>
-                  <p className="text-xs uppercase tracking-[0.3em] text-secondary">Insurance Paid</p>
-                  <p className="mt-1 font-semibold text-primary">{formatCurrency(selectedCustomer.insuranceAmount || '20.000')}</p>
-                </div>
-                <div>
-                  <p className="text-xs uppercase tracking-[0.3em] text-secondary">Invoices Count</p>
-                  <p className="mt-1 font-semibold text-primary">{selectedCustomer.invoicesCount || '0'}</p>
-                </div>
-                <div>
-                  <p className="text-xs uppercase tracking-[0.3em] text-secondary">Last Invoice Date</p>
-                  <p className="mt-1 font-semibold text-primary">{selectedCustomer.lastInvoiceDate ? formatDate(selectedCustomer.lastInvoiceDate) : 'N/A'}</p>
-                </div>
-                <div>
-                  <p className="text-xs uppercase tracking-[0.3em] text-secondary">Free Balance</p>
-                  <p className="mt-1 font-semibold text-primary">{formatCurrency(selectedCustomer.freeBalance || '0')}</p>
-                </div>
-                <div>
-                  <p className="text-xs uppercase tracking-[0.3em] text-secondary">Free Total</p>
-                  <p className="mt-1 font-semibold text-primary">{formatCurrency(selectedCustomer.freeTotal || '0')}</p>
-                </div>
-                <div className="col-span-full">
-                  <p className="text-xs uppercase tracking-[0.3em] text-secondary">Email</p>
-                  <p className="mt-1 font-semibold text-primary">{selectedCustomer.email || 'N/A'}</p>
-                </div>
-                <div className="col-span-full">
-                  <p className="text-xs uppercase tracking-[0.3em] text-secondary">General Notes</p>
-                  <p className="mt-1 font-semibold text-primary">{selectedCustomer.notes || 'N/A'}</p>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
+          );
+        })()}
       </Modal>
 
       <Modal

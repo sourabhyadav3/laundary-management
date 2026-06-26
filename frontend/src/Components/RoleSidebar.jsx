@@ -40,7 +40,9 @@ const RoleSidebar = ({ menuItems, roleLabel, footerText }) => {
       try {
         const parsed = JSON.parse(saved);
         if (parsed && parsed[role]) {
-          return parsed[role];
+          // Filter to only allow default/whitelist permissions to avoid dirty localStorage state
+          const allowed = defaultPermissions[role] || [];
+          return parsed[role].filter(p => allowed.includes(p));
         }
       } catch (e) {
         console.error("Failed to parse role permissions", e);

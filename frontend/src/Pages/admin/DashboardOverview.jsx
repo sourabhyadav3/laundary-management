@@ -48,7 +48,12 @@ const DashboardOverview = () => {
   const ordersToday = filteredOrders.filter((o) => new Date(o.date).toDateString() === new Date().toDateString()).length;
 
   const recentOrders = useMemo(() => getRecentOrders(filteredOrders), [filteredOrders]);
-  const recentOrdersSorted = useMemo(() => [...recentOrders].sort((a, b) => Number(b.id) - Number(a.id)), [recentOrders]);
+  const recentOrdersSorted = useMemo(() => [...recentOrders].sort((a, b) => {
+    const numA = Number(a.id);
+    const numB = Number(b.id);
+    if (!isNaN(numA) && !isNaN(numB)) return numB - numA;
+    return String(b.id || '').localeCompare(String(a.id || ''), undefined, { numeric: true, sensitivity: 'base' });
+  }), [recentOrders]);
   const recentOrdersFeed = useMemo(() => [...recentOrders].reverse(), [recentOrders]);
 
   const tableColumns = [

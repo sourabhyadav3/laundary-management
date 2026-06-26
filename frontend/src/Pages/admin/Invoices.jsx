@@ -11,7 +11,7 @@ const statusOrder = ORDER_STATUSES;
 const PAYMENT_STATUSES = ['Paid', 'Pending', 'Partial'];
 
 const Invoices = () => {
-  const { orders, catalog, updateOrderStatus, setOrders, selectedBranch, branches } = useContext(AdminStateContext);
+  const { orders, catalog, updateOrderStatus, updateOrderPaymentStatus, deleteOrder, setOrders, selectedBranch, branches } = useContext(AdminStateContext);
   const [searchTerm, setSearchTerm] = useState('');
   
   const getBranchName = (branchIdOrName) => {
@@ -41,11 +41,16 @@ const Invoices = () => {
 
         const matchesStatus = statusFilter === 'All' || order.status === statusFilter;
         const matchesPayment = paymentFilter === 'All' || order.paymentStatus === paymentFilter;
-        const isInvoice = order.number.includes('INV');
+        const isInvoice = order.number.includes('INV') || !order.number.includes('ORD');
 
         return matchesBranch && matchesSearch && matchesStatus && matchesPayment && isInvoice;
       })
-      .sort((a, b) => Number(b.id) - Number(a.id));
+      .sort((a, b) => {
+        const numA = Number(a.id);
+        const numB = Number(b.id);
+        if (!isNaN(numA) && !isNaN(numB)) return numB - numA;
+        return String(b.id || '').localeCompare(String(a.id || ''), undefined, { numeric: true, sensitivity: 'base' });
+      });
   }, [orders, searchTerm, statusFilter, paymentFilter, selectedBranch]);
 
   const handleViewOrder = (order) => {
@@ -68,22 +73,14 @@ const Invoices = () => {
     toast.success(`Invoice status updated to ${newStatus}`);
   };
 
-  const handleUpdatePaymentStatus = (orderId, newPaymentStatus) => {
-    setOrders(
-      orders.map((o) => {
-        if (o.id !== orderId) return o;
-        const updated = { ...o, paymentStatus: newPaymentStatus };
-        cacheReceiptSnapshot(updated);
-        return updated;
-      })
-    );
+  const handleUpdatePaymentStatus = async (orderId, newPaymentStatus) => {
+    await updateOrderPaymentStatus(orderId, newPaymentStatus);
     setSelectedOrder((prev) => {
       if (!prev || prev.id !== orderId) return prev;
       const updated = { ...prev, paymentStatus: newPaymentStatus };
       cacheReceiptSnapshot(updated);
       return updated;
     });
-    toast.success(`Payment status updated to ${newPaymentStatus}`);
   };
 
   const handlePrintInvoice = (order) => {
@@ -93,8 +90,7 @@ const Invoices = () => {
 
   const handleDeleteOrder = (orderId) => {
     if (window.confirm('Are you sure you want to delete this invoice?')) {
-      setOrders(orders.filter((o) => o.id !== orderId));
-      toast.success('Invoice deleted successfully');
+      deleteOrder(orderId);
     }
   };
 

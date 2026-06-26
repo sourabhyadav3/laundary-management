@@ -884,8 +884,16 @@ const MakeInvoice = () => {
         <div className="flex items-center gap-2">
           <button
             type="button"
-            onClick={() => setForm((prev) => ({ ...prev, deliveryMode: 'branch' }))}
-            className={`text-[10px] font-black px-3 py-2 rounded-xl transition-all cursor-pointer whitespace-nowrap border ${
+            onClick={() => {
+              if (orderItems.length > 0) {
+                toast.warning(language === 'ar' ? 'لا يمكن تغيير نوع التوصيل بعد إضافة عناصر إلى الفاتورة. يرجى مسح العناصر أولاً.' : 'Cannot change delivery type after items are added to invoice. Please clear items first.');
+                return;
+              }
+              setForm((prev) => ({ ...prev, deliveryMode: 'branch' }));
+            }}
+            className={`text-[10px] font-black px-3 py-2 rounded-xl transition-all whitespace-nowrap border ${
+              orderItems.length > 0 ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer'
+            } ${
               form.deliveryMode !== 'home'
                 ? 'bg-blue-600 border-blue-700 text-white shadow-sm'
                 : 'bg-white border-slate-300 text-black hover:bg-blue-50 hover:border-blue-300 dark:bg-slate-100 dark:border-slate-300 dark:text-black dark:hover:bg-blue-100'
@@ -895,8 +903,16 @@ const MakeInvoice = () => {
           </button>
           <button
             type="button"
-            onClick={() => setForm((prev) => ({ ...prev, deliveryMode: 'home' }))}
-            className={`text-[10px] font-black px-3 py-2 rounded-xl transition-all cursor-pointer whitespace-nowrap border ${
+            onClick={() => {
+              if (orderItems.length > 0) {
+                toast.warning(language === 'ar' ? 'لا يمكن تغيير نوع التوصيل بعد إضافة عناصر إلى الفاتورة. يرجى مسح العناصر أولاً.' : 'Cannot change delivery type after items are added to invoice. Please clear items first.');
+                return;
+              }
+              setForm((prev) => ({ ...prev, deliveryMode: 'home' }));
+            }}
+            className={`text-[10px] font-black px-3 py-2 rounded-xl transition-all whitespace-nowrap border ${
+              orderItems.length > 0 ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer'
+            } ${
               form.deliveryMode === 'home'
                 ? 'bg-emerald-600 border-emerald-700 text-white shadow-sm'
                 : 'bg-white border-slate-300 text-black hover:bg-emerald-50 hover:border-emerald-300 dark:bg-slate-100 dark:border-slate-300 dark:text-black dark:hover:bg-emerald-100'

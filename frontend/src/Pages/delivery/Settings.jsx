@@ -9,6 +9,7 @@ import {
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import { useTheme } from '../../context/ThemeContext';
+import { useSettings } from '../../context/SettingsContext';
 import ThemeToggle from '../../Components/ThemeToggle';
 import Modal from '../../Components/Modal';
 
@@ -24,6 +25,7 @@ const labelClass = 'block text-sm font-medium text-primary';
 const Settings = () => {
   const navigate = useNavigate();
   const { theme, toggleTheme } = useTheme();
+  const { changePassword, logout } = useSettings();
   const [activeSection, setActiveSection] = useState('account');
 
   const storedUser = JSON.parse(localStorage.getItem('user') || '{}');
@@ -45,7 +47,7 @@ const Settings = () => {
     window.location.reload();
   };
 
-  const handleChangePassword = () => {
+  const handleChangePassword = async () => {
     if (!passwordForm.next || passwordForm.next.length < 8) {
       toast.error('New password must be at least 8 characters');
       return;
@@ -54,14 +56,15 @@ const Settings = () => {
       toast.error('Passwords do not match');
       return;
     }
-    toast.success('Password changed successfully');
-    setShowPasswordModal(false);
-    setPasswordForm({ current: '', next: '', confirm: '' });
+    const success = await changePassword(passwordForm.current, passwordForm.next);
+    if (success) {
+      setShowPasswordModal(false);
+      setPasswordForm({ current: '', next: '', confirm: '' });
+    }
   };
 
   const handleLogout = () => {
-    localStorage.removeItem('user');
-    toast.success('Logged out');
+    logout();
     navigate('/');
   };
 

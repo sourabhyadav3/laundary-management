@@ -7,7 +7,7 @@ import { toast } from 'react-toastify';
 const EditBranch = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { branches, setBranches } = useContext(AdminStateContext);
+  const { branches, updateBranch } = useContext(AdminStateContext);
 
   const [formData, setFormData] = useState({
     name: '',
@@ -18,7 +18,9 @@ const EditBranch = () => {
   });
 
   useEffect(() => {
-    const branch = branches.find(b => b.id === Number(id));
+    if (branches.length === 0) return;
+
+    const branch = branches.find(b => String(b.id) === String(id));
     if (branch) {
       setFormData(branch);
     } else {
@@ -32,16 +34,17 @@ const EditBranch = () => {
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     if (!formData.name || !formData.address || !formData.phone) {
       toast.error('Please fill in all required fields');
       return;
     }
     
-    setBranches(branches.map(b => b.id === Number(id) ? { ...formData, id: Number(id) } : b));
-    toast.success('Branch updated successfully!');
-    navigate('/superadmin/branches');
+    const success = await updateBranch(id, formData);
+    if (success) {
+      navigate('/superadmin/branches');
+    }
   };
 
   return (

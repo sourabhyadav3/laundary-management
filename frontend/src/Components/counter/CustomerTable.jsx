@@ -5,7 +5,7 @@ import { formatCurrency } from '../../utils/exportUtils';
 
 const CustomerTable = ({ customers, onView, onEdit }) => {
   const columns = [
-    { header: 'Customer ID', accessor: 'id', format: (val) => `CUS-${String(val).padStart(4, '0')}` },
+    { header: 'Customer ID', accessor: 'displayId' },
     { header: 'Name', accessor: 'name' },
     { header: 'Phone', accessor: 'phone' },
     { header: 'Email', accessor: 'email', format: (val) => val || 'N/A' },
