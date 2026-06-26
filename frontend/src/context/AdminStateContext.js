@@ -573,6 +573,39 @@ export const AdminStateProvider = ({ children }) => {
     }
   };
 
+  const settleCustomerBalance = async (customerId, paymentMethod) => {
+    try {
+      await api.post(`/customers/${customerId}/settle`, { method: paymentMethod });
+      await fetchData();
+      return true;
+    } catch (e) {
+      toast.error(e.response?.data?.message || 'Failed to settle customer balance');
+      return false;
+    }
+  };
+
+  const addPayment = async (payment) => {
+    try {
+      const res = await api.post('/payments', payment);
+      await fetchData();
+      return res.data;
+    } catch (e) {
+      toast.error(e.response?.data?.message || 'Failed to record payment');
+      return null;
+    }
+  };
+
+  const updatePayment = async (id, updatedPayment) => {
+    try {
+      const res = await api.put(`/payments/${id}`, updatedPayment);
+      await fetchData();
+      return true;
+    } catch (e) {
+      toast.error(e.response?.data?.message || 'Failed to update payment');
+      return false;
+    }
+  };
+
   const assignDriverToJob = async (driverName, jobType) => {
     try {
       const driver = drivers.find(d => d.driverName === driverName);
@@ -632,6 +665,7 @@ export const AdminStateProvider = ({ children }) => {
     addCustomer,
     updateCustomer,
     deleteCustomer,
+    settleCustomerBalance,
     setCustomers,
 
     orders,
@@ -656,6 +690,8 @@ export const AdminStateProvider = ({ children }) => {
 
     payments,
     setPayments,
+    addPayment,
+    updatePayment,
 
     pickups,
     setPickups,

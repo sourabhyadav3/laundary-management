@@ -60,18 +60,46 @@ router.post('/', authenticate, requirePermission('manage_staff'), async (req, re
       carNo, civilId, nationality, branch, status
     } = req.body;
 
-    if (!userId || !driverNo || !driverName || !mobile || !carNo || !civilId || !nationality || !branch) {
+    let finalDriverNo = driverNo;
+    if (!finalDriverNo) {
+      const allDrivers = await Driver.find({});
+      let maxNum = 100;
+      for (const d of allDrivers) {
+        if (d.driverNo) {
+          const match = d.driverNo.match(/DRV-(\d+)/);
+          if (match) {
+            const num = parseInt(match[1], 10);
+            if (num > maxNum) {
+              maxNum = num;
+            }
+          }
+        }
+      }
+      let nextNum = maxNum + 1;
+      let unique = false;
+      while (!unique) {
+        finalDriverNo = `DRV-${nextNum}`;
+        const conflict = await Driver.findOne({ driverNo: finalDriverNo });
+        if (!conflict) {
+          unique = true;
+        } else {
+          nextNum++;
+        }
+      }
+    }
+
+    if (!finalDriverNo || !driverName || !mobile || !carNo || !civilId || !nationality || !branch) {
       return res.status(400).json({ message: 'Missing required driver profile fields.' });
     }
 
-    const existingDriver = await Driver.findOne({ driverNo });
+    const existingDriver = await Driver.findOne({ driverNo: finalDriverNo });
     if (existingDriver) {
       return res.status(400).json({ message: 'A driver with this driver number already exists.' });
     }
 
     const driver = new Driver({
       user: userId,
-      driverNo,
+      driverNo: finalDriverNo,
       driverName,
       mobile,
       tel,

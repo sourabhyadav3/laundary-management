@@ -1,5 +1,7 @@
 const express = require('express');
 const Customer = require('../models/Customer');
+const Order = require('../models/Order');
+const Payment = require('../models/Payment');
 const { authenticate, requirePermission } = require('../middleware/auth');
 
 const router = express.Router();
@@ -37,6 +39,7 @@ const formatCustomer = (customer) => {
     lastInvoiceDate: customer.lastInvoiceDate || '',
     freeBalance: customer.freeBalance || 0,
     freeTotal: customer.freeTotal || 0,
+    balance: customer.balance || 0,
     notes: customer.notes || ''
   };
 };
@@ -138,7 +141,7 @@ router.put('/:id', authenticate, requirePermission('manage_customers'), async (r
       name, email, phone, areaName, partNo, street, jadda, houseNo, levelNo, flatNo, status,
       totalSpent, loyaltyPoints, customerNo, arabicName, englishName, customDiscountRate,
       customerLevel, phones, paciNo, addressNotes, registrationDate, date, insuranceAmount,
-      invoicesCount, lastInvoiceDate, freeBalance, freeTotal, notes, branchId
+      invoicesCount, lastInvoiceDate, freeBalance, freeTotal, balance, notes, branchId
     } = req.body;
 
     const customer = await Customer.findById(req.params.id);
@@ -180,6 +183,7 @@ router.put('/:id', authenticate, requirePermission('manage_customers'), async (r
     if (lastInvoiceDate !== undefined) customer.lastInvoiceDate = lastInvoiceDate;
     if (freeBalance !== undefined) customer.freeBalance = freeBalance;
     if (freeTotal !== undefined) customer.freeTotal = freeTotal;
+    if (balance !== undefined) customer.balance = balance;
     if (notes !== undefined) customer.notes = notes;
     
     if (branchId !== undefined) {
@@ -208,6 +212,74 @@ router.delete('/:id', authenticate, requirePermission('manage_customers'), async
     res.json({ message: 'Customer deleted successfully.' });
   } catch (error) {
     console.error('Delete customer error:', error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+});
+
+// @route   POST /api/customers/:id/settle
+// @desc    Settle outstanding balance for a customer
+router.post('/:id/settle', authenticate, requirePermission('manage_payments'), async (req, res) => {
+  try {
+    const { method } = req.body;
+    const customer = await Customer.findById(req.params.id);
+    if (!customer) {
+      return res.status(404).json({ message: 'Customer not found.' });
+    }
+
+    const settledAmount = customer.balance || 0;
+    if (settledAmount <= 0) {
+      return res.status(400).json({ message: 'Customer has no outstanding balance.' });
+    }
+
+    // Reset customer balance to 0
+    customer.balance = 0;
+    await customer.save();
+
+    // Mark corresponding pending orders as Paid
+    await Order.updateMany(
+      { customer: customer._id, paymentStatus: 'Pending' },
+      { $set: { paymentStatus: 'Paid' } }
+    );
+
+    // Register a new Payment document
+    const latestPayment = await Payment.findOne().sort({ createdAt: -1 });
+    let nextNum = 1;
+    if (latestPayment && latestPayment.paymentId) {
+      const match = latestPayment.paymentId.match(/PAY-(\d+)/);
+      if (match) {
+        nextNum = parseInt(match[1], 10) + 1;
+      }
+    }
+    const paymentId = `PAY-${String(nextNum).padStart(4, '0')}`;
+
+    const payment = new Payment({
+      paymentId,
+      orderNumber: `BAL-${customer._id.toString()}`,
+      customerName: customer.name,
+      date: new Date().toISOString().split('T')[0],
+      amount: settledAmount,
+      method: method || 'Cash',
+      status: 'Paid'
+    });
+
+    await payment.save();
+
+    res.json({
+      message: `Payment of ${settledAmount} via ${method || 'Cash'} recorded successfully.`,
+      customer: formatCustomer(customer),
+      payment: {
+        id: payment._id.toString(),
+        paymentId: payment.paymentId,
+        orderNumber: payment.orderNumber,
+        customerName: payment.customerName,
+        date: payment.date,
+        amount: payment.amount,
+        method: payment.method,
+        status: payment.status
+      }
+    });
+  } catch (error) {
+    console.error('Settle customer balance error:', error);
     res.status(500).json({ message: 'Internal server error' });
   }
 });

@@ -69,6 +69,16 @@ router.post('/', authenticate, requirePermission('manage_payments'), async (req,
     });
 
     await payment.save();
+
+    // Sync with order payment status
+    if (payment.order) {
+      const order = await Order.findById(payment.order);
+      if (order) {
+        order.paymentStatus = payment.status;
+        await order.save();
+      }
+    }
+
     res.status(201).json(formatPayment(payment));
   } catch (error) {
     console.error('Create payment error:', error);
@@ -77,10 +87,10 @@ router.post('/', authenticate, requirePermission('manage_payments'), async (req,
 });
 
 // @route   PUT /api/payments/:id
-// @desc    Update checkout payment method and mark order as Paid
+// @desc    Update checkout payment method and details
 router.put('/:id', authenticate, requirePermission('manage_payments'), async (req, res) => {
   try {
-    const { method, status } = req.body;
+    const { method, status, amount, date } = req.body;
     if (!method) {
       return res.status(400).json({ message: 'Payment method is required.' });
     }
@@ -92,13 +102,15 @@ router.put('/:id', authenticate, requirePermission('manage_payments'), async (re
 
     payment.method = method;
     payment.status = status || 'Paid';
+    if (amount !== undefined) payment.amount = Number(amount);
+    if (date !== undefined) payment.date = date;
     await payment.save();
 
     // Sync with order payment status
-    if (payment.status === 'Paid') {
+    if (payment.order) {
       const order = await Order.findById(payment.order);
       if (order) {
-        order.paymentStatus = 'Paid';
+        order.paymentStatus = payment.status;
         await order.save();
       }
     }

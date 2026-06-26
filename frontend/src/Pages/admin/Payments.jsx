@@ -18,7 +18,7 @@ const paymentStatusColors = {
 };
 
 const Payments = () => {
-  const { payments, customers, setPayments, setOrders, setCustomers } = useContext(AdminStateContext);
+  const { payments, customers, settleCustomerBalance, updatePayment, addPayment, orders } = useContext(AdminStateContext);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('All');
   const [methodFilter, setMethodFilter] = useState('All');
@@ -27,10 +27,18 @@ const Payments = () => {
   const [showEditModal, setShowEditModal] = useState(false);
   const [editPaymentData, setEditPaymentData] = useState(null);
 
-  // States for Mark Paid payment selection modal
   const [showMarkPaidModal, setShowMarkPaidModal] = useState(false);
   const [selectedCustomer, setSelectedCustomer] = useState(null);
   const [selectedMethod, setSelectedMethod] = useState('Cash');
+
+  // States for Record Payment modal
+  const [showRecordPaymentModal, setShowRecordPaymentModal] = useState(false);
+  const [recordPaymentForm, setRecordPaymentForm] = useState({
+    orderId: '',
+    amount: '',
+    method: 'Cash',
+    status: 'Paid'
+  });
 
   const handleEditPayment = (payment) => {
     setEditPaymentData({ ...payment });
@@ -64,7 +72,48 @@ const Payments = () => {
   };
 
   const handleRecordPayment = () => {
-    toast.info('Record Payment form coming soon');
+    const pendingOrders = orders.filter(o => o.paymentStatus !== 'Paid');
+    setRecordPaymentForm({
+      orderId: pendingOrders.length > 0 ? pendingOrders[0].id : '',
+      amount: '',
+      method: 'Cash',
+      status: 'Paid'
+    });
+    setShowRecordPaymentModal(true);
+  };
+
+  const handleConfirmRecordPayment = async (e) => {
+    e.preventDefault();
+    const { orderId, amount, method, status } = recordPaymentForm;
+    if (!orderId) {
+      toast.error('Please select an order');
+      return;
+    }
+    const orderObj = orders.find(o => String(o.id) === String(orderId) || String(o._id) === String(orderId));
+    if (!orderObj) {
+      toast.error('Selected order not found');
+      return;
+    }
+    const amountVal = parseFloat(amount);
+    if (isNaN(amountVal) || amountVal <= 0) {
+      toast.error('Amount must be greater than 0');
+      return;
+    }
+
+    const payload = {
+      orderId: orderObj.id || orderObj._id,
+      orderNumber: orderObj.number,
+      customerName: orderObj.customerName,
+      amount: amountVal,
+      method: method,
+      status: status
+    };
+
+    const res = await addPayment(payload);
+    if (res) {
+      toast.success(`Payment of ${formatCurrency(amountVal)} recorded successfully for Order ${orderObj.number}`);
+      setShowRecordPaymentModal(false);
+    }
   };
 
   const paymentSummaryLines = [
@@ -107,7 +156,7 @@ const Payments = () => {
     setShowMarkPaidModal(true);
   };
 
-  const handleConfirmPayment = () => {
+  const handleConfirmPayment = async () => {
     if (!selectedCustomer) return;
 
     const paidAmountValue = selectedCustomer.balance;
@@ -116,39 +165,11 @@ const Payments = () => {
       return;
     }
 
-    // 1. Reset customer balance to 0 in Context/LocalStorage
-    setCustomers(prevCustomers =>
-      prevCustomers.map(c => c.id === selectedCustomer.id ? { ...c, balance: 0 } : c)
-    );
-
-    // 2. Mark corresponding invoices/orders as Paid
-    setOrders(prevOrders =>
-      prevOrders.map(o =>
-        (o.customerName === selectedCustomer.name || String(o.customerId) === String(selectedCustomer.id))
-          ? { ...o, paymentStatus: 'Paid' }
-          : o
-      )
-    );
-
-    // Helper to get next ID
-    const nextPaymentId = payments.length ? Math.max(...payments.map((p) => Number(p.id) || 0)) + 1 : 1;
-
-    // 3. Add new transaction to Payments Records
-    const newTransaction = {
-      id: nextPaymentId,
-      orderId: undefined,
-      orderNumber: `BAL-${selectedCustomer.id}`,
-      customer: selectedCustomer.name,
-      amount: paidAmountValue,
-      method: selectedMethod,
-      status: 'Paid',
-      date: new Date().toISOString().split('T')[0]
-    };
-
-    setPayments([newTransaction, ...payments]);
-
-    toast.success(`Payment of ${formatCurrency(paidAmountValue)} via ${selectedMethod} recorded successfully for ${selectedCustomer.name}`);
-    setShowMarkPaidModal(false);
+    const success = await settleCustomerBalance(selectedCustomer.id, selectedMethod);
+    if (success) {
+      toast.success(`Payment of ${formatCurrency(paidAmountValue)} via ${selectedMethod} recorded successfully for ${selectedCustomer.name}`);
+      setShowMarkPaidModal(false);
+    }
   };
 
   const tableColumns = [
@@ -385,25 +406,22 @@ const Payments = () => {
       {showEditModal && editPaymentData && createPortal(
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm">
           <form 
-            onSubmit={(e) => {
+            onSubmit={async (e) => {
               e.preventDefault();
               if (Number(editPaymentData.amount) <= 0) {
                 toast.error('Amount must be greater than 0');
                 return;
               }
-              setPayments(payments.map(p => p.id === editPaymentData.id ? { ...editPaymentData, amount: Number(editPaymentData.amount) } : p));
-              
-              // Sync edited status with the corresponding order/invoice
-              setOrders(prevOrders =>
-                prevOrders.map(o =>
-                  (o.number === editPaymentData.orderNumber || o.id === editPaymentData.orderId)
-                    ? { ...o, paymentStatus: editPaymentData.status }
-                    : o
-                )
-              );
-
-              toast.success(`Payment ID ${editPaymentData.id} updated successfully`);
-              setShowEditModal(false);
+              const success = await updatePayment(editPaymentData.id, {
+                method: editPaymentData.method,
+                status: editPaymentData.status,
+                amount: Number(editPaymentData.amount),
+                date: editPaymentData.date
+              });
+              if (success) {
+                toast.success(`Payment ID ${editPaymentData.id} updated successfully`);
+                setShowEditModal(false);
+              }
             }}
             className="surface-card max-h-[90vh] w-full max-w-xl overflow-y-auto rounded-3xl border border-border p-5 sm:p-8 shadow-2xl"
           >
@@ -594,6 +612,123 @@ const Payments = () => {
               </button>
             </div>
           </div>
+        </div>,
+        document.body
+      )}
+
+      {/* Record Payment Modal */}
+      {showRecordPaymentModal && createPortal(
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm">
+          <form 
+            onSubmit={handleConfirmRecordPayment}
+            className="surface-card max-h-[90vh] w-full max-w-xl overflow-y-auto rounded-3xl border border-border p-5 sm:p-8 shadow-2xl"
+          >
+            <div className="flex items-center justify-between gap-4 border-b border-border pb-6">
+              <h2 className="text-2xl font-semibold text-primary font-outfit">Record Payment</h2>
+              <button type="button" onClick={() => setShowRecordPaymentModal(false)} className="text-secondary hover:text-primary">
+                ✕
+              </button>
+            </div>
+
+            <div className="mt-6 space-y-5">
+              <div>
+                <label className="block text-xs font-semibold uppercase tracking-wider text-secondary mb-2">Select Unpaid Order / Invoice</label>
+                <div className="relative">
+                  <select
+                    required
+                    value={recordPaymentForm.orderId}
+                    onChange={(e) => {
+                      const selectedId = e.target.value;
+                      const orderObj = orders.find(o => String(o.id) === String(selectedId) || String(o._id) === String(selectedId));
+                      setRecordPaymentForm({
+                        ...recordPaymentForm,
+                        orderId: selectedId,
+                        amount: orderObj ? orderObj.totalAmount : ''
+                      });
+                    }}
+                    className="w-full appearance-none rounded-2xl border border-border bg-surface py-3 px-4 text-primary focus:outline-none focus:ring-2 focus:ring-blue-400/40 text-sm font-medium"
+                  >
+                    <option value="">-- Choose Order --</option>
+                    {orders
+                      .filter(o => o.paymentStatus !== 'Paid')
+                      .map((o) => (
+                        <option key={o.id || o._id} value={o.id || o._id}>
+                          {o.number} ({o.customerName}) - Due: {formatCurrency(o.totalAmount)}
+                        </option>
+                      ))}
+                  </select>
+                  <FiChevronDown className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-secondary" />
+                </div>
+                {orders.filter(o => o.paymentStatus !== 'Paid').length === 0 && (
+                  <p className="mt-2 text-xs text-rose-500 font-semibold">No unpaid invoices exist in the system.</p>
+                )}
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold uppercase tracking-wider text-secondary">Amount (KWD)</label>
+                <input
+                  type="number"
+                  step="0.001"
+                  required
+                  placeholder="0.000"
+                  value={recordPaymentForm.amount}
+                  onChange={(e) => setRecordPaymentForm({ ...recordPaymentForm, amount: e.target.value })}
+                  className="mt-2 w-full rounded-2xl border border-border bg-surface py-3 px-4 text-primary focus:outline-none focus:ring-2 focus:ring-blue-400/40 text-sm font-medium"
+                />
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="relative">
+                  <label className="block text-xs font-semibold uppercase tracking-wider text-secondary mb-2">Payment Method</label>
+                  <select
+                    value={recordPaymentForm.method}
+                    onChange={(e) => setRecordPaymentForm({ ...recordPaymentForm, method: e.target.value })}
+                    className="w-full appearance-none rounded-2xl border border-border bg-surface py-3 px-4 text-primary focus:outline-none focus:ring-2 focus:ring-blue-400/40 text-sm font-medium"
+                  >
+                    {paymentMethods.map((method) => (
+                      <option key={method} value={method}>
+                        {method}
+                      </option>
+                    ))}
+                  </select>
+                  <FiChevronDown className="pointer-events-none absolute right-4 top-[3.2rem] -translate-y-1/2 text-secondary" />
+                </div>
+
+                <div className="relative">
+                  <label className="block text-xs font-semibold uppercase tracking-wider text-secondary mb-2">Payment Status</label>
+                  <select
+                    value={recordPaymentForm.status}
+                    onChange={(e) => setRecordPaymentForm({ ...recordPaymentForm, status: e.target.value })}
+                    className="w-full appearance-none rounded-2xl border border-border bg-surface py-3 px-4 text-primary focus:outline-none focus:ring-2 focus:ring-blue-400/40 text-sm font-medium"
+                  >
+                    {paymentStatuses.map((status) => (
+                      <option key={status} value={status}>
+                        {status}
+                      </option>
+                    ))}
+                  </select>
+                  <FiChevronDown className="pointer-events-none absolute right-4 top-[3.2rem] -translate-y-1/2 text-secondary" />
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-8 flex flex-col sm:flex-row gap-3 sm:gap-4">
+              <button
+                type="button"
+                onClick={() => setShowRecordPaymentModal(false)}
+                className="flex-1 rounded-3xl border border-border bg-surface-alt py-3 font-semibold text-primary transition hover:bg-surface text-sm"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={orders.filter(o => o.paymentStatus !== 'Paid').length === 0}
+                className="flex-1 rounded-3xl text-white bg-blue-600 hover:bg-blue-700 py-3 font-semibold transition shadow-md text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Record Payment
+              </button>
+            </div>
+          </form>
         </div>,
         document.body
       )}

@@ -104,6 +104,10 @@ const customerSchema = new mongoose.Schema({
     type: Number,
     default: 0
   },
+  balance: {
+    type: Number,
+    default: 0.0
+  },
   notes: {
     type: String
   }

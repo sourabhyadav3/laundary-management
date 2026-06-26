@@ -3,6 +3,7 @@ const Order = require('../models/Order');
 const Customer = require('../models/Customer');
 const Branch = require('../models/Branch');
 const Delivery = require('../models/Delivery');
+const Payment = require('../models/Payment');
 const { authenticate, requirePermission } = require('../middleware/auth');
 
 const router = express.Router();
@@ -80,7 +81,7 @@ router.post('/', authenticate, requirePermission('create_orders'), async (req, r
   try {
     const {
       customerId, customerName, serviceType, amount, tax, totalAmount, discountAmount,
-      date, deliveryDate, deliveryType, notes, itemDetails
+      date, deliveryDate, deliveryType, notes, itemDetails, paymentStatus, paymentMethod
     } = req.body;
 
     if (!customerId || !customerName || !serviceType || amount === undefined || tax === undefined || totalAmount === undefined || !itemDetails) {
@@ -125,7 +126,7 @@ router.post('/', authenticate, requirePermission('create_orders'), async (req, r
       customerName,
       serviceType,
       status: 'Waiting',
-      paymentStatus: 'Pending',
+      paymentStatus: paymentStatus || 'Pending',
       amount,
       tax,
       totalAmount,
@@ -151,6 +152,34 @@ router.post('/', authenticate, requirePermission('create_orders'), async (req, r
     // Increment customer loyalty metrics
     customer.totalSpent += parseFloat(totalAmount);
     customer.loyaltyPoints += Math.floor(totalAmount); // 1 point per 1 unit spent
+
+    // Handle payment ledger and outstanding customer balance
+    if (order.paymentStatus === 'Pending') {
+      customer.balance = (customer.balance || 0) + parseFloat(totalAmount);
+    } else if (order.paymentStatus === 'Paid') {
+      const latestPayment = await Payment.findOne().sort({ createdAt: -1 });
+      let nextNum = 1;
+      if (latestPayment && latestPayment.paymentId) {
+        const match = latestPayment.paymentId.match(/PAY-(\d+)/);
+        if (match) {
+          nextNum = parseInt(match[1], 10) + 1;
+        }
+      }
+      const paymentId = `PAY-${String(nextNum).padStart(4, '0')}`;
+
+      const payment = new Payment({
+        paymentId,
+        order: order._id,
+        orderNumber: order.number,
+        customerName: customerName,
+        date: new Date().toISOString().split('T')[0],
+        amount: parseFloat(totalAmount),
+        method: paymentMethod || 'Cash',
+        status: 'Paid'
+      });
+      await payment.save();
+    }
+
     await customer.save();
 
     // Auto-schedule delivery if deliveryType is Home Delivery

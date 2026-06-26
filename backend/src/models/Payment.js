@@ -8,8 +8,7 @@ const paymentSchema = new mongoose.Schema({
   },
   order: {
     type: mongoose.Schema.Types.ObjectId,
-    ref: 'Order',
-    required: true
+    ref: 'Order'
   },
   orderNumber: {
     type: String,
@@ -29,12 +28,10 @@ const paymentSchema = new mongoose.Schema({
   },
   method: {
     type: String,
-    enum: ['Cash', 'Card', 'UPI', 'Pending'],
     default: 'Pending'
   },
   status: {
     type: String,
-    enum: ['Paid', 'Pending', 'Partial'],
     default: 'Pending'
   }
 }, { timestamps: true });
