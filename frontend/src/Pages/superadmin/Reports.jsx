@@ -11,6 +11,7 @@ import {
   FiSearch,
 } from 'react-icons/fi';
 import { toast } from 'react-toastify';
+import api from '../../utils/api';
 import { useLanguage } from '../../context/LanguageContext';
 import { AdminStateContext } from '../../context/AdminStateContext';
 import StatsCard from '../../Components/StatsCard';
@@ -25,7 +26,6 @@ import {
 import {
   DATE_PRESETS,
   getDateRange,
-  computeReportMetrics,
 } from '../../utils/reportAnalytics';
 import { ORDER_STATUSES } from '../../constants/statusStyles';
 import { exportToPDF, exportToCSV, formatCurrency, formatDate } from '../../utils/exportUtils';
@@ -97,7 +97,7 @@ const REPORT_TYPES = {
 
 const Reports = () => {
   const { language } = useLanguage();
-  const { orders, customers, payments, pickups, deliveries, staff, drivers, catalog } = useContext(AdminStateContext);
+  const { customers, staff, drivers, catalog } = useContext(AdminStateContext);
   const [datePreset, setDatePreset] = useState('month');
   const [customStart, setCustomStart] = useState('');
   const [customEnd, setCustomEnd] = useState('');
@@ -110,6 +110,15 @@ const Reports = () => {
   // Custom generated report data
   const [customReport, setCustomReport] = useState(null);
   const [customSearch, setCustomSearch] = useState('');
+  
+  const [dashboardData, setDashboardData] = useState({
+    summary: { totalRevenue: 0, totalOrders: 0, completedOrders: 0, pendingOrders: 0, activeCustomers: 0, averageOrderValue: 0 },
+    periodOrders: [],
+    serviceRevenue: { washing: 0, dryCleaning: 0, ironing: 0, premium: 0 },
+    paymentDistribution: { Cash: 0, Card: 0, Link: 0, Wamd: 0 },
+    periodPayments: []
+  });
+  const [loadingDashboard, setLoadingDashboard] = useState(false);
 
   const getDynamicParameters = () => {
     if (!stepReportType) return [];
@@ -157,25 +166,22 @@ const Reports = () => {
     }
   };
 
-  const handleGenerateReport = () => {
+  const handleGenerateReport = async () => {
     if (!stepCategory || !stepReportType) {
       toast.warning(language === 'ar' ? 'يرجى اختيار الفئة ونوع التقرير' : 'Please select a Category and Report Type');
       return;
     }
 
-    const matchedOrders = metrics.periodOrders;
-    let title = '';
-    let columns = [];
-    let data = [];
-
     const categoryObj = CATEGORIES.find(c => c.id === stepCategory);
     const reportTypeObj = REPORT_TYPES[stepCategory]?.find(r => r.id === stepReportType);
     const titleEn = `${categoryObj.label} - ${reportTypeObj.label}`;
     const titleAr = `${categoryObj.labelAr} - ${reportTypeObj.labelAr}`;
-    title = language === 'ar' ? titleAr : titleEn;
+    const title = language === 'ar' ? titleAr : titleEn;
 
+    let columns = [];
+    
     switch (stepReportType) {
-      case 'total_sales': {
+      case 'total_sales':
         columns = [
           { header: language === 'ar' ? 'التاريخ' : 'Date', accessor: 'date', format: (val) => formatDate(val) },
           { header: language === 'ar' ? 'عدد الطلبات' : 'Order Count', accessor: 'count' },
@@ -184,24 +190,8 @@ const Reports = () => {
           { header: language === 'ar' ? 'الضريبة' : 'Tax', accessor: 'tax', format: (val) => formatCurrency(val) },
           { header: language === 'ar' ? 'الإجمالي الصافي' : 'Net Total', accessor: 'total', format: (val) => formatCurrency(val) },
         ];
-        
-        const groups = {};
-        matchedOrders.forEach(o => {
-          if (!groups[o.date]) {
-            groups[o.date] = { date: o.date, count: 0, subtotal: 0, discount: 0, tax: 0, total: 0 };
-          }
-          groups[o.date].count += 1;
-          groups[o.date].subtotal += (Number(o.amount) || 0);
-          groups[o.date].discount += (Number(o.discount) || 0);
-          groups[o.date].tax += (Number(o.tax) || 0);
-          groups[o.date].total += (Number(o.totalAmount) || 0);
-        });
-        
-        data = Object.values(groups).sort((a, b) => b.date.localeCompare(a.date));
         break;
-      }
-
-      case 'sales_detail': {
+      case 'sales_detail':
         columns = [
           { header: language === 'ar' ? 'رقم الفاتورة' : 'Order #', accessor: 'orderNo' },
           { header: language === 'ar' ? 'العميل' : 'Customer', accessor: 'customerName' },
@@ -212,96 +202,23 @@ const Reports = () => {
           { header: language === 'ar' ? 'سعر الوحدة' : 'Unit Price', accessor: 'price', format: (val) => formatCurrency(val) },
           { header: language === 'ar' ? 'الإجمالي' : 'Total', accessor: 'total', format: (val) => formatCurrency(val) },
         ];
-
-        data = [];
-        matchedOrders.forEach(o => {
-          if (o.itemDetails) {
-            o.itemDetails.forEach(it => {
-              if (stepParameter !== 'All' && it.name !== stepParameter) {
-                return;
-              }
-              data.push({
-                id: `${o.id}-${it.name}`,
-                orderNo: o.number,
-                customerName: o.customerName,
-                date: o.date,
-                itemName: it.name,
-                service: it.service || 'Normal',
-                qty: it.quantity,
-                price: it.unitPrice,
-                total: it.quantity * it.unitPrice
-              });
-            });
-          }
-        });
         break;
-      }
-
-      case 'branch_sales': {
+      case 'branch_sales':
         columns = [
           { header: language === 'ar' ? 'الفرع' : 'Branch Name', accessor: 'branch' },
           { header: language === 'ar' ? 'عدد الطلبات' : 'Order Count', accessor: 'count' },
           { header: language === 'ar' ? 'مجموع المبيعات' : 'Sales Revenue', accessor: 'revenue', format: (val) => formatCurrency(val) },
           { header: language === 'ar' ? 'متوسط قيمة الطلب' : 'Avg Order Value', accessor: 'avgValue', format: (val) => formatCurrency(val) },
         ];
-
-        const groups = {
-          'Ragheey': { branch: 'Ragheey', count: 0, revenue: 0 },
-          'Mishrif': { branch: 'Mishrif', count: 0, revenue: 0 },
-          'Andalus': { branch: 'Andalus', count: 0, revenue: 0 },
-          'Ardiya': { branch: 'Ardiya', count: 0, revenue: 0 },
-          'Khaitan': { branch: 'Khaitan', count: 0, revenue: 0 },
-          'Qurain': { branch: 'Qurain', count: 0, revenue: 0 },
-          'Jahra': { branch: 'Jahra', count: 0, revenue: 0 },
-          'Rigai': { branch: 'Rigai', count: 0, revenue: 0 },
-        };
-
-        matchedOrders.forEach((o, idx) => {
-          let bName = o.branch || 'Ragheey';
-          if (!groups[bName]) {
-            const branchNames = ['Ragheey', 'Mishrif', 'Andalus', 'Ardiya', 'Khaitan', 'Qurain', 'Jahra', 'Rigai'];
-            bName = branchNames[idx % branchNames.length];
-          }
-
-          if (stepParameter !== 'All' && bName !== stepParameter) {
-            return;
-          }
-
-          groups[bName].count += 1;
-          groups[bName].revenue += (Number(o.totalAmount) || 0);
-        });
-
-        data = Object.values(groups)
-          .filter(g => g.count > 0)
-          .map(g => ({
-            ...g,
-            avgValue: g.revenue / (g.count || 1)
-          }));
         break;
-      }
-
-      case 'payment_methods': {
+      case 'payment_methods':
         columns = [
           { header: language === 'ar' ? 'طريقة الدفع' : 'Payment Method', accessor: 'method' },
           { header: language === 'ar' ? 'عدد العمليات' : 'Transactions', accessor: 'count' },
           { header: language === 'ar' ? 'المبلغ المحصل' : 'Collected Amount', accessor: 'collected', format: (val) => formatCurrency(val) },
         ];
-
-        const groups = {};
-        const periodPayments = payments.filter(p => matchedOrders.some(o => o.number === p.orderNumber));
-        periodPayments.forEach(p => {
-          if (!groups[p.method]) {
-            groups[p.method] = { method: p.method, count: 0, collected: 0 };
-          }
-          groups[p.method].count += 1;
-          groups[p.method].collected += (Number(p.amount) || 0);
-        });
-
-        data = Object.values(groups);
         break;
-      }
-
-      case 'customer_list': {
+      case 'customer_list':
         columns = [
           { header: language === 'ar' ? 'رقم العميل' : 'Customer ID', accessor: 'customerId' },
           { header: language === 'ar' ? 'الاسم' : 'Name', accessor: 'name' },
@@ -311,66 +228,25 @@ const Reports = () => {
           { header: language === 'ar' ? 'عدد الطلبات' : 'Total Orders', accessor: 'ordersCount' },
           { header: language === 'ar' ? 'الرصيد المستحق' : 'Due Balance', accessor: 'balance', format: (val) => formatCurrency(val) },
         ];
-
-        data = customers
-          .filter(c => stepParameter === 'All' || String(c.id) === String(stepParameter))
-          .map(c => ({
-            id: c.id,
-            customerId: `CUS-${String(c.id).padStart(4, '0')}`,
-            name: c.name,
-            phone: c.phone,
-            registered: c.registrationDate,
-            discount: c.customerLevel,
-            ordersCount: c.totalOrders || 0,
-            balance: c.balance || 0
-          }));
         break;
-      }
-
-      case 'top_customers': {
+      case 'top_customers':
         columns = [
           { header: language === 'ar' ? 'اسم العميل' : 'Customer Name', accessor: 'name' },
           { header: language === 'ar' ? 'عدد الطلبات في الفترة' : 'Orders Count', accessor: 'ordersCount' },
           { header: language === 'ar' ? 'إجمالي المبيعات' : 'Total Spent', accessor: 'spent', format: (val) => formatCurrency(val) },
           { header: language === 'ar' ? 'آخر تاريخ طلب' : 'Last Order Date', accessor: 'lastDate', format: (val) => formatDate(val) },
         ];
-
-        data = metrics.topCustomers
-          .filter(c => stepParameter === 'All' || c.customerName === customers.find(cust => String(cust.id) === String(stepParameter))?.name)
-          .map((c, idx) => ({
-            id: idx + 1,
-            name: c.customerName,
-            ordersCount: c.totalOrders,
-            spent: c.totalRevenue,
-            lastDate: c.lastOrderDate
-          }));
         break;
-      }
-
-      case 'customer_debts': {
+      case 'customer_debts':
         columns = [
           { header: language === 'ar' ? 'الاسم' : 'Customer Name', accessor: 'name' },
           { header: language === 'ar' ? 'الهاتف' : 'Phone', accessor: 'phone' },
           { header: language === 'ar' ? 'تاريخ التسجيل' : 'Registered', accessor: 'registered', format: (val) => formatDate(val) },
           { header: language === 'ar' ? 'الرصيد المستحق' : 'Due Balance', accessor: 'balance', format: (val) => formatCurrency(val) },
         ];
-
-        data = customers
-          .filter(c => (Number(c.balance) || 0) > 0)
-          .filter(c => stepParameter === 'All' || String(c.id) === String(stepParameter))
-          .map(c => ({
-            id: c.id,
-            name: c.name,
-            phone: c.phone,
-            registered: c.registrationDate,
-            balance: c.balance
-          }))
-          .sort((a, b) => b.balance - a.balance);
         break;
-      }
-
       case 'completed_jobs':
-      case 'pending_jobs': {
+      case 'pending_jobs':
         columns = [
           { header: language === 'ar' ? 'رقم الطلب' : 'Request ID', accessor: 'reqId' },
           { header: language === 'ar' ? 'النوع' : 'Type', accessor: 'type' },
@@ -379,152 +255,73 @@ const Reports = () => {
           { header: language === 'ar' ? 'المندوب' : 'Driver', accessor: 'driver' },
           { header: language === 'ar' ? 'الحالة' : 'Status', accessor: 'status' },
         ];
-
-        const isCompleted = stepReportType === 'completed_jobs';
-        const listPickups = pickups.filter(p => isCompleted ? p.status === 'Completed' : p.status !== 'Completed');
-        const listDeliveries = deliveries.filter(d => isCompleted ? d.status === 'Delivered' : d.status !== 'Delivered');
-
-        const items = [];
-        listPickups.forEach(p => items.push({ id: `PKP-${p.id}`, reqId: p.requestId || `PKP-${p.id}`, type: 'Pickup', customer: p.customer, date: p.pickupDate, driver: p.assignedStaff || 'Unassigned', status: p.status }));
-        listDeliveries.forEach(d => items.push({ id: `DEL-${d.id}`, reqId: d.deliveryId || `DEL-${d.id}`, type: 'Delivery', customer: d.customer, date: d.deliveryDate, driver: d.assignedStaff || 'Unassigned', status: d.status }));
-
-        data = items.sort((a, b) => b.date.localeCompare(a.date));
         break;
-      }
-
-      case 'user_sales': {
+      case 'user_sales':
         columns = [
           { header: language === 'ar' ? 'الموظف' : 'Employee Name', accessor: 'name' },
           { header: language === 'ar' ? 'عدد الفواتير' : 'Invoices Count', accessor: 'count' },
           { header: language === 'ar' ? 'إجمالي المبيعات' : 'Sales Generated', accessor: 'sales', format: (val) => formatCurrency(val) },
         ];
-
-        const groups = {};
-        matchedOrders.forEach(o => {
-          const u = o.createdBy || 'Unknown';
-          if (stepParameter !== 'All' && u !== stepParameter) {
-            return;
-          }
-          if (!groups[u]) {
-            groups[u] = { name: u, count: 0, sales: 0 };
-          }
-          groups[u].count += 1;
-          groups[u].sales += (Number(o.totalAmount) || 0);
-        });
-
-        data = Object.values(groups);
         break;
-      }
-
-      case 'driver_income': {
+      case 'driver_income':
         columns = [
           { header: language === 'ar' ? 'السائق' : 'Driver Name', accessor: 'name' },
-          { header: language === 'ar' ? 'رقم السيارة' : 'Car No', accessor: 'carNo' },
-          { header: language === 'ar' ? 'المهام المسندة' : 'Assigned Jobs', accessor: 'assigned' },
-          { header: language === 'ar' ? 'المهام المكتملة' : 'Completed Jobs', accessor: 'completed' },
-          { header: language === 'ar' ? 'المدفوعات المحصلة' : 'Collected (Est)', accessor: 'revenue', format: (val) => formatCurrency(val) },
-          { header: language === 'ar' ? 'نقدي' : 'Cash', accessor: 'cash', format: (val) => formatCurrency(val) },
-          { header: language === 'ar' ? 'تحويل بنكي' : 'Bank Transfer', accessor: 'bankTransfer', format: (val) => formatCurrency(val) },
+          { header: language === 'ar' ? 'المناطق المغطاة' : 'Assigned Areas', accessor: 'areas' },
+          { 
+            header: language === 'ar' ? 'الحالة الحالية' : 'Current Status', 
+            accessor: 'status',
+            format: (status) => {
+              const colors = {
+                'Available': 'bg-emerald-500/10 text-emerald-600 border-emerald-500/15',
+                'Assigned': 'bg-amber-500/10 text-amber-600 border-amber-500/15',
+                'On Delivery': 'bg-blue-500/10 text-blue-600 border-blue-500/15',
+                'Off Duty': 'bg-rose-500/10 text-rose-600 border-rose-500/15'
+              };
+              return (
+                <span className={`px-2 py-0.5 rounded-full border text-[10px] font-semibold ${colors[status] || colors.Available}`}>
+                  {status}
+                </span>
+              );
+            }
+          },
+          { header: language === 'ar' ? 'عمليات بيك اب نشطة' : 'Active Pickups', accessor: 'activePickups' },
+          { header: language === 'ar' ? 'عمليات توصيل نشطة' : 'Active Deliveries', accessor: 'activeDeliveries' },
         ];
-
-        data = (drivers || [])
-          .filter(d => stepParameter === 'All' || d.driverName === stepParameter)
-          .map(d => {
-            const assignedCount = pickups.filter(p => p.assignedStaff === d.driverName).length + deliveries.filter(del => del.assignedStaff === d.driverName).length;
-            const driverPickups = pickups.filter(p => p.assignedStaff === d.driverName && p.status === 'Completed');
-            const driverDeliveries = deliveries.filter(del => del.assignedStaff === d.driverName && del.status === 'Delivered');
-            const completedCount = driverPickups.length + driverDeliveries.length;
-            
-            let cashVal = 0;
-            let bankVal = 0;
-            
-            driverPickups.forEach(() => {
-              cashVal += 7.5;
-              bankVal += 7.5;
-            });
-            
-            driverDeliveries.forEach(del => {
-              const pmt = payments.find(p => p.orderNumber === del.orderNumber);
-              if (pmt) {
-                if (pmt.method === 'Cash') {
-                  cashVal += 15;
-                } else {
-                  bankVal += 15;
-                }
-              } else {
-                cashVal += 6;
-                bankVal += 9;
-              }
-            });
-
-            return {
-              id: d.id,
-              name: d.driverName,
-              carNo: d.carNo || 'N/A',
-              assigned: assignedCount,
-              completed: completedCount,
-              revenue: completedCount * 15,
-              cash: cashVal,
-              bankTransfer: bankVal,
-            };
-          });
         break;
-      }
-
-      case 'service_revenue': {
+      case 'service_revenue':
         columns = [
           { header: language === 'ar' ? 'الخدمة' : 'Service Type', accessor: 'service' },
           { header: language === 'ar' ? 'عدد الطلبات' : 'Order Count', accessor: 'count' },
           { header: language === 'ar' ? 'مجموع الإيرادات' : 'Revenue', accessor: 'revenue', format: (val) => formatCurrency(val) },
         ];
-
-        const groups = {};
-        matchedOrders.forEach(o => {
-          const s = o.serviceType || 'Normal';
-          if (!groups[s]) {
-            groups[s] = { service: s, count: 0, revenue: 0 };
-          }
-          groups[s].count += 1;
-          groups[s].revenue += (Number(o.totalAmount) || 0);
-        });
-
-        data = Object.values(groups);
         break;
-      }
-
-      case 'garment_stats': {
+      case 'garment_stats':
         columns = [
           { header: language === 'ar' ? 'الصنف' : 'Garment Name', accessor: 'name' },
           { header: language === 'ar' ? 'الكمية الإجمالية' : 'Units Sold', accessor: 'qty' },
           { header: language === 'ar' ? 'إجمالي المبيعات' : 'Revenue', accessor: 'revenue', format: (val) => formatCurrency(val) },
         ];
-
-        const groups = {};
-        matchedOrders.forEach(o => {
-          if (o.itemDetails) {
-            o.itemDetails.forEach(it => {
-              if (stepParameter !== 'All' && it.name !== stepParameter) {
-                return;
-              }
-              if (!groups[it.name]) {
-                groups[it.name] = { name: it.name, qty: 0, revenue: 0 };
-              }
-              groups[it.name].qty += it.quantity;
-              groups[it.name].revenue += it.quantity * it.unitPrice;
-            });
-          }
-        });
-
-        data = Object.values(groups).sort((a, b) => b.qty - a.qty);
         break;
-      }
 
-      default:
-        break;
+      default: break;
     }
 
-    setCustomReport({ title, columns, data });
-    toast.success(language === 'ar' ? 'تم إنشاء التقرير بنجاح' : 'Report generated successfully');
+    try {
+      const { start, end } = getDateRange(datePreset, customStart, customEnd);
+      let sStr = '';
+      let eStr = '';
+      if(start) sStr = start.toISOString().slice(0, 10);
+      if(end) eStr = end.toISOString().slice(0, 10);
+      
+      const res = await api.get('/reports/generate', {
+         params: { reportType: stepReportType, category: stepCategory, parameter: stepParameter, start: sStr, end: eStr }
+      });
+      setCustomReport({ title, columns, data: res.data.data });
+      toast.success(language === 'ar' ? 'تم إنشاء التقرير بنجاح' : 'Report generated successfully');
+    } catch (e) {
+      console.error(e);
+      toast.error('Failed to generate report');
+    }
   };
 
   const range = useMemo(
@@ -532,21 +329,74 @@ const Reports = () => {
     [datePreset, customStart, customEnd]
   );
 
-  const metrics = useMemo(
-    () =>
-      computeReportMetrics({
-        orders,
-        customers,
-        payments,
-        pickups,
-        deliveries,
-        staff,
-        range,
-      }),
-    [orders, customers, payments, pickups, deliveries, staff, range]
-  );
-
+  const metrics = {
+    ...dashboardData,
+    summary: {
+      ...dashboardData.summary,
+      growth: dashboardData.summary?.growth || {
+        revenue: { text: '0%', positive: true },
+        orders: { text: '0%', positive: true },
+        completed: { text: '0%', positive: true },
+        pending: { text: '0%', positive: true },
+        customers: { text: '0%', positive: true },
+        avgOrder: { text: '0%', positive: true },
+      }
+    },
+    daily: dashboardData.daily || {
+      revenueToday: 0,
+      ordersToday: 0,
+      paymentsReceived: 0
+    },
+    monthly: dashboardData.monthly || {
+      monthlyRevenue: 0,
+      revenueGrowth: { text: '0%' },
+      revenueComparison: 0
+    },
+    orders: dashboardData.orders || {
+      totalOrders: 0,
+      pendingOrders: 0,
+      deliveredOrders: 0,
+      cancelledOrders: 0
+    },
+    paymentMethodBreakdown: dashboardData.paymentMethodBreakdown || [],
+    orderStatusBreakdown: dashboardData.orderStatusBreakdown || [],
+    payments: dashboardData.payments || {
+      paidAmount: 0,
+      pendingAmount: 0,
+      partialAmount: 0,
+      dueCustomers: 0
+    },
+    logistics: dashboardData.logistics || {
+      totalPickups: 0,
+      completedPickups: 0,
+      totalDeliveries: 0,
+      failedDeliveries: 0
+    },
+    topCustomers: dashboardData.topCustomers || [],
+    staffPerformance: dashboardData.staffPerformance || []
+  };
   const { summary } = metrics;
+  
+  React.useEffect(() => {
+    const fetchDashboard = async () => {
+      try {
+        setLoadingDashboard(true);
+        const { start, end } = getDateRange(datePreset, customStart, customEnd);
+        let sStr = '';
+        let eStr = '';
+        if(start) sStr = start.toISOString().slice(0, 10);
+        if(end) eStr = end.toISOString().slice(0, 10);
+        
+        const res = await api.get('/reports/dashboard', { params: { start: sStr, end: eStr } });
+        setDashboardData(res.data);
+      } catch (e) {
+        console.error(e);
+      } finally {
+        setLoadingDashboard(false);
+      }
+    };
+    fetchDashboard();
+  }, [datePreset, customStart, customEnd]);
 
   const summaryLines = [
     `Period: ${DATE_PRESETS.find((p) => p.id === datePreset)?.label || datePreset}`,

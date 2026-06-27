@@ -46,6 +46,7 @@ app.use('/api/payments', paymentRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/settings', settingRoutes);
 app.use('/api/catalog', catalogRoutes);
+app.use('/api/reports', require('./routes/reports'));
 
 // Error Handling Middleware
 app.use((err, req, res, next) => {
