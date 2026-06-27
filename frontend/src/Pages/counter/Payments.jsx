@@ -7,15 +7,12 @@ import { formatCurrency } from '../../utils/exportUtils';
 import { FiCreditCard, FiClock, FiPieChart, FiList } from 'react-icons/fi';
 
 const Payments = () => {
-  const { payments, selectedBranch } = useContext(AdminStateContext);
+  const { payments } = useContext(AdminStateContext);
   const [searchTerm, setSearchTerm] = useState('');
   const today = new Date().toDateString();
 
   const stats = useMemo(() => {
     let result = payments;
-    if (selectedBranch && selectedBranch !== 'All') {
-      result = result.filter((p) => p.branchId === selectedBranch || p.branch === selectedBranch);
-    }
     const todayPayments = result.filter((p) => new Date(p.date).toDateString() === today);
     return {
       todayCollection: todayPayments.filter((p) => p.status === 'Paid').reduce((s, p) => s + p.amount, 0),
@@ -23,22 +20,19 @@ const Payments = () => {
       partial: result.filter((p) => p.status === 'Partial').length,
       totalTransactions: result.length,
     };
-  }, [payments, today, selectedBranch]);
+  }, [payments, today]);
 
   const filteredPayments = useMemo(
     () => {
       let result = payments;
-      if (selectedBranch && selectedBranch !== 'All') {
-        result = result.filter((p) => p.branchId === selectedBranch || p.branch === selectedBranch);
-      }
       return result.filter(
         (p) =>
-          p.orderNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          p.customer.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          String(p.id).includes(searchTerm)
+          (p.orderNumber || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+          (p.customerName || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+          String(p.paymentId).includes(searchTerm)
       );
     },
-    [payments, searchTerm, selectedBranch]
+    [payments, searchTerm]
   );
 
   return (

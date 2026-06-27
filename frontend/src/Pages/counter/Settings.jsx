@@ -5,6 +5,8 @@ import {
   FiLock,
   FiEdit2,
   FiLogOut,
+  FiEye,
+  FiEyeOff,
 } from 'react-icons/fi';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
@@ -35,6 +37,9 @@ const Settings = () => {
     role: storedUser.role || 'Counter Staff',
   });
   const [showPasswordModal, setShowPasswordModal] = useState(false);
+  const [showCurrent, setShowCurrent] = useState(false);
+  const [showNext, setShowNext] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [passwordForm, setPasswordForm] = useState({ current: '', next: '', confirm: '' });
 
@@ -199,15 +204,30 @@ const Settings = () => {
         <div className="space-y-4">
           <div>
             <label className={labelClass}>Current Password</label>
-            <input type="password" className={inputClass} value={passwordForm.current} onChange={(e) => setPasswordForm({ ...passwordForm, current: e.target.value })} />
+            <div className="relative">
+              <input type={showCurrent ? "text" : "password"} className={inputClass} value={passwordForm.current} onChange={(e) => setPasswordForm({ ...passwordForm, current: e.target.value })} />
+              <button type="button" className="absolute right-3 top-1/2 -translate-y-1/2 text-secondary" onClick={() => setShowCurrent(!showCurrent)}>
+                 {showCurrent ? <FiEyeOff /> : <FiEye />}
+              </button>
+            </div>
           </div>
           <div>
             <label className={labelClass}>New Password</label>
-            <input type="password" className={inputClass} value={passwordForm.next} onChange={(e) => setPasswordForm({ ...passwordForm, next: e.target.value })} />
+            <div className="relative">
+              <input type={showNext ? "text" : "password"} className={inputClass} value={passwordForm.next} onChange={(e) => setPasswordForm({ ...passwordForm, next: e.target.value })} />
+              <button type="button" className="absolute right-3 top-1/2 -translate-y-1/2 text-secondary" onClick={() => setShowNext(!showNext)}>
+                 {showNext ? <FiEyeOff /> : <FiEye />}
+              </button>
+            </div>
           </div>
           <div>
             <label className={labelClass}>Confirm Password</label>
-            <input type="password" className={inputClass} value={passwordForm.confirm} onChange={(e) => setPasswordForm({ ...passwordForm, confirm: e.target.value })} />
+            <div className="relative">
+              <input type={showConfirm ? "text" : "password"} className={inputClass} value={passwordForm.confirm} onChange={(e) => setPasswordForm({ ...passwordForm, confirm: e.target.value })} />
+              <button type="button" className="absolute right-3 top-1/2 -translate-y-1/2 text-secondary" onClick={() => setShowConfirm(!showConfirm)}>
+                 {showConfirm ? <FiEyeOff /> : <FiEye />}
+              </button>
+            </div>
           </div>
           <button type="button" onClick={handleChangePassword} className="w-full rounded-xl bg-blue-500/10 py-2 font-semibold text-blue-600">
             Update Password

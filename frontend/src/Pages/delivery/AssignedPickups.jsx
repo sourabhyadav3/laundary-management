@@ -8,7 +8,7 @@ import DeliveryDetailsModal from '../../Components/delivery/DeliveryDetailsModal
 const DEFAULT_STAFF = 'Frank Brown';
 
 const AssignedPickups = () => {
-  const { pickups, updatePickupStatus } = useContext(AdminStateContext);
+  const { pickups, orders, updatePickupStatus } = useContext(AdminStateContext);
   const [searchTerm, setSearchTerm] = useState('');
   const [selected, setSelected] = useState(null);
   const [showModal, setShowModal] = useState(false);
@@ -24,8 +24,16 @@ const AssignedPickups = () => {
           (p) =>
             p.customer.toLowerCase().includes(searchTerm.toLowerCase()) ||
             (p.pickupId || '').toLowerCase().includes(searchTerm.toLowerCase())
-        ),
-    [pickups, searchTerm, staffName]
+        )
+        .map(p => {
+          // If pickup has an orderNumber, find the order to get serviceType
+          const order = p.orderNumber ? orders.find(o => o.number === p.orderNumber) : null;
+          return {
+            ...p,
+            serviceType: order ? order.serviceType : p.serviceType
+          };
+        }),
+    [pickups, orders, searchTerm, staffName]
   );
 
   return (

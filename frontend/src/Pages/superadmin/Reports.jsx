@@ -118,7 +118,7 @@ const Reports = () => {
     paymentDistribution: { Cash: 0, Card: 0, Link: 0, Wamd: 0 },
     periodPayments: []
   });
-  const [loadingDashboard, setLoadingDashboard] = useState(false);
+  const [, setLoadingDashboard] = useState(false);
 
   const getDynamicParameters = () => {
     if (!stepReportType) return [];

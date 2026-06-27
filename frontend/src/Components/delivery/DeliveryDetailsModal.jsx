@@ -73,16 +73,24 @@ const DeliveryDetailsModal = ({ isOpen, onClose, job, type, onUpdateStatus }) =>
         </div>
 
         <div className="border-t border-border pt-6">
-          <h3 className="mb-4 text-lg font-semibold text-primary">Order Information</h3>
+          <h3 className="mb-4 text-lg font-semibold text-primary">
+            {type === 'pickup' ? 'Pickup Information' : 'Order Information'}
+          </h3>
           <div className="grid gap-4 sm:grid-cols-2">
             <div>
-              <p className="text-xs uppercase tracking-[0.3em] text-secondary">Order Number</p>
-              <p className="mt-1 font-semibold text-primary">{job.orderNumber || 'N/A'}</p>
+              <p className="text-xs uppercase tracking-[0.3em] text-secondary">
+                {type === 'pickup' ? 'Pickup ID' : 'Order Number'}
+              </p>
+              <p className="mt-1 font-semibold text-primary">
+                {type === 'pickup' ? (job.pickupId || 'N/A') : (job.orderNumber || 'N/A')}
+              </p>
             </div>
-            <div>
-              <p className="text-xs uppercase tracking-[0.3em] text-secondary">Service Type</p>
-              <p className="mt-1 font-semibold text-primary">{job.serviceType || 'N/A'}</p>
-            </div>
+            {type === 'delivery' && (
+              <div>
+                <p className="text-xs uppercase tracking-[0.3em] text-secondary">Service Type</p>
+                <p className="mt-1 font-semibold text-primary">{job.serviceType || 'N/A'}</p>
+              </div>
+            )}
             <div>
               <p className="text-xs uppercase tracking-[0.3em] text-secondary">
                 {type === 'pickup' ? 'Pickup Date' : 'Delivery Date'}

@@ -54,8 +54,8 @@ const Payments = () => {
   const filteredPayments = useMemo(() => {
     return payments.filter((payment) => {
       const matchesSearch =
-        payment.orderNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        payment.customer.toLowerCase().includes(searchTerm.toLowerCase());
+        (payment.orderNumber || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (payment.customerName || '').toLowerCase().includes(searchTerm.toLowerCase());
 
       const matchesStatus = statusFilter === 'All' || payment.status === statusFilter;
       const matchesMethod = methodFilter === 'All' || payment.method === methodFilter;
@@ -173,9 +173,9 @@ const Payments = () => {
   };
 
   const tableColumns = [
-    { header: 'Payment ID', accessor: 'id' },
+    { header: 'Payment ID', accessor: 'paymentId' },
     { header: 'Order #', accessor: 'orderNumber' },
-    { header: 'Customer', accessor: 'customer' },
+    { header: 'Customer', accessor: 'customerName' },
     { header: 'Amount', accessor: 'amount', format: (val) => formatCurrency(val) },
     { header: 'Method', accessor: 'method' },
     {

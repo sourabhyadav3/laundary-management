@@ -2,6 +2,8 @@ const express = require('express');
 const Pickup = require('../models/Pickup');
 const Order = require('../models/Order');
 const { authenticate, requirePermission } = require('../middleware/auth');
+const notify = require('../utils/notify');
+const { updateDriverStatus } = require('../utils/driverStatus');
 
 const router = express.Router();
 
@@ -80,6 +82,17 @@ router.post('/', authenticate, requirePermission('manage_pickups'), async (req, 
     });
 
     await pickup.save();
+
+    await notify(
+      'New Pickup Scheduled',
+      `Pickup ${pickupId} scheduled for ${customer}.`,
+      'delivery'
+    );
+
+    if (pickup.assignedStaff) {
+      await updateDriverStatus(pickup.assignedStaff);
+    }
+
     res.status(201).json(formatPickup(pickup));
   } catch (error) {
     console.error('Create pickup error:', error);
@@ -105,6 +118,8 @@ router.put('/:id/assign', authenticate, requirePermission('manage_pickups'), asy
     pickup.status = 'Assigned';
     await pickup.save();
 
+    await updateDriverStatus(pickup.assignedStaff);
+
     res.json(formatPickup(pickup));
   } catch (error) {
     console.error('Assign pickup error:', error);
@@ -128,6 +143,10 @@ router.put('/:id/status', authenticate, async (req, res) => {
 
     pickup.status = status;
     await pickup.save();
+
+    if (pickup.assignedStaff) {
+      await updateDriverStatus(pickup.assignedStaff);
+    }
 
     res.json(formatPickup(pickup));
   } catch (error) {

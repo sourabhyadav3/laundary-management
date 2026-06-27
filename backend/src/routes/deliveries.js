@@ -2,6 +2,8 @@ const express = require('express');
 const Delivery = require('../models/Delivery');
 const Order = require('../models/Order');
 const { authenticate, requirePermission } = require('../middleware/auth');
+const notify = require('../utils/notify');
+const { updateDriverStatus } = require('../utils/driverStatus');
 
 const router = express.Router();
 
@@ -81,6 +83,17 @@ router.post('/', authenticate, requirePermission('manage_deliveries'), async (re
     });
 
     await delivery.save();
+
+    await notify(
+      'New Delivery Scheduled',
+      `Delivery ${deliveryId} scheduled for ${customer}.`,
+      'delivery'
+    );
+
+    if (delivery.assignedStaff) {
+      await updateDriverStatus(delivery.assignedStaff);
+    }
+
     res.status(201).json(formatDelivery(delivery));
   } catch (error) {
     console.error('Create delivery error:', error);
@@ -105,6 +118,8 @@ router.put('/:id/assign', authenticate, requirePermission('manage_deliveries'), 
     delivery.assignedStaff = assignedStaff;
     delivery.status = 'Assigned';
     await delivery.save();
+
+    await updateDriverStatus(delivery.assignedStaff);
 
     res.json(formatDelivery(delivery));
   } catch (error) {
@@ -152,6 +167,10 @@ router.put('/:id/status', authenticate, async (req, res) => {
         
         await order.save();
       }
+    }
+
+    if (delivery.assignedStaff) {
+      await updateDriverStatus(delivery.assignedStaff);
     }
 
     res.json(formatDelivery(delivery));

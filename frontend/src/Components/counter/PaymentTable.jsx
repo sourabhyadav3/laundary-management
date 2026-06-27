@@ -5,9 +5,9 @@ import { paymentStatusStyles } from '../../constants/statusStyles';
 
 const PaymentTable = ({ payments }) => {
   const columns = [
-    { header: 'Payment ID', accessor: 'id', format: (val) => `PAY-${String(val).padStart(4, '0')}` },
+    { header: 'Payment ID', accessor: 'paymentId' },
     { header: 'Order Number', accessor: 'orderNumber' },
-    { header: 'Customer', accessor: 'customer' },
+    { header: 'Customer', accessor: 'customerName' },
     {
       header: 'Amount',
       accessor: 'amount',

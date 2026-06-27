@@ -33,7 +33,7 @@ const formatDeliveryAddress = (row, isAr) => {
 };
 
 const AssignedDeliveries = () => {
-  const { deliveries, updateDeliveryStatus } = useContext(AdminStateContext);
+  const { deliveries, orders, updateDeliveryStatus } = useContext(AdminStateContext);
   const { language, t } = useLanguage();
   const [searchTerm, setSearchTerm] = useState('');
   const [selected, setSelected] = useState(null);
@@ -50,9 +50,17 @@ const AssignedDeliveries = () => {
         .filter(
           (d) =>
             d.customer.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            d.deliveryId.toLowerCase().includes(searchTerm.toLowerCase())
-        ),
-    [deliveries, searchTerm, staffName]
+            (d.deliveryId || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+            (d.orderNumber || '').toLowerCase().includes(searchTerm.toLowerCase())
+        )
+        .map(d => {
+          const order = d.orderNumber ? orders.find(o => o.number === d.orderNumber) : null;
+          return {
+            ...d,
+            serviceType: order ? order.serviceType : d.serviceType
+          };
+        }),
+    [deliveries, orders, searchTerm, staffName]
   );
 
   const handlePrintList = () => {

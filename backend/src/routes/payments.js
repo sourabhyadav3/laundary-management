@@ -2,14 +2,20 @@ const express = require('express');
 const Payment = require('../models/Payment');
 const Order = require('../models/Order');
 const { authenticate, requirePermission } = require('../middleware/auth');
+const notify = require('../utils/notify');
 
 const router = express.Router();
 
 const formatPayment = (payment) => {
+  const isOrderPopulated = payment.order && typeof payment.order === 'object' && payment.order._id;
+  const orderIdStr = isOrderPopulated ? payment.order._id.toString() : (payment.order ? payment.order.toString() : '');
+  const branchIdStr = isOrderPopulated && payment.order.branchId ? payment.order.branchId.toString() : '';
+
   return {
     id: payment._id.toString(),
     paymentId: payment.paymentId,
-    orderId: payment.order ? payment.order.toString() : '',
+    orderId: orderIdStr,
+    branchId: branchIdStr,
     orderNumber: payment.orderNumber,
     customerName: payment.customerName,
     date: payment.date,
@@ -29,7 +35,7 @@ router.get('/', authenticate, async (req, res) => {
       const orderIds = orders.map(o => o._id);
       query = { order: { $in: orderIds } };
     }
-    const payments = await Payment.find(query).sort({ createdAt: -1 });
+    const payments = await Payment.find(query).populate('order').sort({ createdAt: -1 });
     res.json(payments.map(formatPayment));
   } catch (error) {
     console.error('Get payments error:', error);
@@ -69,6 +75,12 @@ router.post('/', authenticate, requirePermission('manage_payments'), async (req,
     });
 
     await payment.save();
+
+    await notify(
+      'Payment Received',
+      `Payment of ${amount} received for order ${orderNumber}.`,
+      'system'
+    );
 
     // Sync with order payment status
     if (payment.order) {

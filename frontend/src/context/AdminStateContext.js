@@ -227,7 +227,23 @@ export const AdminStateProvider = ({ children }) => {
         fetchData();
       }
     }, 2000);
-    return () => clearInterval(timer);
+
+    const notifTimer = setInterval(async () => {
+      const token = localStorage.getItem('token');
+      if (token) {
+        try {
+          const res = await api.get('/notifications');
+          setNotifications(res.data);
+        } catch (e) {
+          // ignore polling errors
+        }
+      }
+    }, 15000); // Poll notifications every 15 seconds
+
+    return () => {
+      clearInterval(timer);
+      clearInterval(notifTimer);
+    };
   }, [customers.length, orders.length]);
 
   const addCatalogItem = async (item) => {

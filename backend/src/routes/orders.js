@@ -5,6 +5,7 @@ const Branch = require('../models/Branch');
 const Delivery = require('../models/Delivery');
 const Payment = require('../models/Payment');
 const { authenticate, requirePermission } = require('../middleware/auth');
+const notify = require('../utils/notify');
 
 const router = express.Router();
 
@@ -149,6 +150,12 @@ router.post('/', authenticate, requirePermission('create_orders'), async (req, r
 
     await order.save();
 
+    await notify(
+      'New Order Created',
+      `Order ${order.number} was created for ${customerName}.`,
+      'order'
+    );
+
     // Increment customer loyalty metrics
     customer.totalSpent += parseFloat(totalAmount);
     customer.loyaltyPoints += Math.floor(totalAmount); // 1 point per 1 unit spent
@@ -256,6 +263,13 @@ router.put('/:id/status', authenticate, requirePermission('manage_orders'), asyn
     }
 
     await order.save();
+
+    await notify(
+      'Order Status Updated',
+      `Order ${order.number} status changed to ${status}.`,
+      'order'
+    );
+
     res.json(formatOrder(order));
   } catch (error) {
     console.error('Update order status error:', error);
