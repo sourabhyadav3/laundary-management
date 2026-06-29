@@ -4,7 +4,7 @@ import { FiSearch, FiPlus, FiTrash2, FiSave, FiLogOut, FiTruck, FiUsers } from '
 import { AdminStateContext } from '../../context/AdminStateContext';
 import { toast } from 'react-toastify';
 import { useLanguage } from '../../context/LanguageContext';
-import { CUSTOMER_AREAS } from '../../constants/areas';
+import Modal from '../../Components/Modal';
 
 const labels = {
   en: {
@@ -115,10 +115,11 @@ const Drivers = () => {
   const { language } = useLanguage();
   const tLocal = labels[language] || labels.en;
 
-  const { drivers, addDriver, updateDriver, deleteDriver, branches } = useContext(AdminStateContext);
+  const { drivers, addDriver, updateDriver, deleteDriver, branches, areas } = useContext(AdminStateContext);
 
   const [form, setForm] = useState(emptyDriverForm);
   const [searchQuery, setSearchQuery] = useState('');
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [searchType, setSearchType] = useState('name'); // 'name', 'phone', or 'area'
 
   const filteredDrivers = useMemo(() => {
@@ -188,12 +189,14 @@ const Drivers = () => {
       toast.warning(language === 'ar' ? 'يرجى تحديد سائق لحذفه' : 'Please select a driver to delete');
       return;
     }
+    setShowDeleteModal(true);
+  };
 
-    if (window.confirm(language === 'ar' ? `هل أنت متأكد من حذف السائق ${form.driverName}؟` : `Are you sure you want to delete driver ${form.driverName}?`)) {
-      deleteDriver(form.id);
-      toast.success(language === 'ar' ? 'تم حذف السائق بنجاح' : 'Driver deleted successfully');
-      setForm(emptyDriverForm);
-    }
+  const confirmDelete = () => {
+    deleteDriver(form.id);
+    toast.success(language === 'ar' ? 'تم حذف السائق بنجاح' : 'Driver deleted successfully');
+    setForm(emptyDriverForm);
+    setShowDeleteModal(false);
   };
 
   const handleExit = () => {
@@ -399,7 +402,7 @@ const Drivers = () => {
                 {tLocal.areas}
               </label>
               <div className="border border-border rounded-lg bg-surface max-h-[160px] overflow-y-auto p-3 grid grid-cols-2 sm:grid-cols-3 gap-2">
-                {CUSTOMER_AREAS.map((area) => {
+                {areas.map((area) => {
                   const isChecked = form.areas?.includes(area) || false;
                   return (
                     <label key={area} className="flex items-center gap-2 text-xs text-primary cursor-pointer select-none">
@@ -631,6 +634,38 @@ const Drivers = () => {
         </div>
 
       </div>
+
+      {/* Delete Confirmation Modal */}
+      <Modal
+        isOpen={showDeleteModal}
+        onClose={() => setShowDeleteModal(false)}
+        title={language === 'ar' ? 'حذف السائق' : 'Delete Driver'}
+        size="sm"
+      >
+        <div className="space-y-6 text-center">
+          <p className="text-secondary text-sm">
+            {language === 'ar' 
+              ? `هل أنت متأكد من حذف السائق "${form.driverName}"؟` 
+              : `Are you sure you want to delete driver "${form.driverName}"?`}
+          </p>
+          <div className="flex gap-3 justify-end">
+            <button
+              type="button"
+              onClick={() => setShowDeleteModal(false)}
+              className="flex-1 rounded-xl border border-border bg-surface py-2 font-semibold text-primary transition hover:bg-surface-alt"
+            >
+              {language === 'ar' ? 'إلغاء' : 'Cancel'}
+            </button>
+            <button
+              type="button"
+              onClick={confirmDelete}
+              className="flex-1 rounded-xl bg-rose-600 py-2 font-semibold text-white transition hover:bg-rose-700"
+            >
+              {language === 'ar' ? 'حذف' : 'Delete'}
+            </button>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 };

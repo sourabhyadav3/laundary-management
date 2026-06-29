@@ -46,8 +46,8 @@ const formatCustomer = (customer) => {
 };
 
 // @route   GET /api/customers
-// @desc    Get all customers
-router.get('/', authenticate, requirePermission('manage_customers'), async (req, res) => {
+// @desc    Get all customers (accessible by all authenticated staff/roles)
+router.get('/', authenticate, async (req, res) => {
   try {
     const { branchId } = req.query;
     const filter = {};
@@ -232,6 +232,12 @@ router.post('/:id/settle', authenticate, requirePermission('manage_payments'), a
       return res.status(400).json({ message: 'Customer has no outstanding balance.' });
     }
 
+    // Find corresponding pending orders before updating them
+    const pendingOrders = await Order.find({ customer: customer._id, paymentStatus: 'Pending' }).select('number _id');
+    const orderNumbers = pendingOrders.map(o => o.number).filter(Boolean);
+    const orderNumberVal = orderNumbers.length > 0 ? orderNumbers.join(', ') : 'Balance Settle';
+    const singleOrderId = pendingOrders.length === 1 ? pendingOrders[0]._id : undefined;
+
     // Reset customer balance to 0
     customer.balance = 0;
     await customer.save();
@@ -255,12 +261,14 @@ router.post('/:id/settle', authenticate, requirePermission('manage_payments'), a
 
     const payment = new Payment({
       paymentId,
-      orderNumber: `BAL-${customer._id.toString()}`,
+      order: singleOrderId,
+      orderNumber: orderNumberVal,
       customerName: customer.name,
       date: new Date().toISOString().split('T')[0],
       amount: settledAmount,
       method: method || 'Cash',
-      status: 'Paid'
+      status: 'Paid',
+      branch: customer.branch
     });
 
     await payment.save();

@@ -9,6 +9,10 @@ const startServer = async () => {
   // Connect to Database
   await connectDB();
 
+  // Seed Default Areas if needed
+  const seedAreas = require('./utils/seedAreas');
+  await seedAreas();
+
   // Listen
   app.listen(PORT, () => {
     console.log(`Server running in ${process.env.NODE_ENV || 'development'} mode on port ${PORT}`);

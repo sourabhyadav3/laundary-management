@@ -72,8 +72,13 @@ router.post('/', authenticate, requirePermission('manage_staff'), async (req, re
     }
 
     let branch = null;
-    if (branchId) {
-      branch = await Branch.findById(branchId);
+    let finalBranchId = branchId;
+    if (req.user.role.name !== 'Super Admin') {
+      finalBranchId = req.user.branch ? req.user.branch.toString() : null;
+    }
+
+    if (finalBranchId) {
+      branch = await Branch.findById(finalBranchId);
       if (!branch) {
         return res.status(400).json({ message: 'Invalid branch selection.' });
       }
@@ -129,10 +134,14 @@ router.put('/:id', authenticate, requirePermission('manage_staff'), async (req, 
     }
 
     if (branchId !== undefined) {
-      if (branchId === '') {
+      let finalBranchId = branchId;
+      if (req.user.role.name !== 'Super Admin') {
+        finalBranchId = req.user.branch ? req.user.branch.toString() : null;
+      }
+      if (finalBranchId === '' || finalBranchId === null) {
         user.branch = null;
       } else {
-        const branch = await Branch.findById(branchId);
+        const branch = await Branch.findById(finalBranchId);
         if (branch) {
           user.branch = branch._id;
         }

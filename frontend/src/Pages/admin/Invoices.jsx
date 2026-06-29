@@ -29,6 +29,8 @@ const Invoices = () => {
   }, [orders, selectedOrder]);
 
   const [showModal, setShowModal] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [invoiceToDelete, setInvoiceToDelete] = useState(null);
 
   const filteredOrders = useMemo(() => {
     return orders
@@ -89,8 +91,15 @@ const Invoices = () => {
   };
 
   const handleDeleteOrder = (orderId) => {
-    if (window.confirm('Are you sure you want to delete this invoice?')) {
-      deleteOrder(orderId);
+    setInvoiceToDelete(orderId);
+    setShowDeleteModal(true);
+  };
+
+  const confirmDelete = () => {
+    if (invoiceToDelete) {
+      deleteOrder(invoiceToDelete);
+      setInvoiceToDelete(null);
+      setShowDeleteModal(false);
     }
   };
 
@@ -380,6 +389,36 @@ const Invoices = () => {
             </div>
           </div>
         )}
+      </Modal>
+
+      {/* Delete Confirmation Modal */}
+      <Modal
+        isOpen={showDeleteModal}
+        onClose={() => { setShowDeleteModal(false); setInvoiceToDelete(null); }}
+        title="Delete Invoice"
+        size="sm"
+      >
+        <div className="space-y-6 text-center">
+          <p className="text-secondary text-sm">
+            Are you sure you want to delete this invoice? This action cannot be undone.
+          </p>
+          <div className="flex gap-3 justify-end">
+            <button
+              type="button"
+              onClick={() => { setShowDeleteModal(false); setInvoiceToDelete(null); }}
+              className="flex-1 rounded-xl border border-border bg-surface py-2 font-semibold text-primary transition hover:bg-surface-alt"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={confirmDelete}
+              className="flex-1 rounded-xl bg-rose-600 py-2 font-semibold text-white transition hover:bg-rose-700"
+            >
+              Delete
+            </button>
+          </div>
+        </div>
       </Modal>
     </div>
   );

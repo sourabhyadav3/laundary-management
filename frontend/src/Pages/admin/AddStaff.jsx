@@ -7,6 +7,10 @@ import { AdminStateContext } from '../../context/AdminStateContext';
 const AddStaff = () => {
   const navigate = useNavigate();
   const { staff, addStaff, branches } = useContext(AdminStateContext);
+  const storedUser = JSON.parse(localStorage.getItem('user') || '{}');
+  const isSuperAdmin = storedUser.role === 'Super Admin';
+  const adminBranchId = storedUser.branchId || '';
+
   const [formData, setFormData] = useState({
     fullName: '',
     email: '',
@@ -17,7 +21,7 @@ const AddStaff = () => {
     confirmPassword: '',
     role: 'Counter Staff',
     status: 'Active',
-    assignedBranch: '',
+    assignedBranch: isSuperAdmin ? '' : adminBranchId,
   });
 
   const [errors, setErrors] = useState({});
@@ -264,7 +268,7 @@ const AddStaff = () => {
               </select>
             </div>
 
-            {formData.role !== 'Admin' && (
+            {isSuperAdmin && formData.role !== 'Admin' && (
               <div>
                 <label className="block text-sm font-semibold text-secondary">Assigned Branch *</label>
                 <select

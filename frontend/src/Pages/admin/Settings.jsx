@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useContext } from 'react';
 import {
   FiBriefcase,
   FiSun,
@@ -10,6 +10,8 @@ import {
   FiEdit2,
   FiEye,
   FiEyeOff,
+  FiMapPin,
+  FiTrash2,
 } from 'react-icons/fi';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { toast } from 'react-toastify';
@@ -17,11 +19,13 @@ import { useSettings, DEFAULT_SETTINGS } from '../../context/SettingsContext';
 import { useTheme } from '../../context/ThemeContext';
 import ThemeToggle from '../../Components/ThemeToggle';
 import Modal from '../../Components/Modal';
+import { AdminStateContext } from '../../context/AdminStateContext';
 
 const SECTIONS = [
   { id: 'business', label: 'Business Profile', icon: FiBriefcase },
   { id: 'theme', label: 'Theme Settings', icon: FiSun },
   { id: 'account', label: 'Account Settings', icon: FiUser },
+  { id: 'areas', label: 'Service Areas', icon: FiMapPin },
 ];
 
 const inputClass =
@@ -34,6 +38,43 @@ const Settings = () => {
   const { settings, updateSection, resetSection, changePassword, logout } = useSettings();
   const { theme, toggleTheme } = useTheme();
   const [activeSection, setActiveSection] = useState(location.state?.section || 'business');
+
+  const { areas = [], addArea, deleteArea } = useContext(AdminStateContext);
+  const [newAreaName, setNewAreaName] = useState('');
+  const [areaSearch, setAreaSearch] = useState('');
+  const [showDeleteAreaModal, setShowDeleteAreaModal] = useState(false);
+  const [areaToDelete, setAreaToDelete] = useState(null);
+
+  const filteredAreaList = areas.filter(a => a.toLowerCase().includes(areaSearch.toLowerCase()));
+
+  const handleAddAreaSubmit = async (e) => {
+    e.preventDefault();
+    if (!newAreaName.trim()) {
+      toast.error('Area name cannot be empty');
+      return;
+    }
+    const added = await addArea(newAreaName);
+    if (added) {
+      toast.success(`Area "${newAreaName}" added successfully`);
+      setNewAreaName('');
+    }
+  };
+
+  const handleDeleteAreaClick = (areaName) => {
+    setAreaToDelete(areaName);
+    setShowDeleteAreaModal(true);
+  };
+
+  const confirmDeleteArea = async () => {
+    if (areaToDelete) {
+      const success = await deleteArea(areaToDelete);
+      if (success) {
+        toast.success(`Area "${areaToDelete}" removed successfully`);
+      }
+      setShowDeleteAreaModal(false);
+      setAreaToDelete(null);
+    }
+  };
 
   const [businessForm, setBusinessForm] = useState({ ...settings.business });
 
@@ -210,6 +251,67 @@ const Settings = () => {
         );
 
 
+      case 'areas':
+        return (
+          <div className="space-y-6">
+            <h2 className="text-xl font-semibold text-primary">Service Areas</h2>
+            <p className="text-sm text-secondary">Add or remove geographical locations serviced by your drivers.</p>
+            
+            {/* Add Area Form */}
+            <form onSubmit={handleAddAreaSubmit} className="flex gap-3 bg-surface-alt p-4 rounded-2xl border border-border">
+              <input
+                type="text"
+                value={newAreaName}
+                onChange={(e) => setNewAreaName(e.target.value)}
+                placeholder="Enter new area name..."
+                className="flex-1 rounded-xl border border-border bg-surface px-4 py-2 text-primary focus:outline-none focus:ring-2 focus:ring-blue-400/40 text-sm"
+              />
+              <button 
+                type="submit" 
+                className="dashboard-hero-pill btn-solid-primary flex items-center justify-center gap-1.5 px-6 font-semibold"
+              >
+                Add Area
+              </button>
+            </form>
+
+            {/* Search Filter */}
+            <div className="relative">
+              <input
+                type="text"
+                value={areaSearch}
+                onChange={(e) => setAreaSearch(e.target.value)}
+                placeholder="Search active areas..."
+                className="w-full rounded-xl border border-border bg-surface pl-4 pr-10 py-2.5 text-primary placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-blue-400/40 text-sm"
+              />
+            </div>
+
+            {/* Areas List Grid */}
+            <div className="border border-border rounded-2xl bg-surface-alt overflow-hidden max-h-[350px] overflow-y-auto">
+              {filteredAreaList.length === 0 ? (
+                <div className="p-8 text-center text-secondary">
+                  No areas found matching the search.
+                </div>
+              ) : (
+                <div className="divide-y divide-border">
+                  {filteredAreaList.map((areaName) => (
+                    <div key={areaName} className="flex items-center justify-between p-4 hover:bg-surface-hover/30 transition-all">
+                      <span className="font-semibold text-primary text-sm">{areaName}</span>
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteAreaClick(areaName)}
+                        className="text-rose-500 hover:text-rose-600 p-2 rounded-lg hover:bg-rose-500/10 transition-all"
+                        title="Delete Area"
+                      >
+                        <FiTrash2 size={16} />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        );
+
       default:
         return null;
     }
@@ -301,6 +403,36 @@ const Settings = () => {
           <button type="button" onClick={handleChangePassword} className="w-full rounded-xl bg-blue-500/10 py-2 font-semibold text-blue-600">
             Update Password
           </button>
+        </div>
+      </Modal>
+
+      {/* Delete Area Confirmation Modal */}
+      <Modal 
+        isOpen={showDeleteAreaModal} 
+        onClose={() => { setShowDeleteAreaModal(false); setAreaToDelete(null); }} 
+        title="Delete Service Area" 
+        size="sm"
+      >
+        <div className="space-y-6 text-center">
+          <p className="text-secondary text-sm">
+            Are you sure you want to delete <span className="font-semibold text-primary">{areaToDelete}</span>? Drivers and customers will no longer see this area.
+          </p>
+          <div className="flex gap-3 justify-end">
+            <button
+              type="button"
+              onClick={() => { setShowDeleteAreaModal(false); setAreaToDelete(null); }}
+              className="flex-1 rounded-xl border border-border bg-surface py-2 font-semibold text-primary transition hover:bg-surface-alt"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={confirmDeleteArea}
+              className="flex-1 rounded-xl bg-rose-600 py-2 font-semibold text-white transition hover:bg-rose-700"
+            >
+              Delete
+            </button>
+          </div>
         </div>
       </Modal>
     </div>

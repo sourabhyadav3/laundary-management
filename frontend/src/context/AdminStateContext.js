@@ -107,6 +107,7 @@ export const AdminStateProvider = ({ children }) => {
   const [drivers, setDrivers] = useState([]);
   const [branches, setBranches] = useState([]);
   const [notifications, setNotifications] = useState([]);
+  const [areas, setAreas] = useState([]);
   
   const [completedJobs, setCompletedJobs] = useState([]);
   const [roles] = useState(mockRoles);
@@ -169,7 +170,7 @@ export const AdminStateProvider = ({ children }) => {
       const [
         resCustomers, resOrders, resServices, resStaff,
         resPayments, resPickups, resDeliveries, resDrivers,
-        resBranches, resNotifications, resCatalog
+        resBranches, resNotifications, resCatalog, resAreas
       ] = await Promise.all([
         api.get('/customers').catch(() => ({ data: [] })),
         api.get('/orders').catch(() => ({ data: [] })),
@@ -183,7 +184,8 @@ export const AdminStateProvider = ({ children }) => {
         api.get('/drivers').catch(() => ({ data: [] })),
         api.get('/branches').catch(() => ({ data: [] })),
         api.get('/notifications').catch(() => ({ data: [] })),
-        api.get('/catalog').catch(() => ({ data: [] }))
+        api.get('/catalog').catch(() => ({ data: [] })),
+        api.get('/areas').catch(() => ({ data: [] }))
       ]);
 
       setCustomers(resCustomers.data);
@@ -197,6 +199,7 @@ export const AdminStateProvider = ({ children }) => {
       setBranches(resBranches.data);
       localStorage.setItem('branches_list', JSON.stringify(resBranches.data));
       setNotifications(resNotifications.data);
+      setAreas(resAreas.data.map(a => a.name));
       if (resCatalog && resCatalog.data && resCatalog.data.length > 0) {
         setCatalog(resCatalog.data);
       }
@@ -635,6 +638,28 @@ export const AdminStateProvider = ({ children }) => {
     }
   };
 
+  const addArea = async (areaName) => {
+    try {
+      const res = await api.post('/areas', { name: areaName });
+      await fetchData();
+      return res.data;
+    } catch (e) {
+      toast.error(e.response?.data?.message || 'Failed to add area');
+      return null;
+    }
+  };
+
+  const deleteArea = async (areaName) => {
+    try {
+      await api.delete(`/areas/${encodeURIComponent(areaName)}`);
+      await fetchData();
+      return true;
+    } catch (e) {
+      toast.error(e.response?.data?.message || 'Failed to delete area');
+      return false;
+    }
+  };
+
   const assignDriverToJob = async (driverName, jobType) => {
     try {
       const driver = drivers.find(d => d.driverName === driverName);
@@ -750,6 +775,9 @@ export const AdminStateProvider = ({ children }) => {
     addCatalogItem,
     updateCatalogItem,
     deleteCatalogItem,
+    areas,
+    addArea,
+    deleteArea,
 
     branches,
     setBranches,

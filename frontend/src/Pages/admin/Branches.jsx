@@ -2,14 +2,24 @@ import React, { useContext, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { FiPlus, FiEdit2, FiTrash2, FiMapPin, FiPhone } from 'react-icons/fi';
 import { AdminStateContext } from '../../context/AdminStateContext';
+import Modal from '../../Components/Modal';
 
 const Branches = () => {
   const { branches, deleteBranch } = useContext(AdminStateContext);
   const [searchTerm, setSearchTerm] = useState('');
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [branchToDelete, setBranchToDelete] = useState(null);
 
   const handleDelete = (id) => {
-    if (window.confirm('Are you sure you want to delete this branch?')) {
-      deleteBranch(id);
+    setBranchToDelete(id);
+    setShowDeleteModal(true);
+  };
+
+  const confirmDelete = () => {
+    if (branchToDelete) {
+      deleteBranch(branchToDelete);
+      setBranchToDelete(null);
+      setShowDeleteModal(false);
     }
   };
 
@@ -110,7 +120,37 @@ const Branches = () => {
             </tbody>
           </table>
         </div>
-      </div>
+    </div>
+
+      {/* Delete Confirmation Modal */}
+      <Modal
+        isOpen={showDeleteModal}
+        onClose={() => { setShowDeleteModal(false); setBranchToDelete(null); }}
+        title="Delete Branch"
+        size="sm"
+      >
+        <div className="space-y-6 text-center">
+          <p className="text-secondary text-sm">
+            Are you sure you want to delete this branch? This action cannot be undone.
+          </p>
+          <div className="flex gap-3 justify-end">
+            <button
+              type="button"
+              onClick={() => { setShowDeleteModal(false); setBranchToDelete(null); }}
+              className="flex-1 rounded-xl border border-border bg-surface py-2 font-semibold text-primary transition hover:bg-surface-alt"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={confirmDelete}
+              className="flex-1 rounded-xl bg-rose-600 py-2 font-semibold text-white transition hover:bg-rose-700"
+            >
+              Delete
+            </button>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 };

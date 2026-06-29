@@ -23,7 +23,7 @@ const deliverySchema = new mongoose.Schema({
   },
   status: {
     type: String,
-    enum: ['Scheduled', 'Assigned', 'Out for Delivery', 'Delivered', 'Failed'],
+    enum: ['Scheduled', 'Assigned', 'Out For Delivery', 'Out for Delivery', 'Delivered', 'Failed'],
     default: 'Scheduled'
   },
   address: {

@@ -9,7 +9,9 @@ const router = express.Router();
 const formatPayment = (payment) => {
   const isOrderPopulated = payment.order && typeof payment.order === 'object' && payment.order._id;
   const orderIdStr = isOrderPopulated ? payment.order._id.toString() : (payment.order ? payment.order.toString() : '');
-  const branchIdStr = isOrderPopulated && payment.order.branchId ? payment.order.branchId.toString() : '';
+  const branchIdStr = payment.branch 
+    ? payment.branch.toString() 
+    : (isOrderPopulated && payment.order.branchId ? payment.order.branchId.toString() : '');
 
   return {
     id: payment._id.toString(),
@@ -33,7 +35,18 @@ router.get('/', authenticate, async (req, res) => {
     if (req.user.branch) {
       const orders = await Order.find({ branchId: req.user.branch }).select('_id');
       const orderIds = orders.map(o => o._id);
-      query = { order: { $in: orderIds } };
+      
+      const Customer = require('../models/Customer');
+      const customers = await Customer.find({ branch: req.user.branch }).select('_id');
+      const balOrderNumbers = customers.map(c => `BAL-${c._id.toString()}`);
+
+      query = {
+        $or: [
+          { order: { $in: orderIds } },
+          { branch: req.user.branch },
+          { orderNumber: { $in: balOrderNumbers } }
+        ]
+      };
     }
     const payments = await Payment.find(query).populate('order').sort({ createdAt: -1 });
     res.json(payments.map(formatPayment));
@@ -63,6 +76,14 @@ router.post('/', authenticate, requirePermission('manage_payments'), async (req,
     }
     const paymentId = `PAY-${String(nextNum).padStart(4, '0')}`;
 
+    let branchId = null;
+    if (orderId) {
+      const order = await Order.findById(orderId);
+      if (order) {
+        branchId = order.branchId;
+      }
+    }
+
     const payment = new Payment({
       paymentId,
       order: orderId,
@@ -71,7 +92,8 @@ router.post('/', authenticate, requirePermission('manage_payments'), async (req,
       date: new Date().toISOString().split('T')[0],
       amount,
       method: method || 'Pending',
-      status: status || 'Pending'
+      status: status || 'Pending',
+      branch: branchId
     });
 
     await payment.save();

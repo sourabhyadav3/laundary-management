@@ -5,10 +5,9 @@ import { AdminStateContext } from '../../context/AdminStateContext';
 import CustomerTable from '../../Components/counter/CustomerTable';
 import Modal from '../../Components/Modal';
 import { formatCurrency, formatDate } from '../../utils/exportUtils';
-import { CUSTOMER_AREAS } from '../../constants/areas';
 
 const Customers = () => {
-  const { customers, addCustomer, updateCustomer, selectedBranch } = useContext(AdminStateContext);
+  const { customers, addCustomer, updateCustomer, selectedBranch, areas } = useContext(AdminStateContext);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCustomer, setSelectedCustomer] = useState(null);
   const [showViewModal, setShowViewModal] = useState(false);
@@ -468,7 +467,7 @@ const Customers = () => {
                       className="mt-1 w-full rounded-lg border border-border bg-surface px-3 py-1.5 text-primary focus:outline-none focus:ring-2 focus:ring-blue-400/40 text-sm"
                     >
                       <option value="">Select Area</option>
-                      {CUSTOMER_AREAS.map((area) => (
+                      {areas.map((area) => (
                         <option key={area} value={area}>
                           {area}
                         </option>

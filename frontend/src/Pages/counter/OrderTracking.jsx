@@ -24,8 +24,21 @@ const OrderTracking = () => {
   }, [orders, selectedOrder]);
 
   const customer = activeOrder
-    ? customers.find((c) => c.id === activeOrder.customerId)
+    ? customers.find((c) => c.id === activeOrder.customerId || c._id === activeOrder.customerId)
     : null;
+
+  const customerAddress = useMemo(() => {
+    if (!customer) return 'N/A';
+    const parts = [];
+    if (customer.areaName) parts.push(`Area: ${customer.areaName}`);
+    if (customer.street) parts.push(`Street: ${customer.street}`);
+    if (customer.partNo) parts.push(`Part: ${customer.partNo}`);
+    if (customer.jadda) parts.push(`Jadda: ${customer.jadda}`);
+    if (customer.houseNo) parts.push(`House: ${customer.houseNo}`);
+    if (customer.levelNo) parts.push(`Floor: ${customer.levelNo}`);
+    if (customer.flatNo) parts.push(`Flat: ${customer.flatNo}`);
+    return parts.length > 0 ? parts.join(', ') : 'N/A';
+  }, [customer]);
 
   return (
     <div className="space-y-8">
@@ -113,7 +126,7 @@ const OrderTracking = () => {
               </div>
               <div className="sm:col-span-2">
                 <p className="text-xs uppercase tracking-[0.3em] text-secondary">Address</p>
-                <p className="mt-1 font-semibold text-primary">{customer?.address || 'N/A'}</p>
+                <p className="mt-1 font-semibold text-primary">{customerAddress}</p>
               </div>
             </div>
           </section>

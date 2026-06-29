@@ -42,6 +42,8 @@ const Orders = () => {
 
   const [showModal, setShowModal] = useState(false);
   const [showFormModal, setShowFormModal] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [orderToDelete, setOrderToDelete] = useState(null);
   const [orderForm, setOrderForm] = useState(emptyOrderForm);
 
   const filteredOrders = useMemo(() => {
@@ -165,8 +167,15 @@ const Orders = () => {
   };
 
   const handleDeleteOrder = (orderId) => {
-    if (window.confirm('Are you sure you want to delete this order?')) {
-      deleteOrder(orderId);
+    setOrderToDelete(orderId);
+    setShowDeleteModal(true);
+  };
+
+  const confirmDelete = () => {
+    if (orderToDelete) {
+      deleteOrder(orderToDelete);
+      setOrderToDelete(null);
+      setShowDeleteModal(false);
     }
   };
 
@@ -608,6 +617,36 @@ const Orders = () => {
             </button>
           </div>
         </form>
+      </Modal>
+
+      {/* Delete Confirmation Modal */}
+      <Modal
+        isOpen={showDeleteModal}
+        onClose={() => { setShowDeleteModal(false); setOrderToDelete(null); }}
+        title="Delete Order"
+        size="sm"
+      >
+        <div className="space-y-6 text-center">
+          <p className="text-secondary text-sm">
+            Are you sure you want to delete this order? This action cannot be undone.
+          </p>
+          <div className="flex gap-3 justify-end">
+            <button
+              type="button"
+              onClick={() => { setShowDeleteModal(false); setOrderToDelete(null); }}
+              className="flex-1 rounded-xl border border-border bg-surface py-2 font-semibold text-primary transition hover:bg-surface-alt"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={confirmDelete}
+              className="flex-1 rounded-xl bg-rose-600 py-2 font-semibold text-white transition hover:bg-rose-700"
+            >
+              Delete
+            </button>
+          </div>
+        </div>
       </Modal>
     </div>
   );

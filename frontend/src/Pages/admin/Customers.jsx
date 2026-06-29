@@ -6,10 +6,9 @@ import ReusableTable from '../../Components/ReusableTable';
 import Modal from '../../Components/Modal';
 import { toast } from 'react-toastify';
 import { exportToCSV, formatCurrency, formatDate } from '../../utils/exportUtils';
-import { CUSTOMER_AREAS } from '../../constants/areas';
 
 const Customers = () => {
-  const { customers, addCustomer, updateCustomer, deleteCustomer, selectedBranch } = useContext(AdminStateContext);
+  const { customers, addCustomer, updateCustomer, deleteCustomer, selectedBranch, areas } = useContext(AdminStateContext);
   const { tr } = useLanguage();
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('All');
@@ -601,7 +600,7 @@ const Customers = () => {
                     className="mt-1 w-full rounded-lg border border-border bg-surface px-3 py-1.5 text-primary focus:outline-none focus:ring-2 focus:ring-blue-400/40 text-sm"
                   >
                     <option value="">Select Area</option>
-                    {CUSTOMER_AREAS.map((area) => (
+                    {areas.map((area) => (
                       <option key={area} value={area}>
                         {area}
                       </option>

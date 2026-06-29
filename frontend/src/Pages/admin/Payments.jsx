@@ -8,7 +8,7 @@ import { toast } from 'react-toastify';
 import ExportMenu from '../../Components/ExportMenu';
 import { exportPaymentsCSV, exportPaymentsPDF, formatCurrency, formatDate } from '../../utils/exportUtils';
 
-const paymentMethods = ['Cash', 'Card', 'Link', 'Wamd'];
+const paymentMethods = ['Cash', 'Card', 'Link', 'Credit', 'Wamd'];
 const paymentStatuses = ['Paid', 'Partial', 'Pending'];
 
 const paymentStatusColors = {
@@ -536,7 +536,7 @@ const Payments = () => {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm">
           <div className="surface-card max-h-[90vh] w-full max-w-md overflow-y-auto rounded-3xl border border-border p-5 sm:p-8 shadow-2xl">
             <div className="flex items-center justify-between gap-4 border-b border-border pb-6">
-              <h2 className="text-2xl font-semibold text-primary">Record Payment</h2>
+              <h2 className="text-2xl font-semibold text-primary">💳 Settle & Pay</h2>
               <button type="button" onClick={() => setShowMarkPaidModal(false)} className="text-secondary hover:text-primary">
                 ✕
               </button>
@@ -554,43 +554,29 @@ const Payments = () => {
               
               <div className="border-t border-border pt-4">
                 <label className="block text-xs font-semibold uppercase tracking-wider text-secondary mb-3">Select Payment Method</label>
-                <div className="grid grid-cols-3 gap-2 sm:gap-3">
-                  <button
-                    type="button"
-                    onClick={() => setSelectedMethod('Cash')}
-                    className={`flex flex-col items-center justify-center gap-2 rounded-2xl border p-3 sm:p-4 transition-all duration-200 ${
-                      selectedMethod === 'Cash'
-                        ? 'border-blue-500 bg-blue-500/10 text-blue-600 font-semibold shadow-sm'
-                        : 'border-border bg-surface hover:bg-surface-alt text-primary'
-                    }`}
-                  >
-                    <span className="text-xl sm:text-2xl">💵</span>
-                    <span className="text-[10px] sm:text-xs">Cash</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setSelectedMethod('Card')}
-                    className={`flex flex-col items-center justify-center gap-2 rounded-2xl border p-3 sm:p-4 transition-all duration-200 ${
-                      selectedMethod === 'Card'
-                        ? 'border-blue-500 bg-blue-500/10 text-blue-600 font-semibold shadow-sm'
-                        : 'border-border bg-surface hover:bg-surface-alt text-primary'
-                    }`}
-                  >
-                    <span className="text-xl sm:text-2xl">💳</span>
-                    <span className="text-[10px] sm:text-xs">Card</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setSelectedMethod('Link')}
-                    className={`flex flex-col items-center justify-center gap-2 rounded-2xl border p-3 sm:p-4 transition-all duration-200 ${
-                      selectedMethod === 'Link'
-                        ? 'border-blue-500 bg-blue-500/10 text-blue-600 font-semibold shadow-sm'
-                        : 'border-border bg-surface hover:bg-surface-alt text-primary'
-                    }`}
-                  >
-                    <span className="text-xl sm:text-2xl">🔗</span>
-                    <span className="text-[10px] sm:text-xs">UPI / Link</span>
-                  </button>
+                <div className="grid grid-cols-2 gap-3">
+                  {[
+                    { method: 'Cash', icon: '💵', bg: 'linear-gradient(135deg,#059669,#10b981)', shadow: 'rgba(16,185,129,0.4)', payMethod: 'Cash' },
+                    { method: 'Card', icon: '💳', bg: 'linear-gradient(135deg,#3b82f6,#4f46e5)', shadow: 'rgba(59,130,246,0.4)', payMethod: 'Card' },
+                    { method: 'Link', icon: '🔗', bg: 'linear-gradient(135deg,#f59e0b,#d97706)', shadow: 'rgba(245,158,11,0.4)', payMethod: 'Link' },
+                    { method: 'Credit', icon: '💰', bg: 'linear-gradient(135deg,#8b5cf6,#7c3aed)', shadow: 'rgba(139,92,246,0.4)', payMethod: 'Credit' },
+                  ].map(({ method, icon, bg, shadow, payMethod }) => {
+                    const isActive = selectedMethod === payMethod;
+                    return (
+                      <button
+                        key={payMethod}
+                        type="button"
+                        onClick={() => setSelectedMethod(payMethod)}
+                        className={`relative flex flex-col items-center justify-center p-4 rounded-2xl text-white transition-all hover:-translate-y-1 active:scale-95 group overflow-hidden border-2 ${
+                          isActive ? 'border-white scale-102 ring-4 ring-blue-500/30' : 'border-transparent opacity-85 hover:opacity-100'
+                        }`}
+                        style={{ background: bg, boxShadow: `0 8px 20px -5px ${shadow}` }}
+                      >
+                        <span className="text-2xl mb-1 group-hover:scale-110 transition-transform">{icon}</span>
+                        <span className="text-[10px] font-extrabold uppercase tracking-widest">{method}</span>
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
             </div>

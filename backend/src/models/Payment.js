@@ -33,6 +33,10 @@ const paymentSchema = new mongoose.Schema({
   status: {
     type: String,
     default: 'Pending'
+  },
+  branch: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Branch'
   }
 }, { timestamps: true });
 
