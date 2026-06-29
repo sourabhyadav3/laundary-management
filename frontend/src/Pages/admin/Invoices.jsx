@@ -11,7 +11,7 @@ const statusOrder = ORDER_STATUSES;
 const PAYMENT_STATUSES = ['Paid', 'Pending', 'Partial'];
 
 const Invoices = () => {
-  const { orders, catalog, updateOrderStatus, updateOrderPaymentStatus, deleteOrder, setOrders, selectedBranch, branches } = useContext(AdminStateContext);
+  const { orders, catalog, updateOrderStatus, updateOrderPaymentStatus, deleteOrder, selectedBranch, branches } = useContext(AdminStateContext);
   const [searchTerm, setSearchTerm] = useState('');
   
   const getBranchName = (branchIdOrName) => {

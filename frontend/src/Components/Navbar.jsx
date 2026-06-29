@@ -26,7 +26,7 @@ const Navbar = () => {
   const adminState = useContext(AdminStateContext);
   const branches = adminState?.branches || [];
   const selectedBranch = adminState?.selectedBranch || 'All';
-  const setSelectedBranch = adminState?.setSelectedBranch || (() => {});
+  // const setSelectedBranch = adminState?.setSelectedBranch || (() => {});
 
 
   const notifications = adminState?.notifications || [];
@@ -68,6 +68,54 @@ const Navbar = () => {
     }
   };
 
+  const getNotificationRedirectPath = (notif) => {
+    const role = String(userRole || '').toLowerCase();
+    const type = String(notif.type || '').toLowerCase();
+    const text = String(notif.text || '').toLowerCase();
+    const title = String(notif.title || '').toLowerCase();
+
+    // Super Admin redirect rules
+    if (role.includes('super')) {
+      if (type === 'order') return '/superadmin/dashboard';
+      if (type === 'delivery') return '/superadmin/branches';
+      return '/superadmin/dashboard';
+    }
+
+    // Admin (Operations Lead) redirect rules
+    if (role.includes('admin') || role.includes('operations')) {
+      if (type === 'order') return '/admin/orders';
+      if (type === 'delivery' || title.includes('pickup') || text.includes('pickup') || title.includes('delivery') || text.includes('delivery')) {
+        return '/admin/pickups';
+      }
+      if (type === 'system' || title.includes('payment') || text.includes('payment') || title.includes('balance') || text.includes('balance')) {
+        return '/admin/payments';
+      }
+      return '/admin/dashboard';
+    }
+
+    // Counter Staff redirect rules
+    if (role.includes('counter')) {
+      if (type === 'order') return '/counter/orders';
+      if (type === 'system' || title.includes('payment') || text.includes('payment') || title.includes('balance') || text.includes('balance')) {
+        return '/counter/payments';
+      }
+      return '/counter/dashboard';
+    }
+
+    // Delivery Staff / Rider redirect rules
+    if (role.includes('delivery') || role.includes('rider')) {
+      if (title.includes('pickup') || text.includes('pickup')) {
+        return '/delivery/pickups';
+      }
+      if (title.includes('delivery') || text.includes('delivery')) {
+        return '/delivery/deliveries';
+      }
+      return '/delivery/dashboard';
+    }
+
+    return '/';
+  };
+
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (profileRef.current && !profileRef.current.contains(event.target)) {
@@ -102,6 +150,16 @@ const Navbar = () => {
 
         <div className="flex items-center gap-1.5 sm:gap-3">
           {/* BRANCH SELECTOR */}
+          {userRole === 'Super Admin' && (
+            <div className="flex items-center gap-2 rounded-2xl border border-border bg-surface px-3 py-1.5 text-xs font-semibold uppercase tracking-wider text-secondary shadow-sm">
+              <FiMapPin size={16} className="text-blue-500" />
+              <span className="hidden lg:inline">
+                All Branches
+              </span>
+            </div>
+          )}
+
+          {/* Commented out Super Admin dropdown selector to easily restore later if needed
           {userRole === 'Super Admin' && branches.length > 0 && (
             <div className="relative" ref={branchDropdownRef}>
               <button
@@ -137,6 +195,7 @@ const Navbar = () => {
               )}
             </div>
           )}
+          */}
 
           {userRole !== 'Super Admin' && (userRole === 'Admin' || userRole === 'Counter Staff' || userRole === 'Counter' || userRole === 'Delivery Staff' || userRole === 'Delivery') && branches.length > 0 && (
             <div className="flex items-center gap-2 rounded-2xl border border-border bg-surface px-3 py-1.5 text-xs font-semibold uppercase tracking-wider text-secondary shadow-sm">
@@ -221,7 +280,16 @@ const Navbar = () => {
                       <div 
                         key={notif.id} 
                         className={`flex gap-3 p-3 rounded-2xl transition-all cursor-pointer ${notif.read ? 'opacity-70 hover:bg-surface-hover' : 'bg-blue-50/50 dark:bg-blue-900/10 hover:bg-blue-50 dark:hover:bg-blue-900/20'}`}
-                        onClick={() => { if (!notif.read) markNotificationRead(notif.id); }}
+                        onClick={() => {
+                          if (!notif.read) {
+                            markNotificationRead(notif.id);
+                          }
+                          const path = getNotificationRedirectPath(notif);
+                          if (path) {
+                            navigate(path);
+                            setNotificationOpen(false);
+                          }
+                        }}
                       >
                         <div className={`mt-0.5 flex-shrink-0 flex h-8 w-8 items-center justify-center rounded-full ${notif.read ? 'bg-surface-alt' : 'bg-blue-100 text-blue-600 dark:bg-blue-900/30'}`}>
                           {notif.type === 'order' ? <FiShoppingBag size={14} /> : notif.type === 'delivery' ? <FiMapPin size={14} /> : <FiBell size={14} />}

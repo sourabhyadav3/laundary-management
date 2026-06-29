@@ -2,7 +2,6 @@ import React, { useContext, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { FiPlus, FiEdit2, FiTrash2, FiMapPin, FiPhone } from 'react-icons/fi';
 import { AdminStateContext } from '../../context/AdminStateContext';
-import { toast } from 'react-toastify';
 
 const Branches = () => {
   const { branches, deleteBranch } = useContext(AdminStateContext);

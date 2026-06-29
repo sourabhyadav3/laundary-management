@@ -216,6 +216,11 @@ router.post('/', authenticate, requirePermission('create_orders'), async (req, r
         branchId: order.branchId
       });
       await delivery.save();
+      await notify(
+        'New Delivery Scheduled',
+        `Delivery ${deliveryId} scheduled for ${customerName}.`,
+        'delivery'
+      );
       deliveryStatus = 'Scheduled';
     }
 

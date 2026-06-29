@@ -1726,9 +1726,9 @@ const MakeInvoice = () => {
                                             <span className="absolute -top-1.5 -right-1.5 bg-amber-500 text-white text-[9px] w-5 h-5 rounded-full flex items-center justify-center font-bold shadow-md z-10">✏️</span>
                                         )}
                                         {g.image ? (
-                                            <img src={g.image} alt={g.name} className="w-10 h-10 object-cover rounded-xl mb-1 shadow-sm border border-black/10" />
+                                            <img src={g.image} alt={g.name} className="w-14 h-14 object-cover rounded-xl mb-1 shadow-sm border border-black/10" />
                                         ) : (
-                                            <span className="text-2xl mb-1" role="img" aria-label={g.name}>
+                                            <span className="text-4xl mb-1" role="img" aria-label={g.name}>
                                                 {g.icon}
                                             </span>
                                         )}

@@ -118,6 +118,12 @@ router.put('/:id', authenticate, requirePermission('manage_payments'), async (re
     if (date !== undefined) payment.date = date;
     await payment.save();
 
+    await notify(
+      'Payment Updated',
+      `Payment of ${payment.amount} for order ${payment.orderNumber} updated to ${payment.status}.`,
+      'system'
+    );
+
     // Sync with order payment status
     if (payment.order) {
       const order = await Order.findById(payment.order);

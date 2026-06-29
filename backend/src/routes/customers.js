@@ -3,6 +3,7 @@ const Customer = require('../models/Customer');
 const Order = require('../models/Order');
 const Payment = require('../models/Payment');
 const { authenticate, requirePermission } = require('../middleware/auth');
+const notify = require('../utils/notify');
 
 const router = express.Router();
 
@@ -263,6 +264,12 @@ router.post('/:id/settle', authenticate, requirePermission('manage_payments'), a
     });
 
     await payment.save();
+
+    await notify(
+      'Balance Settled',
+      `Customer ${customer.name} settled outstanding balance of ${settledAmount}.`,
+      'general'
+    );
 
     res.json({
       message: `Payment of ${settledAmount} via ${method || 'Cash'} recorded successfully.`,

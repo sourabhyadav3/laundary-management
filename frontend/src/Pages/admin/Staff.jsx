@@ -23,7 +23,7 @@ const roleColors = {
 
 const Staff = () => {
   const navigate = useNavigate();
-  const { staff, setStaff, deleteStaff } = useContext(AdminStateContext);
+  const { staff, deleteStaff } = useContext(AdminStateContext);
   const [searchTerm, setSearchTerm] = useState('');
   const [roleFilter, setRoleFilter] = useState('All');
   const [statusFilter, setStatusFilter] = useState('All');

@@ -22,7 +22,7 @@ const emptyOrderForm = {
 };
 
 const Orders = () => {
-  const { orders, customers, services, addOrder, setCustomers, catalog, updateOrderStatus, deleteOrder, setOrders, selectedBranch, branches, liveUpdateFilter } = useContext(AdminStateContext);
+  const { orders, customers, services, addOrder, setCustomers, catalog, updateOrderStatus, deleteOrder, selectedBranch, branches, liveUpdateFilter } = useContext(AdminStateContext);
   const [searchTerm, setSearchTerm] = useState('');
   const storedUser = JSON.parse(localStorage.getItem('user') || '{}');
   

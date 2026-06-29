@@ -9,7 +9,7 @@ import { exportToCSV, formatCurrency, formatDate } from '../../utils/exportUtils
 import { CUSTOMER_AREAS } from '../../constants/areas';
 
 const Customers = () => {
-  const { customers, setCustomers, addCustomer, updateCustomer, deleteCustomer, selectedBranch } = useContext(AdminStateContext);
+  const { customers, addCustomer, updateCustomer, deleteCustomer, selectedBranch } = useContext(AdminStateContext);
   const { tr } = useLanguage();
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('All');

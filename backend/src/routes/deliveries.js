@@ -119,6 +119,12 @@ router.put('/:id/assign', authenticate, requirePermission('manage_deliveries'), 
     delivery.status = 'Assigned';
     await delivery.save();
 
+    await notify(
+      'Delivery Assigned',
+      `Delivery ${delivery.deliveryId} has been assigned to driver ${assignedStaff}.`,
+      'delivery'
+    );
+
     await updateDriverStatus(delivery.assignedStaff);
 
     res.json(formatDelivery(delivery));
@@ -144,6 +150,12 @@ router.put('/:id/status', authenticate, async (req, res) => {
 
     delivery.status = status;
     await delivery.save();
+
+    await notify(
+      'Delivery Status Updated',
+      `Delivery ${delivery.deliveryId} status changed to ${status}.`,
+      'delivery'
+    );
 
     // If status is updated to Delivered, synchronize the main order status and payment status
     if (status === 'Delivered') {

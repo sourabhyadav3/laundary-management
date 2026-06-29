@@ -8,7 +8,7 @@ import { formatCurrency, formatDate } from '../../utils/exportUtils';
 import { CUSTOMER_AREAS } from '../../constants/areas';
 
 const Customers = () => {
-  const { customers, setCustomers, addCustomer, updateCustomer, selectedBranch } = useContext(AdminStateContext);
+  const { customers, addCustomer, updateCustomer, selectedBranch } = useContext(AdminStateContext);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCustomer, setSelectedCustomer] = useState(null);
   const [showViewModal, setShowViewModal] = useState(false);

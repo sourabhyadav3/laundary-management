@@ -118,6 +118,12 @@ router.put('/:id/assign', authenticate, requirePermission('manage_pickups'), asy
     pickup.status = 'Assigned';
     await pickup.save();
 
+    await notify(
+      'Pickup Assigned',
+      `Pickup ${pickup.pickupId} has been assigned to driver ${assignedStaff}.`,
+      'delivery'
+    );
+
     await updateDriverStatus(pickup.assignedStaff);
 
     res.json(formatPickup(pickup));
@@ -143,6 +149,12 @@ router.put('/:id/status', authenticate, async (req, res) => {
 
     pickup.status = status;
     await pickup.save();
+
+    await notify(
+      'Pickup Status Updated',
+      `Pickup ${pickup.pickupId} status changed to ${status}.`,
+      'delivery'
+    );
 
     if (pickup.assignedStaff) {
       await updateDriverStatus(pickup.assignedStaff);

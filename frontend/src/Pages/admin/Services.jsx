@@ -25,6 +25,8 @@ const LaundryServices = () => {
   const [showFormModal, setShowFormModal] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [formData, setFormData] = useState(emptyServiceForm);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [serviceToDelete, setServiceToDelete] = useState(null);
 
   const categoryOptions = ['All', ...categories];
 
@@ -75,12 +77,19 @@ const LaundryServices = () => {
     setShowModal(false);
   };
 
-  const handleDelete = async (service) => {
-    if (window.confirm(`Delete service "${service.name}"?`)) {
-      const success = await deleteService(service.id);
+  const handleDelete = (service) => {
+    setServiceToDelete(service);
+    setShowDeleteModal(true);
+  };
+
+  const confirmDelete = async () => {
+    if (serviceToDelete) {
+      const success = await deleteService(serviceToDelete.id);
       if (success) {
         setShowModal(false);
       }
+      setShowDeleteModal(false);
+      setServiceToDelete(null);
     }
   };
 
@@ -363,6 +372,36 @@ const LaundryServices = () => {
             </button>
           </div>
         </form>
+      </Modal>
+
+      {/* Delete Confirmation Modal */}
+      <Modal
+        isOpen={showDeleteModal}
+        onClose={() => { setShowDeleteModal(false); setServiceToDelete(null); }}
+        title="Delete Service"
+        size="sm"
+      >
+        <div className="space-y-6 text-center">
+          <p className="text-secondary text-sm">
+            Are you sure you want to delete <span className="font-semibold text-primary">{serviceToDelete?.name}</span>? This action cannot be undone.
+          </p>
+          <div className="flex gap-3 justify-end">
+            <button
+              type="button"
+              onClick={() => { setShowDeleteModal(false); setServiceToDelete(null); }}
+              className="flex-1 rounded-xl border border-border bg-surface py-2 font-semibold text-primary transition hover:bg-surface-alt"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={confirmDelete}
+              className="flex-1 rounded-xl bg-rose-600 py-2 font-semibold text-white transition hover:bg-rose-700"
+            >
+              Delete
+            </button>
+          </div>
+        </div>
       </Modal>
     </div>
   );

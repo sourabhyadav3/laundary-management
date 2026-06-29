@@ -136,6 +136,19 @@ export const AdminStateProvider = ({ children }) => {
     localStorage.setItem('selected_branch', selectedBranch);
   }, [selectedBranch]);
 
+  // Force selectedBranch to 'All' if the user is a Super Admin
+  useEffect(() => {
+    try {
+      const storedUser = localStorage.getItem('user');
+      if (storedUser) {
+        const parsed = JSON.parse(storedUser);
+        if (parsed && parsed.role === 'Super Admin' && selectedBranch !== 'All') {
+          setSelectedBranch('All');
+        }
+      }
+    } catch (e) {}
+  }, [selectedBranch]);
+
   // Synchronous sync loader method
   const fetchData = async () => {
     const token = localStorage.getItem('token');
@@ -613,7 +626,7 @@ export const AdminStateProvider = ({ children }) => {
 
   const updatePayment = async (id, updatedPayment) => {
     try {
-      const res = await api.put(`/payments/${id}`, updatedPayment);
+      await api.put(`/payments/${id}`, updatedPayment);
       await fetchData();
       return true;
     } catch (e) {
@@ -744,7 +757,18 @@ export const AdminStateProvider = ({ children }) => {
     updateBranch,
     deleteBranch,
 
-    selectedBranch,
+    selectedBranch: (() => {
+      try {
+        const storedUser = localStorage.getItem('user');
+        if (storedUser) {
+          const parsed = JSON.parse(storedUser);
+          if (parsed && parsed.role === 'Super Admin') {
+            return 'All';
+          }
+        }
+      } catch (e) {}
+      return selectedBranch;
+    })(),
     setSelectedBranch,
 
     liveUpdateFilter,

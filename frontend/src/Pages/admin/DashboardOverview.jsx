@@ -153,11 +153,11 @@ const DashboardOverview = () => {
       </section>
 
       <div className="grid gap-6 xl:grid-cols-7">
-        <div className="xl:col-span-4 flex flex-col justify-between">
+        <div className="xl:col-span-4 self-start">
           <MonthlyRevenueChart />
         </div>
 
-        <div className="xl:col-span-3 space-y-6">
+        <div className="xl:col-span-3 min-w-0 space-y-6">
           <div className="surface-card p-6 shadow-xl">
             <div className="flex items-center justify-between gap-4">
               <div>
@@ -169,29 +169,41 @@ const DashboardOverview = () => {
               </span>
             </div>
 
-            <div className="mt-5 space-y-4">
-              {recentOrdersFeed.map((order) => (
-                <div key={order.id} className="feed-card rounded-3xl border border-border bg-surface p-4">
-                  <div className="flex items-center justify-between gap-3">
-                    <div>
-                      <p className="font-semibold text-primary">{order.customerName}</p>
-                      <p className="mt-0.5 text-xs text-secondary">{order.number}</p>
-                    </div>
-                    <span className={`status-pill border ${getOrderStatusStyle(order.status)}`}>
-                      {order.status}
-                    </span>
-                  </div>
-                  <p className="mt-2 text-sm text-secondary">
-                    {order.serviceType} · {formatCurrency(order.totalAmount)} · {formatDate(order.date)}
-                  </p>
-                  <p className="mt-1 text-xs text-muted">
-                    {t('admin.payment') || 'Payment'}:{' '}
-                    <span className={paymentStatusStyles[order.paymentStatus] || paymentStatusStyles.Pending}>
-                      {order.paymentStatus}
-                    </span>
-                  </p>
-                </div>
-              ))}
+            <div className="mt-5 overflow-x-auto rounded-2xl border border-border/80 bg-surface">
+              <table className="min-w-[700px] w-full divide-y divide-border/60">
+                <thead className="bg-surface-alt/70">
+                  <tr>
+                    <th className="px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-secondary whitespace-nowrap">{t('admin.orderNo') || 'Order #'}</th>
+                    <th className="px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-secondary whitespace-nowrap">{t('admin.customer') || 'Customer'}</th>
+                    <th className="px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-secondary whitespace-nowrap">{t('admin.service') || 'Service'}</th>
+                    <th className="px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-secondary whitespace-nowrap">{t('admin.amount') || 'Amount'}</th>
+                    <th className="px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-secondary whitespace-nowrap">{t('admin.date') || 'Date'}</th>
+                    <th className="px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-secondary whitespace-nowrap">{t('admin.status') || 'Status'}</th>
+                    <th className="px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-secondary whitespace-nowrap">{t('admin.payment') || 'Payment'}</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border/40">
+                  {recentOrdersFeed.map((order) => (
+                    <tr key={order.id} className="transition hover:bg-surface-alt/40">
+                      <td className="px-4 py-3 text-xs font-semibold text-primary whitespace-nowrap">{order.number}</td>
+                      <td className="px-4 py-3 text-xs text-primary whitespace-nowrap">{order.customerName}</td>
+                      <td className="px-4 py-3 text-xs text-secondary whitespace-nowrap">{order.serviceType}</td>
+                      <td className="px-4 py-3 text-xs text-primary whitespace-nowrap">{formatCurrency(order.totalAmount)}</td>
+                      <td className="px-4 py-3 text-xs text-secondary whitespace-nowrap">{formatDate(order.date)}</td>
+                      <td className="px-4 py-3 text-xs whitespace-nowrap">
+                        <span className={`status-pill border text-[10px] py-1 px-2.5 ${getOrderStatusStyle(order.status)}`}>
+                          {order.status}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-xs whitespace-nowrap">
+                        <span className={`status-pill border text-[10px] py-1 px-2.5 ${paymentStatusStyles[order.paymentStatus] || paymentStatusStyles.Pending}`}>
+                          {order.paymentStatus}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           </div>
 

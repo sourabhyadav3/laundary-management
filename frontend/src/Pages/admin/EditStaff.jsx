@@ -2,7 +2,6 @@ import React, { useContext, useState } from 'react';
 import { FiArrowLeft, FiAlertCircle } from 'react-icons/fi';
 import { useNavigate, useParams } from 'react-router-dom';
 import { AdminStateContext } from '../../context/AdminStateContext';
-import { toast } from 'react-toastify';
 
 const EditStaff = () => {
   const navigate = useNavigate();

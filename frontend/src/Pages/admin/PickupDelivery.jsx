@@ -84,7 +84,7 @@ const getAssignableDrivers = (driversList, customerArea, currentlyAssigned = '')
 
 const PickupDelivery = () => {
   const { t, language } = useLanguage();
-  const { pickups, deliveries, setPickups, setDeliveries, drivers, customers, orders, assignDriverToJob, updatePickupJob, updateDeliveryJob, addPickup, addDelivery, selectedBranch } = useContext(AdminStateContext);
+  const { pickups, deliveries, drivers, customers, orders, assignDriverToJob, updatePickupJob, updateDeliveryJob, addPickup, addDelivery, selectedBranch } = useContext(AdminStateContext);
   const [searchTerm, setSearchTerm] = useState('');
   const [pickupStatusFilter, setPickupStatusFilter] = useState('All');
   const [selectedCustomerId, setSelectedCustomerId] = useState('');

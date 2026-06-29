@@ -28,7 +28,7 @@ const statusColors = {
 };
 
 const Users = () => {
-  const { staff, setStaff, addStaff, updateStaff, deleteStaff, lockStaff, branches } = useContext(AdminStateContext);
+  const { staff, addStaff, updateStaff, deleteStaff, lockStaff, branches } = useContext(AdminStateContext);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('All');
   const [roleFilter, setRoleFilter] = useState('All');
