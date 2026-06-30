@@ -7,6 +7,7 @@ const Pickup = require('../models/Pickup');
 const Delivery = require('../models/Delivery');
 const User = require('../models/User');
 const Driver = require('../models/Driver');
+const Role = require('../models/Role');
 const { authenticate, requirePermission } = require('../middleware/auth');
 
 const router = express.Router();
@@ -52,10 +53,15 @@ router.get('/dashboard', authenticate, requirePermission('view_reports'), async 
     // Build filters
     const orderFilter = applyBranchFilter(req, applyDateFilter(start, end, 'date'));
     const paymentFilter = applyBranchFilter(req, applyDateFilter(start, end, 'date'));
+    const pickupFilter = applyBranchFilter(req, applyDateFilter(start, end, 'pickupDate'));
+    const deliveryFilter = applyBranchFilter(req, applyDateFilter(start, end, 'deliveryDate'));
     
     const orders = await Order.find(orderFilter);
     const payments = await Payment.find(paymentFilter);
     const customers = await Customer.find({});
+    const pickups = await Pickup.find(pickupFilter);
+    const deliveries = await Delivery.find(deliveryFilter);
+    const users = await User.find(applyBranchFilter(req, {})).populate('role');
     
     const totalRevenue = orders.reduce((sum, o) => sum + (o.totalAmount || o.amount || 0), 0);
     const totalOrders = orders.length;
@@ -84,7 +90,175 @@ router.get('/dashboard', authenticate, requirePermission('view_reports'), async 
         paymentDistribution[p.method] += (p.amount || 0);
       }
     });
+
+    // Payment method breakdown object
+    const paymentMethodBreakdown = { ...paymentDistribution };
+
+    // Order status breakdown object
+    const orderStatusBreakdown = {};
+    orders.forEach(o => {
+      if (o.status) {
+        orderStatusBreakdown[o.status] = (orderStatusBreakdown[o.status] || 0) + 1;
+      }
+    });
+
+    // Previous Period calculations for growth
+    let prevStart, prevEnd;
+    if (start && end) {
+      const s = new Date(start);
+      const e = new Date(end);
+      const diffTime = Math.abs(e - s);
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) || 30;
+      
+      const ps = new Date(s);
+      ps.setDate(ps.getDate() - diffDays - 1);
+      const pe = new Date(s);
+      pe.setDate(pe.getDate() - 1);
+      
+      prevStart = ps.toISOString().split('T')[0];
+      prevEnd = pe.toISOString().split('T')[0];
+    } else {
+      const s = new Date();
+      s.setDate(s.getDate() - 30);
+      const e = new Date();
+      
+      const ps = new Date();
+      ps.setDate(ps.getDate() - 60);
+      const pe = new Date();
+      pe.setDate(pe.getDate() - 31);
+      
+      prevStart = ps.toISOString().split('T')[0];
+      prevEnd = pe.toISOString().split('T')[0];
+    }
+
+    const prevOrderFilter = applyBranchFilter(req, applyDateFilter(prevStart, prevEnd, 'date'));
+    const prevOrders = await Order.find(prevOrderFilter);
+    const prevRevenue = prevOrders.reduce((sum, o) => sum + (o.totalAmount || o.amount || 0), 0);
+    const prevOrdersCount = prevOrders.length;
+    const prevCompletedOrders = prevOrders.filter(o => o.status === 'Delivered').length;
+    const prevPendingOrders = prevOrders.filter(o => !terminalStatuses.includes(o.status)).length;
+    const prevAverageOrderValue = prevOrdersCount > 0 ? prevRevenue / prevOrdersCount : 0;
+
+    const currentRegisteredCustomers = customers.filter(c => {
+      const regDate = c.registrationDate || c.createdAt;
+      if (!regDate) return false;
+      const dStr = typeof regDate === 'string' ? regDate : new Date(regDate).toISOString().split('T')[0];
+      return dStr >= (start || '') && dStr <= (end || '');
+    }).length;
     
+    const prevRegisteredCustomers = customers.filter(c => {
+      const regDate = c.registrationDate || c.createdAt;
+      if (!regDate) return false;
+      const dStr = typeof regDate === 'string' ? regDate : new Date(regDate).toISOString().split('T')[0];
+      return dStr >= prevStart && dStr <= prevEnd;
+    }).length;
+
+    const getGrowthMetrics = (current, previous) => {
+      if (previous === 0) {
+        return { text: current > 0 ? '+100%' : '0%', positive: current >= 0 };
+      }
+      const val = ((current - previous) / previous) * 100;
+      return { text: `${val >= 0 ? '+' : ''}${val.toFixed(1)}%`, positive: val >= 0 };
+    };
+
+    const growth = {
+      revenue: getGrowthMetrics(totalRevenue, prevRevenue),
+      orders: getGrowthMetrics(totalOrders, prevOrdersCount),
+      completed: getGrowthMetrics(completedOrders, prevCompletedOrders),
+      pending: getGrowthMetrics(pendingOrders, prevPendingOrders),
+      customers: getGrowthMetrics(currentRegisteredCustomers, prevRegisteredCustomers),
+      avgOrder: getGrowthMetrics(averageOrderValue, prevAverageOrderValue)
+    };
+
+    // Payment Analytics
+    const paidAmount = orders.filter(o => o.paymentStatus === 'Paid').reduce((sum, o) => sum + (o.totalAmount || 0), 0);
+    const pendingAmount = orders.filter(o => o.paymentStatus === 'Pending' || o.paymentStatus === 'Overdue').reduce((sum, o) => sum + (o.totalAmount || 0), 0);
+    const partialAmount = orders.filter(o => o.paymentStatus === 'Partial').reduce((sum, o) => sum + (o.totalAmount || 0), 0);
+    const dueCustomers = customers.filter(c => (c.balance || 0) > 0).length;
+
+    const paymentsAnalytics = {
+      paidAmount,
+      pendingAmount,
+      partialAmount,
+      dueCustomers
+    };
+
+    // Home Service Analytics
+    const totalPickups = pickups.length;
+    const completedPickups = pickups.filter(p => p.status === 'Completed').length;
+    const totalDeliveries = deliveries.length;
+    const failedDeliveries = deliveries.filter(d => d.status === 'Failed').length;
+
+    const logisticsAnalytics = {
+      totalPickups,
+      completedPickups,
+      totalDeliveries,
+      failedDeliveries
+    };
+
+    // Top Customers
+    const customerMap = {};
+    orders.forEach(o => {
+      const name = o.customerName || 'Unknown';
+      if (!customerMap[name]) {
+        customerMap[name] = {
+          customerName: name,
+          totalOrders: 0,
+          totalRevenue: 0,
+          lastOrderDate: o.date
+        };
+      }
+      customerMap[name].totalOrders += 1;
+      customerMap[name].totalRevenue += (o.totalAmount || 0);
+      if (new Date(o.date) > new Date(customerMap[name].lastOrderDate)) {
+        customerMap[name].lastOrderDate = o.date;
+      }
+    });
+    const topCustomers = Object.values(customerMap)
+      .sort((a, b) => b.totalRevenue - a.totalRevenue)
+      .slice(0, 10);
+
+    // Staff Performance
+    const staffPerformance = users.map(u => {
+      const userOrders = orders.filter(o => o.createdBy === u.name || o.createdBy === u.username);
+      const userDeliveries = deliveries.filter(d => (d.assignedStaff === u.name || d.assignedStaff === u.username) && d.status === 'Delivered');
+      
+      const ordersHandledCount = userOrders.length;
+      const deliveriesCompletedCount = userDeliveries.length;
+      const revenueGeneratedSum = userOrders.reduce((sum, o) => sum + (o.totalAmount || 0), 0);
+      
+      return {
+        staffName: u.name,
+        role: u.role ? u.role.name : 'Staff',
+        ordersHandled: ordersHandledCount,
+        deliveriesCompleted: deliveriesCompletedCount,
+        revenueGenerated: revenueGeneratedSum
+      };
+    });
+
+    const todayStr = new Date().toISOString().split('T')[0];
+    const todayOrders = orders.filter(o => o.date === todayStr);
+    const todayPayments = payments.filter(p => p.date === todayStr);
+
+    const daily = {
+      revenueToday: todayOrders.reduce((sum, o) => sum + (o.totalAmount || 0), 0),
+      ordersToday: todayOrders.length,
+      paymentsReceived: todayPayments.reduce((sum, p) => sum + (p.amount || 0), 0)
+    };
+
+    const monthly = {
+      monthlyRevenue: totalRevenue,
+      revenueGrowth: growth.revenue,
+      revenueComparison: prevRevenue
+    };
+
+    const ordersStats = {
+      totalOrders: orders.length,
+      pendingOrders: pendingOrders,
+      deliveredOrders: completedOrders,
+      cancelledOrders: orders.filter(o => o.status === 'Cancelled').length
+    };
+
     res.json({
       summary: {
         totalRevenue,
@@ -92,12 +266,22 @@ router.get('/dashboard', authenticate, requirePermission('view_reports'), async 
         completedOrders,
         pendingOrders,
         activeCustomers,
-        averageOrderValue
+        averageOrderValue,
+        growth
       },
       periodOrders: orders,
       serviceRevenue,
       paymentDistribution,
-      periodPayments: payments
+      periodPayments: payments,
+      paymentMethodBreakdown,
+      orderStatusBreakdown,
+      payments: paymentsAnalytics,
+      logistics: logisticsAnalytics,
+      topCustomers,
+      staffPerformance,
+      daily,
+      monthly,
+      orders: ordersStats
     });
   } catch (error) {
     console.error('Reports Dashboard Error:', error);

@@ -143,7 +143,8 @@ const LcdDisplay = () => {
 
   // Translate service mode / express label
   const isExpress = (order) => {
-    return order.serviceType === 'Urgent' || order.serviceType === 'Express' || order.service === 'Urgent' || order.service === 'Express';
+    const type = (order?.serviceType || order?.service || '').toLowerCase();
+    return type.includes('express') || type.includes('urgent');
   };
 
   return (
@@ -566,19 +567,22 @@ const LcdDisplay = () => {
                           </span>
                         </td>
                         <td className={`py-4.5 px-4 text-sm font-bold ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
-                          {language === 'ar' && order.branchId ? (
-                            // Use translated names
-                            order.branchId === 1 ? 'الرقعي' :
-                            order.branchId === 2 ? 'مشرف' :
-                            order.branchId === 3 ? 'الأندلس' :
-                            order.branchId === 4 ? 'العارضية' :
-                            order.branchId === 5 ? 'خيطان' :
-                            order.branchId === 6 ? 'القرين' :
-                            order.branchId === 7 ? 'الجهراء' :
-                            order.branchId === 8 ? 'الرقعي' : order.branch || 'N/A'
-                          ) : (
-                            order.branch || 'N/A'
-                          )}
+                          {(() => {
+                            const branchObj = branches?.find(b => (b.id || b._id)?.toString() === (order.branchId || '').toString());
+                            const branchName = branchObj ? branchObj.name : (order.branch || 'N/A');
+                            if (language === 'ar') {
+                              const nameLower = branchName.toLowerCase();
+                              if (nameLower.includes('ragheey')) return 'الرقعي';
+                              if (nameLower.includes('mishrif')) return 'مشرف';
+                              if (nameLower.includes('andalus')) return 'الأندلس';
+                              if (nameLower.includes('ardiya')) return 'العارضية';
+                              if (nameLower.includes('khaitan')) return 'خيطان';
+                              if (nameLower.includes('qurain')) return 'القرين';
+                              if (nameLower.includes('jahra')) return 'الجهراء';
+                              if (nameLower.includes('rigai')) return 'الرقعي';
+                            }
+                            return branchName;
+                          })()}
                         </td>
                       </tr>
                     );
