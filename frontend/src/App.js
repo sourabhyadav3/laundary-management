@@ -84,7 +84,6 @@ function App() {
           <Route path="invoices" element={<CounterInvoices />} />
           <Route path="payments" element={<CounterPayments />} />
           <Route path="tracking" element={<CounterOrderTracking />} />
-          <Route path="lcd-display" element={<LcdDisplay />} />
           <Route path="settings" element={<CounterSettings />} />
         </Route>
 
@@ -110,6 +109,15 @@ function App() {
 
         <Route
           path="/delivery/lcd-display"
+          element={
+            <AdminStateProvider>
+              <LcdDisplay />
+            </AdminStateProvider>
+          }
+        />
+
+        <Route
+          path="/counter/lcd-display"
           element={
             <AdminStateProvider>
               <LcdDisplay />

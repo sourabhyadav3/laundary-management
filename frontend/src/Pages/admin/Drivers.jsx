@@ -1,4 +1,4 @@
-import React, { useContext, useState, useMemo } from 'react';
+import React, { useContext, useState, useMemo, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FiSearch, FiPlus, FiTrash2, FiSave, FiLogOut, FiTruck, FiUsers } from 'react-icons/fi';
 import { AdminStateContext } from '../../context/AdminStateContext';
@@ -117,10 +117,33 @@ const Drivers = () => {
 
   const { drivers, addDriver, updateDriver, deleteDriver, branches, areas } = useContext(AdminStateContext);
 
+  const loggedInUser = useMemo(() => {
+    try {
+      return JSON.parse(localStorage.getItem('user') || '{}');
+    } catch (e) {
+      return {};
+    }
+  }, []);
+  const isDeliveryStaff = loggedInUser.role === 'Delivery Staff';
+  const isSuperAdmin = loggedInUser.role === 'Super Admin';
+  const adminBranchObj = useMemo(() => {
+    if (!loggedInUser.branchId || !branches) return null;
+    return branches.find(b => (b.id || b._id)?.toString() === loggedInUser.branchId.toString());
+  }, [loggedInUser.branchId, branches]);
+
   const [form, setForm] = useState(emptyDriverForm);
   const [searchQuery, setSearchQuery] = useState('');
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [searchType, setSearchType] = useState('name'); // 'name', 'phone', or 'area'
+
+  useEffect(() => {
+    if (!isSuperAdmin && adminBranchObj && !form.branch && !form.id) {
+      setForm(prev => ({
+        ...prev,
+        branch: adminBranchObj.name
+      }));
+    }
+  }, [adminBranchObj, isSuperAdmin, form.branch, form.id]);
 
   const filteredDrivers = useMemo(() => {
     return drivers.filter((d) => {
@@ -160,6 +183,7 @@ const Drivers = () => {
     setForm({
       ...emptyDriverForm,
       driverNo: `DRV-${nextNum}`,
+      branch: (!isSuperAdmin && adminBranchObj) ? adminBranchObj.name : '',
     });
   };
 
@@ -200,7 +224,11 @@ const Drivers = () => {
   };
 
   const handleExit = () => {
-    navigate('/admin/dashboard');
+    if (isDeliveryStaff) {
+      navigate('/delivery/dashboard');
+    } else {
+      navigate('/admin/dashboard');
+    }
   };
 
   return (
@@ -220,7 +248,8 @@ const Drivers = () => {
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
         
         {/* Left Side: Driver Profile Form Card */}
-        <div className="lg:col-span-7 bg-surface border border-border rounded-2xl p-5 shadow-lg space-y-6">
+        {!isDeliveryStaff && (
+          <div className="lg:col-span-7 bg-surface border border-border rounded-2xl p-5 shadow-lg space-y-6">
           <div className="border-b border-border/80 pb-3 flex justify-between items-center">
             <h3 className="text-base font-bold text-primary flex items-center gap-2">
               <FiTruck className="text-blue-500" />
@@ -384,16 +413,22 @@ const Drivers = () => {
             {/* Branch */}
             <div>
               <label className="block text-xs font-semibold text-secondary uppercase">{tLocal.branch}</label>
-              <select
-                value={form.branch}
-                onChange={(e) => setForm({ ...form, branch: e.target.value })}
-                className="mt-1 w-full text-sm rounded-lg border border-border bg-surface px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-400/40 text-primary"
-              >
-                <option value="">{tLocal.selectBranch}</option>
-                {branches?.map?.(b => (
-                  <option key={b.id} value={b.name}>{b.name}</option>
-                ))}
-              </select>
+              {!isSuperAdmin && adminBranchObj ? (
+                <div className="mt-1 w-full text-sm rounded-lg border border-border bg-surface-alt px-3 py-1.5 text-secondary font-semibold">
+                  {form.branch || adminBranchObj.name}
+                </div>
+              ) : (
+                <select
+                  value={form.branch}
+                  onChange={(e) => setForm({ ...form, branch: e.target.value })}
+                  className="mt-1 w-full text-sm rounded-lg border border-border bg-surface px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-400/40 text-primary"
+                >
+                  <option value="">{tLocal.selectBranch}</option>
+                  {branches?.map?.(b => (
+                    <option key={b.id || b._id} value={b.name}>{b.name}</option>
+                  ))}
+                </select>
+              )}
             </div>
 
             {/* Service Areas (Multi-Select Checklist) */}
@@ -475,9 +510,10 @@ const Drivers = () => {
             </button>
           </div>
         </div>
+      )}
 
         {/* Right Side: Search Filters + Searchable Drivers List */}
-        <div className="lg:col-span-5 bg-surface border border-border rounded-2xl p-5 shadow-lg space-y-4">
+        <div className={`${isDeliveryStaff ? 'lg:col-span-12' : 'lg:col-span-5'} bg-surface border border-border rounded-2xl p-5 shadow-lg space-y-4`}>
           <div className="border-b border-border/80 pb-3">
             <h3 className="text-base font-bold text-primary flex items-center gap-2">
               <FiUsers className="text-blue-500" />
@@ -586,8 +622,12 @@ const Drivers = () => {
                     return (
                       <tr
                         key={drv.id}
-                        onClick={() => handleSelectDriver(drv)}
-                        className={`border-b border-border/30 hover:bg-surface-alt/30 transition-colors cursor-pointer select-none ${rowSelected ? 'bg-blue-500/10 hover:bg-blue-500/15' : ''}`}
+                        onClick={!isDeliveryStaff ? () => handleSelectDriver(drv) : undefined}
+                        className={`border-b border-border/30 transition-colors ${
+                          !isDeliveryStaff 
+                            ? 'hover:bg-surface-alt/30 cursor-pointer select-none' 
+                            : ''
+                        } ${rowSelected && !isDeliveryStaff ? 'bg-blue-500/10 hover:bg-blue-500/15' : ''}`}
                       >
                         <td className="p-3">
                           <span className={`px-2 py-0.5 rounded-full border text-[10px] font-semibold ${pillStyle}`}>
@@ -616,13 +656,15 @@ const Drivers = () => {
 
           {/* Right Bottom Action Bar */}
           <div className="flex gap-2 justify-end border-t border-border pt-4">
-            <button
-              type="button"
-              onClick={() => toast.info(language === 'ar' ? 'جاري تحضير السائقين...' : 'Preparing drivers list...')}
-              className="px-4 py-2 text-xs font-bold rounded-xl border border-blue-500/30 bg-blue-500/10 text-blue-600 hover:bg-blue-500/20 transition-all"
-            >
-              {tLocal.prepareDrivers}
-            </button>
+            {!isDeliveryStaff && (
+              <button
+                type="button"
+                onClick={() => toast.info(language === 'ar' ? 'جاري تحضير السائقين...' : 'Preparing drivers list...')}
+                className="px-4 py-2 text-xs font-bold rounded-xl border border-blue-500/30 bg-blue-500/10 text-blue-600 hover:bg-blue-500/20 transition-all"
+              >
+                {tLocal.prepareDrivers}
+              </button>
+            )}
             <button
               type="button"
               onClick={handleExit}

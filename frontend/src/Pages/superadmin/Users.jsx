@@ -13,8 +13,7 @@ import {
   FiMail, 
   FiPhone, 
   FiMapPin, 
-  FiCalendar, 
-  FiActivity 
+  FiCalendar
 } from 'react-icons/fi';
 import { AdminStateContext } from '../../context/AdminStateContext';
 import StatsCard from '../../Components/StatsCard';
@@ -510,34 +509,6 @@ const Users = () => {
                   <div>
                     <p className="text-xs text-secondary font-medium">Date Joined</p>
                     <p className="text-primary font-semibold">{viewedUser.joiningDate || 'N/A'}</p>
-                  </div>
-                </div>
-              </div>
-
-              <h4 className="text-xs uppercase font-bold text-secondary tracking-wider pt-2">System Metrics</h4>
-              <div className="grid grid-cols-3 gap-3 text-center">
-                <div className="bg-surface-alt p-3 rounded-2xl border border-border">
-                  <p className="text-2xl font-bold text-purple-600">{viewedUser.ordersHandled || 0}</p>
-                  <p className="text-[10px] uppercase font-bold text-secondary mt-1">Orders</p>
-                </div>
-                <div className="bg-surface-alt p-3 rounded-2xl border border-border">
-                  <p className="text-2xl font-bold text-purple-600">{viewedUser.deliveriesCompleted || 0}</p>
-                  <p className="text-[10px] uppercase font-bold text-secondary mt-1">Deliveries</p>
-                </div>
-                <div className="bg-surface-alt p-3 rounded-2xl border border-border">
-                  <p className="text-lg font-bold text-purple-600 truncate px-1">
-                    {viewedUser.paymentsCollected || 0}
-                  </p>
-                  <p className="text-[10px] uppercase font-bold text-secondary mt-1">Payments (KWD)</p>
-                </div>
-              </div>
-
-              <div className="bg-surface-alt p-4 rounded-2xl border border-border mt-3 text-sm">
-                <div className="flex items-center gap-2.5">
-                  <FiActivity className="text-purple-500" />
-                  <div className="flex-1 min-w-0">
-                    <p className="text-xs text-secondary font-medium">Recent Activity</p>
-                    <p className="text-primary font-semibold truncate mt-0.5">{viewedUser.recentActivity || 'Joined the team'}</p>
                   </div>
                 </div>
               </div>
