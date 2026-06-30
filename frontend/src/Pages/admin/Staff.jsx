@@ -23,7 +23,7 @@ const roleColors = {
 
 const Staff = () => {
   const navigate = useNavigate();
-  const { staff, deleteStaff } = useContext(AdminStateContext);
+  const { staff, deleteStaff, updateStaff } = useContext(AdminStateContext);
   const [searchTerm, setSearchTerm] = useState('');
   const [roleFilter, setRoleFilter] = useState('All');
   const [statusFilter, setStatusFilter] = useState('All');
@@ -81,7 +81,7 @@ const Staff = () => {
     }
   };
 
-  const handleResetPasswordSubmit = () => {
+  const handleResetPasswordSubmit = async () => {
     if (!newPassword || !confirmPassword) {
       toast.error('Please fill in all fields');
       return;
@@ -94,10 +94,12 @@ const Staff = () => {
       toast.error('Password must be at least 8 characters');
       return;
     }
-    toast.success(`Password reset for ${selectedStaff.name}`);
-    setShowResetPasswordModal(false);
-    setNewPassword('');
-    setConfirmPassword('');
+    const success = await updateStaff(selectedStaff.id || selectedStaff._id, { password: newPassword });
+    if (success) {
+      setShowResetPasswordModal(false);
+      setNewPassword('');
+      setConfirmPassword('');
+    }
   };
 
   const handleAddStaff = () => {

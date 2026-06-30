@@ -83,6 +83,7 @@ const AddStaff = () => {
         phone: formData.phone.trim(),
         address: formData.address.trim(),
         username: formData.username.trim(),
+        password: formData.password,
         role: formData.role,
         status: formData.status,
         assignedBranch: formData.assignedBranch,

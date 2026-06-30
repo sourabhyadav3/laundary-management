@@ -364,6 +364,9 @@ export const pageStrings = {
   Username: 'اسم المستخدم',
   'Remember me': 'تذكرني',
   'Forgot password?': 'نسيت كلمة المرور؟',
+  'Contact Administrator': 'الاتصال بالمسؤول',
+  'This is a secure enterprise portal. Please contact your Branch Manager or Super Admin to reset your password.': 'هذه بوابة مؤسسة آمنة. يرجى الاتصال بمدير الفرع أو المسؤول المتميز لإعادة تعيين كلمة المرور الخاصة بك.',
+  'Okay, Understood': 'حسناً، مفهوم',
   'Invalid credentials': 'بيانات الدخول غير صحيحة',
 
   // Services

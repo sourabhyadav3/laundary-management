@@ -58,11 +58,11 @@ const DeliveryDashboard = () => {
   const allowedPermissions = getPermissionsForRole(userRole);
 
   const myPickups = useMemo(
-    () => pickups.filter((p) => p.assignedStaff === staffName || !p.assignedStaff),
+    () => pickups.filter((p) => p.assignedStaff === staffName),
     [pickups, staffName]
   );
   const myDeliveries = useMemo(
-    () => deliveries.filter((d) => d.assignedStaff === staffName || !d.assignedStaff),
+    () => deliveries.filter((d) => d.assignedStaff === staffName),
     [deliveries, staffName]
   );
 

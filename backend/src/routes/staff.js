@@ -84,6 +84,16 @@ router.post('/', authenticate, requirePermission('manage_staff'), async (req, re
       }
     }
 
+    if (role.name === 'Admin' && branch) {
+      const existingAdmin = await User.findOne({
+        role: role._id,
+        branch: branch._id
+      });
+      if (existingAdmin) {
+        return res.status(400).json({ message: 'An Admin is already assigned to this branch. Only one Admin is allowed per branch.' });
+      }
+    }
+
     const user = new User({
       name,
       email,
@@ -145,6 +155,18 @@ router.put('/:id', authenticate, requirePermission('manage_staff'), async (req, 
         if (branch) {
           user.branch = branch._id;
         }
+      }
+    }
+
+    const targetRole = await Role.findById(user.role);
+    if (targetRole && targetRole.name === 'Admin' && user.branch) {
+      const existingAdmin = await User.findOne({
+        _id: { $ne: user._id },
+        role: targetRole._id,
+        branch: user.branch
+      });
+      if (existingAdmin) {
+        return res.status(400).json({ message: 'An Admin is already assigned to this branch. Only one Admin is allowed per branch.' });
       }
     }
 

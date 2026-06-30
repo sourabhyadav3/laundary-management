@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import { FiMail, FiLock, FiEye, FiEyeOff, FiLoader, FiAlertCircle, FiCheck, FiArrowRight, FiMapPin } from 'react-icons/fi';
 import api from '../utils/api';
+import Modal from './Modal';
 
 const defaultBranches = [
   { id: 1, name: 'Ragheey' },
@@ -33,6 +34,7 @@ const LoginForm = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [showForgotModal, setShowForgotModal] = useState(false);
   const [selectedBranchId, setSelectedBranchId] = useState(() => {
     if (branchesList && branchesList.length > 0) {
       return branchesList[0].id || branchesList[0]._id || '';
@@ -147,24 +149,7 @@ const LoginForm = () => {
 
   const handleForgotPassword = (e) => {
     e.preventDefault();
-    if (!email) {
-      toast.warning('Please enter your email address first to reset password', {
-        position: "top-right",
-        theme: "dark"
-      });
-      return;
-    }
-    if (!/\S+@\S+\.\S+/.test(email)) {
-      toast.error('Please enter a valid email address', {
-        position: "top-right",
-        theme: "dark"
-      });
-      return;
-    }
-    toast.success(`Password reset instructions sent to ${email}`, {
-      position: "top-right",
-      theme: "dark"
-    });
+    setShowForgotModal(true);
   };
 
   return (
@@ -320,6 +305,32 @@ const LoginForm = () => {
           })}
         </div>
       </div>
+
+      <Modal
+        isOpen={showForgotModal}
+        onClose={() => setShowForgotModal(false)}
+        title="Contact Administrator"
+        size="sm"
+      >
+        <div className="text-center py-4 space-y-6">
+          <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-blue-500/10 text-blue-500 border border-blue-500/20">
+            <FiLock size={28} />
+          </div>
+          <div className="space-y-2">
+            <h3 className="text-xl font-bold text-primary">Contact Administrator</h3>
+            <p className="text-sm text-secondary leading-relaxed max-w-xs mx-auto">
+              This is a secure enterprise portal. Please contact your Branch Manager or Super Admin to reset your password.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => setShowForgotModal(false)}
+            className="w-full rounded-2xl bg-blue-500/15 border border-blue-500/30 py-3 font-semibold text-blue-600 transition hover:bg-blue-500/20"
+          >
+            Okay, Understood
+          </button>
+        </div>
+      </Modal>
     </div>
   );
 };

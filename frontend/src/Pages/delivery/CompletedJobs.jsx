@@ -13,8 +13,8 @@ const CompletedJobs = () => {
   const staffName = storedUser?.name || DEFAULT_STAFF;
 
   const jobs = useMemo(() => {
-    const myPickups = pickups.filter((p) => p.assignedStaff === staffName || !p.assignedStaff);
-    const myDeliveries = deliveries.filter((d) => d.assignedStaff === staffName || !d.assignedStaff);
+    const myPickups = pickups.filter((p) => p.assignedStaff === staffName);
+    const myDeliveries = deliveries.filter((d) => d.assignedStaff === staffName);
     return generateCompletedJobs(myPickups, myDeliveries);
   }, [pickups, deliveries, staffName]);
 

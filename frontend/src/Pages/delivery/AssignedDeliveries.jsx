@@ -46,7 +46,7 @@ const AssignedDeliveries = () => {
   const filtered = useMemo(
     () =>
       deliveries
-        .filter((d) => d.assignedStaff === staffName || !d.assignedStaff)
+        .filter((d) => d.assignedStaff === staffName)
         .filter(
           (d) =>
             d.customer.toLowerCase().includes(searchTerm.toLowerCase()) ||
