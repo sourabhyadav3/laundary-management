@@ -15,7 +15,6 @@ import PickupDelivery from './Pages/admin/PickupDelivery';
 import Drivers from './Pages/admin/Drivers';
 import Payments from './Pages/admin/Payments';
 import Branches from './Pages/admin/Branches';
-import AddBranch from './Pages/admin/AddBranch';
 import EditBranch from './Pages/admin/EditBranch';
 import Staff from './Pages/admin/Staff';
 import AddStaff from './Pages/admin/AddStaff';
@@ -56,6 +55,7 @@ import SuperAdminAddBranch from './Pages/superadmin/AddBranch';
 import SuperAdminEditBranch from './Pages/superadmin/EditBranch';
 import SuperAdminReports from './Pages/superadmin/Reports';
 import SuperAdminSettings from './Pages/superadmin/Settings';
+import SuperAdminAuditLogs from './Pages/superadmin/AuditLogs';
 
 import PublicReceipt from './Pages/Public/PublicReceipt';
 
@@ -179,6 +179,7 @@ function App() {
           <Route path="branches/add" element={<SuperAdminAddBranch />} />
           <Route path="branches/:id/edit" element={<SuperAdminEditBranch />} />
           <Route path="services" element={<LaundryServices />} />
+          <Route path="audit-logs" element={<SuperAdminAuditLogs />} />
           <Route path="reports" element={<SuperAdminReports />} />
           <Route path="settings" element={<SuperAdminSettings />} />
         </Route>

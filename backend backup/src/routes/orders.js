@@ -48,7 +48,10 @@ const formatOrder = (order) => {
 // Helper helper to format current date/time for timeline
 const getTimelineDateTime = () => {
   const now = new Date();
-  const dateStr = now.toLocaleDateString('en-US', { year: 'numeric', month: '2-digit', day: '2-digit' }); // MM/DD/YYYY
+  const day = String(now.getDate()).padStart(2, '0');
+  const month = String(now.getMonth() + 1).padStart(2, '0');
+  const year = now.getFullYear();
+  const dateStr = `${day}/${month}/${year}`; // DD/MM/YYYY
   const timeStr = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true }); // HH:MM AM/PM
   return { dateStr, timeStr };
 };
@@ -153,7 +156,8 @@ router.post('/', authenticate, requirePermission('create_orders'), async (req, r
     await notify(
       'New Order Created',
       `Order ${order.number} was created for ${customerName}.`,
-      'order'
+      'order',
+      order.branchId || req.user.branch
     );
 
     // Increment customer loyalty metrics
@@ -206,6 +210,7 @@ router.post('/', authenticate, requirePermission('create_orders'), async (req, r
         deliveryId,
         customer: customerName,
         deliveryDate: deliveryDate || '',
+        orderDate: order.date || new Date().toISOString().split('T')[0],
         orderCount: 1,
         status: 'Scheduled',
         address: `${customer.areaName}, St. ${customer.street || ''}, House ${customer.houseNo || ''}`,
@@ -219,7 +224,8 @@ router.post('/', authenticate, requirePermission('create_orders'), async (req, r
       await notify(
         'New Delivery Scheduled',
         `Delivery ${deliveryId} scheduled for ${customerName}.`,
-        'delivery'
+        'delivery',
+        order.branchId || req.user.branch
       );
       deliveryStatus = 'Scheduled';
     }
@@ -239,7 +245,7 @@ router.post('/', authenticate, requirePermission('create_orders'), async (req, r
 
 // @route   PUT /api/orders/:id/status
 // @desc    Update order status and append to timeline
-router.put('/:id/status', authenticate, requirePermission('manage_orders'), async (req, res) => {
+router.put('/:id/status', authenticate, requirePermission(['manage_orders', 'create_orders']), async (req, res) => {
   try {
     const { status, holdComment } = req.body;
     if (!status) {
@@ -272,7 +278,8 @@ router.put('/:id/status', authenticate, requirePermission('manage_orders'), asyn
     await notify(
       'Order Status Updated',
       `Order ${order.number} status changed to ${status}.`,
-      'order'
+      'order',
+      order.branchId || req.user.branch
     );
 
     res.json(formatOrder(order));
@@ -284,7 +291,7 @@ router.put('/:id/status', authenticate, requirePermission('manage_orders'), asyn
 
 // @route   PUT /api/orders/:id/payment-status
 // @desc    Update order payment status
-router.put('/:id/payment-status', authenticate, requirePermission('manage_orders'), async (req, res) => {
+router.put('/:id/payment-status', authenticate, requirePermission(['manage_orders', 'create_orders', 'manage_payments']), async (req, res) => {
   try {
     const { paymentStatus } = req.body;
     if (!paymentStatus) {

@@ -6,12 +6,13 @@ const Notification = require('../models/Notification');
  * @param {string} text - Notification details
  * @param {string} type - 'order' | 'delivery' | 'system' | 'general'
  */
-const notify = async (title, text, type = 'general') => {
+const notify = async (title, text, type = 'general', branchId = null) => {
   try {
     const notification = new Notification({
       title,
       text,
-      type
+      type,
+      branchId: branchId || null
     });
     await notification.save();
   } catch (error) {

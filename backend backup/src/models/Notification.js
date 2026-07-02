@@ -21,6 +21,11 @@ const notificationSchema = new mongoose.Schema({
     type: String,
     enum: ['order', 'delivery', 'system', 'general'],
     default: 'general'
+  },
+  branchId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Branch',
+    default: null
   }
 }, { timestamps: true });
 

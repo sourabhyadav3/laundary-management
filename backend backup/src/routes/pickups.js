@@ -86,7 +86,8 @@ router.post('/', authenticate, requirePermission('manage_pickups'), async (req, 
     await notify(
       'New Pickup Scheduled',
       `Pickup ${pickupId} scheduled for ${customer}.`,
-      'delivery'
+      'delivery',
+      pickup.branchId || req.user.branch
     );
 
     if (pickup.assignedStaff) {
@@ -121,7 +122,8 @@ router.put('/:id/assign', authenticate, requirePermission('manage_pickups'), asy
     await notify(
       'Pickup Assigned',
       `Pickup ${pickup.pickupId} has been assigned to driver ${assignedStaff}.`,
-      'delivery'
+      'delivery',
+      pickup.branchId || req.user.branch
     );
 
     await updateDriverStatus(pickup.assignedStaff);
@@ -153,7 +155,8 @@ router.put('/:id/status', authenticate, async (req, res) => {
     await notify(
       'Pickup Status Updated',
       `Pickup ${pickup.pickupId} status changed to ${status}.`,
-      'delivery'
+      'delivery',
+      pickup.branchId || req.user.branch
     );
 
     if (pickup.assignedStaff) {

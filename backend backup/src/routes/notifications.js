@@ -11,7 +11,8 @@ const formatNotification = (n) => {
     text: n.text,
     time: n.time ? n.time.toISOString() : new Date().toISOString(),
     read: n.read,
-    type: n.type
+    type: n.type,
+    branchId: n.branchId ? n.branchId.toString() : ''
   };
 };
 
@@ -19,7 +20,16 @@ const formatNotification = (n) => {
 // @desc    Get all notifications
 router.get('/', authenticate, async (req, res) => {
   try {
-    const notifications = await Notification.find().sort({ time: -1 }).limit(50);
+    let query = {};
+    if (req.user.branch) {
+      query = {
+        $or: [
+          { branchId: req.user.branch },
+          { branchId: null }
+        ]
+      };
+    }
+    const notifications = await Notification.find(query).sort({ time: -1 }).limit(50);
     res.json(notifications.map(formatNotification));
   } catch (error) {
     console.error('Get notifications error:', error);

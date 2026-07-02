@@ -36,6 +36,9 @@ const deliverySchema = new mongoose.Schema({
     type: String,
     required: true
   },
+  orderDate: {
+    type: String
+  },
   areaName: {
     type: String
   },

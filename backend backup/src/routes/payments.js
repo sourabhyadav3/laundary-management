@@ -101,7 +101,8 @@ router.post('/', authenticate, requirePermission('manage_payments'), async (req,
     await notify(
       'Payment Received',
       `Payment of ${amount} received for order ${orderNumber}.`,
-      'system'
+      'system',
+      payment.branch || req.user.branch
     );
 
     // Sync with order payment status
@@ -143,7 +144,8 @@ router.put('/:id', authenticate, requirePermission('manage_payments'), async (re
     await notify(
       'Payment Updated',
       `Payment of ${payment.amount} for order ${payment.orderNumber} updated to ${payment.status}.`,
-      'system'
+      'system',
+      payment.branch || req.user.branch
     );
 
     // Sync with order payment status

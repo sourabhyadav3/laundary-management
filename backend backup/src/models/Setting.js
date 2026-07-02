@@ -19,7 +19,7 @@ const settingSchema = new mongoose.Schema({
   system: {
     currency: { type: String, default: 'KWD' },
     timezone: { type: String, default: 'Asia/Kuwait' },
-    dateFormat: { type: String, default: 'MM/DD/YYYY' },
+    dateFormat: { type: String, default: 'DD/MM/YYYY' },
     defaultDeliveryTime: { type: String, default: '48 hours' }
   },
   notifications: {

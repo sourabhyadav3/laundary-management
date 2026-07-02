@@ -41,9 +41,11 @@ const requirePermission = (permission) => {
       return next();
     }
 
-    const hasPermission = req.user.role.permissions.includes(permission);
+    const permissionsToCheck = Array.isArray(permission) ? permission : [permission];
+    const hasPermission = permissionsToCheck.some(p => req.user.role.permissions.includes(p));
+
     if (!hasPermission) {
-      return res.status(403).json({ message: `Access denied. Requires '${permission}' permission.` });
+      return res.status(403).json({ message: `Access denied. Requires '${permissionsToCheck.join("' or '")}' permission.` });
     }
 
     next();

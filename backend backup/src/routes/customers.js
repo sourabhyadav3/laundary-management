@@ -276,7 +276,8 @@ router.post('/:id/settle', authenticate, requirePermission('manage_payments'), a
     await notify(
       'Balance Settled',
       `Customer ${customer.name} settled outstanding balance of ${settledAmount}.`,
-      'general'
+      'general',
+      req.user.branch
     );
 
     res.json({

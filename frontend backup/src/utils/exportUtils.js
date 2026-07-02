@@ -35,7 +35,7 @@ export const formatCurrency = (value) => {
 export const formatDate = (value) => {
   if (!value) return 'N/A';
   let timezone = undefined;
-  let dateFormat = 'MM/DD/YYYY';
+  let dateFormat = 'DD/MM/YYYY';
   try {
     const stored = localStorage.getItem('spinclean-settings');
     if (stored) {

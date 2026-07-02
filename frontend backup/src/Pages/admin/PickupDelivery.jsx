@@ -968,6 +968,17 @@ const PickupDelivery = () => {
   const deliveryColumns = [
     { header: 'Delivery ID', accessor: 'deliveryId' },
     { header: 'Customer', accessor: 'customer' },
+    {
+      header: 'Order Date',
+      accessor: 'orderDate',
+      cell: (row) => {
+        const val = row.orderDate;
+        if (val) return formatDate(val);
+        const order = orders?.find(o => o.number === row.orderNumber);
+        const dateVal = order?.createdAt || order?.date;
+        return dateVal ? formatDate(dateVal) : 'N/A';
+      }
+    },
     { header: 'Delivery Date', accessor: 'deliveryDate', format: (val) => formatDate(val) },
     { header: 'Assigned Staff', accessor: 'assignedStaff', format: (val) => val || 'Unassigned' },
     { header: 'Order Count', accessor: 'orderCount' },

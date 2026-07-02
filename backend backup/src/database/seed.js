@@ -124,7 +124,7 @@ const seedDB = async () => {
       system: {
         currency: 'KWD',
         timezone: 'Asia/Kuwait',
-        dateFormat: 'MM/DD/YYYY',
+        dateFormat: 'DD/MM/YYYY',
         defaultDeliveryTime: '48 hours'
       }
     });
