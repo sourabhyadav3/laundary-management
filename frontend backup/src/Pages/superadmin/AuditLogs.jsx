@@ -14,6 +14,7 @@ import api from '../../utils/api';
 import { useLanguage } from '../../context/LanguageContext';
 import { AdminStateContext } from '../../context/AdminStateContext';
 import { exportToPDF, exportToCSV } from '../../utils/exportUtils';
+import { translateNotification } from '../../utils/notificationTranslator';
 
 const formatDateTimeCustom = (value) => {
   if (!value) return 'N/A';
@@ -87,8 +88,11 @@ const AuditLogs = () => {
 
     const dataToExport = filteredLogs.map((log) => {
       const branch = branches.find((b) => b.id === log.branchId || b._id === log.branchId);
+      const { title, text } = translateNotification(log.title, log.text, language);
       return {
         ...log,
+        title,
+        text,
         branchName: branch ? branch.name : 'System/Global',
       };
     });
@@ -108,8 +112,11 @@ const AuditLogs = () => {
 
     const dataToExport = filteredLogs.map((log) => {
       const branch = branches.find((b) => b.id === log.branchId || b._id === log.branchId);
+      const { title, text } = translateNotification(log.title, log.text, language);
       return {
         ...log,
+        title,
+        text,
         branchName: branch ? branch.name : 'System/Global',
       };
     });
@@ -300,6 +307,7 @@ const AuditLogs = () => {
                   const branchObj = branches.find(
                     (b) => b.id === log.branchId || b._id === log.branchId
                   );
+                  const { title: translatedTitle, text: translatedText } = translateNotification(log.title, log.text, language);
                   return (
                     <tr key={log.id || log._id} className="transition hover:bg-surface-alt/50">
                       <td className="px-6 py-4 text-sm font-medium text-secondary whitespace-nowrap">
@@ -325,11 +333,11 @@ const AuditLogs = () => {
                       <td className="px-6 py-4 text-sm font-semibold text-primary whitespace-nowrap">
                         <span className="flex items-center gap-2">
                           {getLogIcon(log.type)}
-                          {log.title}
+                          {translatedTitle}
                         </span>
                       </td>
                       <td className="px-6 py-4 text-sm text-secondary">
-                        {log.text}
+                        {translatedText}
                       </td>
                     </tr>
                   );

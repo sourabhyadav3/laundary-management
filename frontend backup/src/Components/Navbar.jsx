@@ -8,10 +8,11 @@ import { useTheme } from '../context/ThemeContext';
 import { useLanguage } from '../context/LanguageContext';
 import LanguageSwitcher from './LanguageSwitcher';
 import { AdminStateContext } from '../context/AdminStateContext';
+import { translateNotification } from '../utils/notificationTranslator';
 
 const Navbar = () => {
   const { focusMode, toggleFocusMode } = useTheme();
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   const navigate = useNavigate();
   const [profileOpen, setProfileOpen] = useState(false);
   const profileRef = useRef(null);
@@ -255,7 +256,7 @@ const Navbar = () => {
             </button>
 
             {notificationOpen && (
-              <div className="absolute right-0 sm:-right-2 top-full mt-2 w-[320px] rounded-3xl border border-border bg-surface py-3 shadow-xl z-50">
+              <div className={`absolute top-full mt-2 w-[320px] rounded-3xl border border-border bg-surface py-3 shadow-xl z-50 ${language === 'ar' ? 'left-0 sm:-left-2' : 'right-0 sm:-right-2'}`}>
                 <div className="flex items-center justify-between px-4 pb-3 border-b border-border/50">
                   <h3 className="text-sm font-extrabold text-primary">Notifications</h3>
                   {unreadCount > 0 && (
@@ -295,8 +296,15 @@ const Navbar = () => {
                           {notif.type === 'order' ? <FiShoppingBag size={14} /> : notif.type === 'delivery' ? <FiMapPin size={14} /> : <FiBell size={14} />}
                         </div>
                         <div className="flex-1 min-w-0">
-                          <p className={`text-sm truncate ${notif.read ? 'text-secondary font-medium' : 'text-primary font-bold'}`}>{notif.title || 'Notification'}</p>
-                          <p className="text-xs text-secondary mt-0.5 line-clamp-2">{notif.text}</p>
+                          {(() => {
+                            const { title, text } = translateNotification(notif.title, notif.text, language);
+                            return (
+                              <>
+                                <p className={`text-sm truncate ${notif.read ? 'text-secondary font-medium' : 'text-primary font-bold'}`}>{title || 'Notification'}</p>
+                                <p className="text-xs text-secondary mt-0.5 line-clamp-2">{text}</p>
+                              </>
+                            );
+                          })()}
                           <p className="text-[10px] text-muted mt-1.5 font-medium">{new Date(notif.time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
                         </div>
                         {!notif.read && <div className="h-2 w-2 mt-3 rounded-full bg-blue-500 flex-shrink-0"></div>}
