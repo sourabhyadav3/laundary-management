@@ -59,6 +59,12 @@ const AssignedDeliveries = () => {
             ...d,
             serviceType: order ? order.serviceType : d.serviceType
           };
+        })
+        .sort((a, b) => {
+          if (a.createdAt && b.createdAt) {
+            return new Date(b.createdAt) - new Date(a.createdAt);
+          }
+          return String(b.deliveryId || '').localeCompare(String(a.deliveryId || ''), undefined, { numeric: true, sensitivity: 'base' });
         }),
     [deliveries, orders, searchTerm, staffName]
   );

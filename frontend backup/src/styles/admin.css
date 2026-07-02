@@ -1332,13 +1332,14 @@ textarea {
    Mobile Responsiveness Overrides (< 768px)
    ============================================= */
 @media (max-width: 767px) {
+
   /* 1. Make all header icons slightly smaller and smoother */
   .icon-button {
     height: 2.25rem !important;
     width: 2.25rem !important;
     border-radius: 0.75rem !important;
   }
-  
+
   .icon-button svg {
     width: 16px !important;
     height: 16px !important;
@@ -1400,17 +1401,21 @@ textarea {
   width: 6px;
   height: 6px;
 }
+
 .custom-scrollbar::-webkit-scrollbar-track {
   background: transparent;
   border-radius: 8px;
 }
+
 .custom-scrollbar::-webkit-scrollbar-thumb {
   background: rgba(156, 163, 175, 0.5);
   border-radius: 8px;
 }
+
 .custom-scrollbar::-webkit-scrollbar-thumb:hover {
   background: rgba(107, 114, 128, 0.8);
 }
+
 .custom-scrollbar {
   scrollbar-width: thin;
   scrollbar-color: rgba(156, 163, 175, 0.5) transparent;
@@ -1418,11 +1423,13 @@ textarea {
 
 /* Compact Page Headers (Dashboard Hero) to save vertical space */
 .dashboard-hero {
-  padding: 0.75rem 1.25rem !important; /* Reduces vertical height significantly */
+  padding: 0.75rem 1.25rem !important;
+  /* Reduces vertical height significantly */
 }
 
 .dashboard-hero p:not(.uppercase) {
-  display: none !important; /* Hides the large description subtitle */
+  display: none !important;
+  /* Hides the large description subtitle */
 }
 
 #reports-print-area .dashboard-hero p:not(.uppercase) {
@@ -1430,30 +1437,33 @@ textarea {
 }
 
 .dashboard-hero h1 {
-  font-size: 1.35rem !important; /* Reduces title size to 22px */
+  font-size: 1.35rem !important;
+  /* Reduces title size to 22px */
   margin-top: 0.125rem !important;
   line-height: 1.25 !important;
 }
 
 .dashboard-hero .dashboard-hero-pill {
-  padding: 0.4rem 0.8rem !important; /* Makes header action buttons compact */
+  padding: 0.4rem 0.8rem !important;
+  /* Makes header action buttons compact */
   border-radius: 1rem !important;
 }
 
-.dashboard-hero .dashboard-hero-pill span, 
+.dashboard-hero .dashboard-hero-pill span,
 .dashboard-hero .dashboard-hero-pill svg {
   font-size: 0.8rem !important;
 }
 
 /* Make general container vertical spaces smaller to fit content without scrolling */
-.space-y-8 > :not([hidden]) ~ :not([hidden]) {
-  margin-top: 1rem !important; /* Reduces spacing between components to 16px */
+.space-y-8> :not([hidden])~ :not([hidden]) {
+  margin-top: 1rem !important;
+  /* Reduces spacing between components to 16px */
 }
 
 /* Make Export buttons compact and right-aligned */
-button.action-button[title*="Export"], 
+button.action-button[title*="Export"],
 button.action-button[title*="export"],
-div.flex > button.action-button {
+div.flex>button.action-button {
   width: auto !important;
   display: inline-flex !important;
   align-items: center !important;
@@ -1463,13 +1473,21 @@ div.flex > button.action-button {
   border-radius: 1rem !important;
   font-size: 0.75rem !important;
   font-weight: 600 !important;
-  margin-left: auto !important; /* pushes to the right inside a flex container */
+  margin-left: auto !important;
+  /* pushes to the right inside a flex container */
 }
-.theme-light table tbody tr.lcd-row:hover { background: inherit !important; }
-.theme-dark table tbody tr.lcd-row:hover { background: inherit !important; }
+
+.theme-light table tbody tr.lcd-row:hover {
+  background: inherit !important;
+}
+
+.theme-dark table tbody tr.lcd-row:hover {
+  background: inherit !important;
+}
 
 /* Disable toast notifications on mobile to prevent header obstruction */
 @media (max-width: 767px) {
+
   .Toastify,
   .Toastify__toast-container {
     display: none !important;

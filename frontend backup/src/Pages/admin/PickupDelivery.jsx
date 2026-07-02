@@ -754,6 +754,11 @@ const PickupDelivery = () => {
       const matchesSearch = pickup.customer.toLowerCase().includes(searchTerm.toLowerCase()) || pickup.requestId.includes(searchTerm);
       const matchesStatus = pickupStatusFilter === 'All' || pickup.status === pickupStatusFilter;
       return matchesCustomer && matchesSearch && matchesStatus;
+    }).sort((a, b) => {
+      if (a.createdAt && b.createdAt) {
+        return new Date(b.createdAt) - new Date(a.createdAt);
+      }
+      return String(b.pickupId || '').localeCompare(String(a.pickupId || ''), undefined, { numeric: true, sensitivity: 'base' });
     });
   }, [pickups, searchTerm, pickupStatusFilter, selectedCustomerObj]);
 
@@ -768,6 +773,11 @@ const PickupDelivery = () => {
         (delivery.customer.toLowerCase().includes(searchTerm.toLowerCase()) ||
         delivery.deliveryId.includes(searchTerm))
       );
+    }).sort((a, b) => {
+      if (a.createdAt && b.createdAt) {
+        return new Date(b.createdAt) - new Date(a.createdAt);
+      }
+      return String(b.deliveryId || '').localeCompare(String(a.deliveryId || ''), undefined, { numeric: true, sensitivity: 'base' });
     });
   }, [deliveries, searchTerm, selectedCustomerObj]);
 

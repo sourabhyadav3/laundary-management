@@ -137,8 +137,12 @@ const Reports = () => {
       case 'sales_detail':
       case 'garment_stats':
         return [
-          { value: 'All', label: language === 'ar' ? 'جميع الأصناف' : 'All Garments' },
+          { value: 'Express', label: language === 'ar' ? 'مستعجل' : 'Express' },
+          { value: 'Normal', label: language === 'ar' ? 'عادي' : 'Normal' },
+          { value: 'All', label: language === 'ar' ? 'جميع الأصناف' : 'All Garments' }
+          /* Commented out as requested - can be restored later if client asks
           ...(catalog || []).map(g => ({ value: g.name, label: g.name }))
+          */
         ];
       case 'branch_sales':
         return [

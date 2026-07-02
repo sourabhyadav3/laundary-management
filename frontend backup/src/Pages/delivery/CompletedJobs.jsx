@@ -15,7 +15,8 @@ const CompletedJobs = () => {
   const jobs = useMemo(() => {
     const myPickups = pickups.filter((p) => p.assignedStaff === staffName);
     const myDeliveries = deliveries.filter((d) => d.assignedStaff === staffName);
-    return generateCompletedJobs(myPickups, myDeliveries);
+    const list = generateCompletedJobs(myPickups, myDeliveries);
+    return list.sort((a, b) => new Date(b.completionDate || b.createdAt || 0) - new Date(a.completionDate || a.createdAt || 0));
   }, [pickups, deliveries, staffName]);
 
   const thisMonth = new Date().getMonth();

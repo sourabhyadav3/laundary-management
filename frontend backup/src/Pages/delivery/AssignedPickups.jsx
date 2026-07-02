@@ -32,6 +32,12 @@ const AssignedPickups = () => {
             ...p,
             serviceType: order ? order.serviceType : p.serviceType
           };
+        })
+        .sort((a, b) => {
+          if (a.createdAt && b.createdAt) {
+            return new Date(b.createdAt) - new Date(a.createdAt);
+          }
+          return String(b.pickupId || '').localeCompare(String(a.pickupId || ''), undefined, { numeric: true, sensitivity: 'base' });
         }),
     [pickups, orders, searchTerm, staffName]
   );

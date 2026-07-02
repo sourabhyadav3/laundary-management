@@ -178,6 +178,7 @@ function App() {
           <Route path="branches" element={<SuperAdminBranches />} />
           <Route path="branches/add" element={<SuperAdminAddBranch />} />
           <Route path="branches/:id/edit" element={<SuperAdminEditBranch />} />
+          <Route path="services" element={<LaundryServices />} />
           <Route path="reports" element={<SuperAdminReports />} />
           <Route path="settings" element={<SuperAdminSettings />} />
         </Route>

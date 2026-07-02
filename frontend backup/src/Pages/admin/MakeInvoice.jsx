@@ -124,6 +124,65 @@ const MakeInvoice = () => {
     });
 
     const [activeGarmentIdx, setActiveGarmentIdx] = useState(null);
+    const [draggedIdx, setDraggedIdx] = useState(null);
+
+    const handleDragStart = (e, index) => {
+        setDraggedIdx(index);
+        e.dataTransfer.effectAllowed = "move";
+        e.dataTransfer.setData("text/plain", index);
+    };
+
+    const handleDragOver = (e, index) => {
+        e.preventDefault();
+        e.dataTransfer.dropEffect = "move";
+    };
+
+    const handleDrop = (e, targetIndex) => {
+        e.preventDefault();
+        const sourceIndex = draggedIdx;
+        setDraggedIdx(null);
+        if (sourceIndex === null || sourceIndex === targetIndex) return;
+
+        setCatalog(prev => {
+            const newList = [...prev];
+            const [draggedItem] = newList.splice(sourceIndex, 1);
+            newList.splice(targetIndex, 0, draggedItem);
+            
+            const orderKeys = newList.map(g => g.key || g.name);
+            localStorage.setItem('spinclean_catalog_order', JSON.stringify(orderKeys));
+            
+            return newList;
+        });
+    };
+
+    const handleDragEnd = () => {
+        setDraggedIdx(null);
+    };
+
+    useEffect(() => {
+        const savedOrder = localStorage.getItem('spinclean_catalog_order');
+        if (savedOrder && catalog.length > 0) {
+            try {
+                const orderKeys = JSON.parse(savedOrder);
+                const currentOrder = catalog.map(g => g.key || g.name);
+                if (JSON.stringify(currentOrder) !== savedOrder) {
+                    setCatalog(prev => {
+                        const sorted = [...prev].sort((a, b) => {
+                            const indexA = orderKeys.indexOf(a.key || a.name);
+                            const indexB = orderKeys.indexOf(b.key || b.name);
+                            if (indexA === -1 && indexB === -1) return 0;
+                            if (indexA === -1) return 1;
+                            if (indexB === -1) return -1;
+                            return indexA - indexB;
+                        });
+                        return sorted;
+                    });
+                }
+            } catch (e) {
+                console.error("Failed to parse catalog order", e);
+            }
+        }
+    }, [catalog, setCatalog]);
     const [quickServiceMode, setQuickServiceMode] = useState('Iron & Wash'); // Default service mode
 
     // Add Catalog Modal State
@@ -1506,52 +1565,7 @@ const MakeInvoice = () => {
 
             </div>
 
-            {/* Delivery Method — separate from service selection */}
-            <div className="surface-card border border-border rounded-2xl p-2.5 flex flex-wrap items-center gap-2 shrink-0 shadow-sm">
-                <span className="text-[11px] font-bold text-secondary uppercase tracking-wider shrink-0">
-                    {t('counter.makeInvoice.deliveryType')}
-                </span>
-                <div className="flex items-center gap-2">
-                    <button
-                        type="button"
-                        onClick={() => {
-                            if (orderItems.length > 0) {
-                                toast.warning(language === 'ar' ? 'لا يمكن تغيير نوع التوصيل بعد إضافة عناصر إلى الفاتورة. يرجى مسح العناصر أولاً.' : 'Cannot change delivery type after items are added to invoice. Please clear items first.');
-                                return;
-                            }
-                            setForm((prev) => ({ ...prev, deliveryMode: 'branch' }));
-                        }}
-                        className={`text-[11px] font-black px-4 py-2 rounded-xl transition-all whitespace-nowrap border ${
-                            orderItems.length > 0 ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer'
-                        } ${
-                            form.deliveryMode !== 'home'
-                                ? 'bg-blue-600 border-blue-700 text-white shadow-sm'
-                                : 'bg-white border-slate-300 text-black hover:bg-blue-50 hover:border-blue-300 dark:bg-slate-100 dark:border-slate-300 dark:text-black dark:hover:bg-blue-100'
-                        }`}
-                    >
-                        🏪 {t('counter.makeInvoice.branchPickup')}
-                    </button>
-                    <button
-                        type="button"
-                        onClick={() => {
-                            if (orderItems.length > 0) {
-                                toast.warning(language === 'ar' ? 'لا يمكن تغيير نوع التوصيل بعد إضافة عناصر إلى الفاتورة. يرجى مسح العناصر أولاً.' : 'Cannot change delivery type after items are added to invoice. Please clear items first.');
-                                return;
-                            }
-                            setForm((prev) => ({ ...prev, deliveryMode: 'home' }));
-                        }}
-                        className={`text-[11px] font-black px-4 py-2 rounded-xl transition-all whitespace-nowrap border ${
-                            orderItems.length > 0 ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer'
-                        } ${
-                            form.deliveryMode === 'home'
-                                ? 'bg-emerald-600 border-emerald-700 text-white shadow-sm'
-                                : 'bg-white border-slate-300 text-black hover:bg-emerald-50 hover:border-emerald-300 dark:bg-slate-100 dark:border-slate-300 dark:text-black dark:hover:bg-emerald-100'
-                        }`}
-                    >
-                        🏠 {t('counter.makeInvoice.homeDelivery')}
-                    </button>
-                </div>
-            </div>
+
 
 
                 {/* Left Column: Garments Grid Catalog */}
@@ -1560,43 +1574,30 @@ const MakeInvoice = () => {
                         <div className="flex items-center gap-2 max-w-full min-w-0 flex-1">
                             {/* Dynamic Status Logo */}
                             {quickServiceMode?.includes('Express') ? (
-                                <div className="flex flex-col items-center justify-center bg-gradient-to-br from-red-500 to-rose-600 text-white px-4 py-2.5 rounded-xl shadow-[0_0_10px_rgba(239,68,68,0.5)] border border-red-400 w-auto min-w-[88px] h-16 shrink-0 animate-pulse">
-                                    <div className="flex items-center gap-1">
-                                        <span className="text-[14px]">⚡</span>
-                                        <span className="text-[12px] font-black tracking-widest text-white drop-shadow-md">{t('counter.makeInvoice.expressLabel')}</span>
-                                    </div>
-                                    <div className="flex gap-1.5 mt-0.5 opacity-95 text-[11px]">
-                                        <span>🫧</span>
-                                        <span>💨</span>
-                                    </div>
+                                <div className="flex items-center justify-center gap-1.5 bg-gradient-to-br from-red-500 to-rose-600 text-white px-3 py-2 rounded-lg shadow-md border border-red-400 w-auto h-11 shrink-0 animate-pulse">
+                                    <span className="text-[14px]">⚡</span>
+                                    <span className="text-[12px] font-bold tracking-wider text-white uppercase">{t('counter.makeInvoice.expressLabel')}</span>
                                 </div>
                             ) : (
                                 <div
-                                    className="group relative flex flex-col items-center justify-center overflow-hidden bg-gradient-to-br from-blue-600 via-blue-500 to-cyan-500 text-white px-4 py-2.5 rounded-xl shadow-[0_4px_16px_rgba(37,99,235,0.45)] border border-blue-300/40 w-auto min-w-[92px] h-16 shrink-0 transition-all duration-300 hover:scale-[1.06] hover:shadow-[0_6px_22px_rgba(37,99,235,0.55)] active:scale-[0.98] cursor-pointer"
+                                    className="flex items-center justify-center gap-1.5 bg-gradient-to-br from-blue-600 to-cyan-500 text-white px-3 py-2 rounded-lg shadow-md border border-blue-400 w-auto h-11 shrink-0"
                                     title={quickServiceMode || t('counter.makeInvoice.normalServiceShort')}
                                 >
-                                    <div className="absolute inset-0 bg-gradient-to-tr from-white/0 via-white/20 to-white/0 -translate-x-full group-hover:translate-x-full transition-transform duration-700" />
-                                    <span className="relative text-[12px] font-black tracking-[0.22em] text-white uppercase leading-none drop-shadow-md">
-                                        {t('counter.makeInvoice.normalLabel')}
-                                    </span>
-                                    <div className="relative flex items-center gap-2 mt-1.5">
-                                        <span className="text-[14px] transition-transform duration-300 group-hover:scale-125 group-hover:-translate-y-0.5">🫧</span>
-                                        <span className="text-[11px] text-blue-100/80 font-bold">+</span>
-                                        <span className="text-[14px] transition-transform duration-300 group-hover:scale-125 group-hover:-translate-y-0.5 delay-75">💨</span>
-                                    </div>
+                                    <span className="text-[14px]">🫧</span>
+                                    <span className="text-[12px] font-bold tracking-wider text-white uppercase">{t('counter.makeInvoice.normalLabel')}</span>
                                 </div>
                             )}
 
                             {/* Service Buttons Row */}
-                            <div className="flex items-center gap-1.5 bg-surface-alt/75 border border-border/60 p-1.5 rounded-xl overflow-x-auto min-w-0 min-h-[64px]">
+                            <div className="flex flex-nowrap items-center gap-1.5 bg-surface-alt/75 border border-border/60 p-1 rounded-xl overflow-x-auto overflow-y-hidden min-w-0 h-11 no-scrollbar" style={{ msOverflowStyle: 'none', scrollbarWidth: 'none' }}>
                                 {services?.filter(s => s.status === 'Active').map((service) => (
                                     <button
                                         key={service.id}
                                         type="button"
                                         onClick={() => setQuickServiceMode(service.name)}
-                                        className={`text-[11px] font-black px-3 py-2 rounded-lg transition-all cursor-pointer whitespace-nowrap border ${
+                                        className={`text-[12px] font-black px-3.5 py-2 rounded-lg transition-all cursor-pointer whitespace-nowrap border ${
                                             quickServiceMode === service.name
-                                                ? 'bg-purple-600 border-purple-700 text-white shadow-sm'
+                                                ? 'bg-purple-600 border-purple-700 text-white shadow-sm scale-105'
                                                 : 'bg-white border-slate-300 text-black hover:bg-purple-50 hover:border-purple-300 dark:bg-slate-100 dark:border-slate-300 dark:text-black dark:hover:bg-purple-100'
                                         }`}
                                     >
@@ -1658,7 +1659,7 @@ const MakeInvoice = () => {
 
                     {/* Scrolling Grid */}
                     <div className="flex-1 overflow-y-auto pr-1">
-                        <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 xl:grid-cols-6 gap-2 p-0.5">
+                        <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 xl:grid-cols-5 gap-3 p-0.5">
                             {catalog.map((g, idx) => {
                                 const styleCard = CARD_COLORS[idx % CARD_COLORS.length];
                                 const isRemovable = removeCatalogMode;
@@ -1667,6 +1668,11 @@ const MakeInvoice = () => {
                                     <button
                                         key={`${g.name}-${idx}`}
                                         type="button"
+                                        draggable
+                                        onDragStart={(e) => handleDragStart(e, idx)}
+                                        onDragOver={(e) => handleDragOver(e, idx)}
+                                        onDrop={(e) => handleDrop(e, idx)}
+                                        onDragEnd={handleDragEnd}
                                         onClick={() => {
                                             if (isRemovable) removeCatalogItem(idx);
                                             else if (isEditable) {
@@ -1712,7 +1718,7 @@ const MakeInvoice = () => {
                                                 }
                                             }
                                         }}
-                                        className={`relative w-full flex flex-col items-center justify-between p-2.5 border rounded-2xl transition-all duration-200 hover:scale-105 active:scale-95 shadow-sm hover:shadow-md ${styleCard} ${isRemovable ? 'ring-2 ring-rose-400 animate-pulse' : ''} ${isEditable ? 'ring-2 ring-amber-400 animate-pulse' : ''}`}
+                                        className={`relative w-full h-auto min-h-[125px] flex flex-col items-center justify-between p-2.5 pb-2 border rounded-2xl transition-all duration-200 hover:scale-105 active:scale-95 shadow-sm hover:shadow-md ${styleCard} ${isRemovable ? 'ring-2 ring-rose-400 animate-pulse' : ''} ${isEditable ? 'ring-2 ring-amber-400 animate-pulse' : ''} ${draggedIdx === idx ? 'opacity-30 border-dashed border-slate-400 scale-95' : ''}`}
                                     >
                                         {/* Color dot indicator */}
                                         <span
@@ -1726,13 +1732,13 @@ const MakeInvoice = () => {
                                             <span className="absolute -top-1.5 -right-1.5 bg-amber-500 text-white text-[9px] w-5 h-5 rounded-full flex items-center justify-center font-bold shadow-md z-10">✏️</span>
                                         )}
                                         {g.image ? (
-                                            <img src={g.image} alt={g.name} className="w-14 h-14 object-cover rounded-xl mb-1 shadow-sm border border-black/10" />
+                                            <img src={g.image} alt={g.name} className="w-16 h-16 object-cover rounded-xl mb-2 mt-1 shadow-sm border border-black/10" />
                                         ) : (
-                                            <span className="text-4xl mb-1" role="img" aria-label={g.name}>
+                                            <span className="text-[52px] mb-2 mt-1 leading-none" role="img" aria-label={g.name}>
                                                 {g.icon}
                                             </span>
                                         )}
-                                        <span className="text-[10px] font-semibold text-center leading-tight tracking-wide truncate w-full mb-1">
+                                        <span className="text-[11px] font-bold text-center leading-tight tracking-wide truncate w-full mb-1 mt-auto pt-1">
                                             {getGarmentDisplayName(g)}
                                         </span>
                                     </button>
@@ -1759,6 +1765,39 @@ const MakeInvoice = () => {
                             {t('counter.makeInvoice.clearAll') || "Clear All"}
                         </button>
                     </div>
+
+                    {/* Delivery Method dropdown — shown after item selection */}
+                    {orderItems.length > 0 && (
+                        <div className="mb-3 p-2 bg-surface-alt/10 border border-border/50 rounded-xl flex flex-col gap-1.5 shrink-0 shadow-sm">
+                            <div className="flex items-center justify-between">
+                                <label className="text-[10px] font-bold text-secondary uppercase tracking-wider">
+                                    {t('counter.makeInvoice.deliveryType') || "Delivery Type"}
+                                </label>
+                                <select
+                                    value={form.deliveryMode}
+                                    onChange={(e) => setForm((prev) => ({ ...prev, deliveryMode: e.target.value }))}
+                                    className="text-[11px] font-semibold px-1.5 py-1 rounded-lg border border-border bg-surface text-primary focus:outline-none focus:ring-2 focus:ring-blue-500 min-w-[130px] h-7"
+                                >
+                                    <option value="branch">🏪 {t('counter.makeInvoice.branchPickup') || "Branch Pickup"}</option>
+                                    <option value="home">🏠 {t('counter.makeInvoice.homeDelivery') || "Home Delivery"}</option>
+                                </select>
+                            </div>
+
+                            {form.deliveryMode === 'home' && (
+                                <div className="flex items-center justify-between pt-1.5 border-t border-border/35">
+                                    <label className="text-[10px] font-bold text-secondary uppercase tracking-wider">
+                                        {language === 'ar' ? 'تاريخ التوصيل المتوقع' : 'Expected Delivery Date'}
+                                    </label>
+                                    <input
+                                        type="date"
+                                        value={form.expectedDeliveryDate || ''}
+                                        onChange={(e) => setForm((prev) => ({ ...prev, expectedDeliveryDate: e.target.value }))}
+                                        className="text-[11px] font-semibold px-1.5 py-1 rounded-lg border border-border bg-surface text-primary focus:outline-none focus:ring-2 focus:ring-blue-500 h-7"
+                                    />
+                                </div>
+                            )}
+                        </div>
+                    )}
 
                     {/* Table Container - Scrollable */}
                     <div className="flex-1 overflow-y-auto min-h-0 mb-3 border border-border/40 rounded-xl bg-surface-alt/20">

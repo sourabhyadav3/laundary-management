@@ -30,82 +30,56 @@ const permissionsList = [
 
   // Customers
   { id: 'view_customers', label: 'View Customers', category: 'Customers' },
-  { id: 'manage_customers', label: 'Manage Customers', category: 'Customers' },
 
   // Orders
-  { id: 'view_orders', label: 'View Orders', category: 'Orders' },
-  { id: 'manage_orders', label: 'Orders Management', category: 'Orders' },
   { id: 'view_invoice_status', label: 'View Current Invoice Status', category: 'Orders' },
-  { id: 'change_invoice_status', label: 'Change Invoice Status', category: 'Orders' },
   { id: 'make_invoice', label: 'Make Invoice', category: 'Orders' },
-  { id: 'view_invoice_details', label: 'View Invoice Details', category: 'Orders' },
 
   // Services
   { id: 'view_services', label: 'Laundry Services (View)', category: 'Services' },
-  { id: 'manage_services', label: 'Manage Laundry Services', category: 'Services' },
 
   // Logistics
   { id: 'view_logistics', label: 'Pickup & Delivery (View)', category: 'Logistics' },
-  { id: 'manage_logistics', label: 'Manage Pickup & Delivery', category: 'Logistics' },
 
   // Payments
   { id: 'view_payments', label: 'View Payments', category: 'Payments' },
-  { id: 'manage_payments', label: 'Manage Payments', category: 'Payments' },
 
   // Reporting
   { id: 'view_reports', label: 'View Reports', category: 'Reporting' },
 
   // Administration
   { id: 'manage_staff', label: 'Manage Staff', category: 'Administration' },
-  { id: 'assign_roles', label: 'Assign Roles', category: 'Administration' },
-  { id: 'manage_permissions', label: 'Manage Permissions', category: 'Administration' },
 
   // Settings
   { id: 'manage_settings', label: 'Manage Settings', category: 'Settings' },
-
-  // System Administration
-  { id: 'full_access', label: 'Full Access', category: 'System Administration' },
-  { id: 'create_records', label: 'Create Records', category: 'System Administration' },
-  { id: 'edit_records', label: 'Edit Records', category: 'System Administration' },
-  { id: 'delete_records', label: 'Delete Records', category: 'System Administration' },
-  { id: 'view_all_data', label: 'View All System Data', category: 'System Administration' },
-  { id: 'access_all_modules', label: 'Access All Modules', category: 'System Administration' },
 ];
 
 const initialRolePermissions = {
   'Admin': [
-    'view_dashboard', 'view_customers', 'manage_customers', 'view_orders', 'manage_orders', 
-    'view_invoice_status', 'change_invoice_status', 'make_invoice', 'view_invoice_details', 
-    'view_services', 'manage_services', 'view_logistics', 'manage_logistics', 
-    'view_payments', 'manage_payments', 'view_reports', 'manage_staff', 'assign_roles', 
-    'manage_permissions', 'manage_settings', 'full_access', 'create_records', 
-    'edit_records', 'delete_records', 'view_all_data', 'access_all_modules'
+    'view_dashboard', 'view_customers', 'view_invoice_status', 'make_invoice', 
+    'view_services', 'view_logistics', 'view_payments', 'view_reports', 
+    'manage_staff', 'manage_settings'
   ],
   'Counter Staff': [
-    'view_dashboard', 'view_customers', 'manage_customers', 'view_orders', 'make_invoice',
-    'view_invoice_status', 'change_invoice_status', 'view_invoice_details', 'view_payments',
-    'manage_payments', 'view_services'
+    'view_dashboard', 'view_customers', 'view_invoice_status', 'make_invoice', 
+    'view_services', 'view_payments'
   ],
   'Delivery Staff': [
-    'view_dashboard', 'view_logistics', 'view_invoice_status', 'change_invoice_status'
+    'view_dashboard', 'view_logistics', 'view_invoice_status'
   ],
 };
 const roleAllowedPermissionsWhitelist = {
   'Admin': [
-    'view_dashboard', 'view_customers', 'manage_customers', 'view_orders', 'manage_orders', 
-    'view_invoice_status', 'change_invoice_status', 'make_invoice', 'view_invoice_details', 
-    'view_services', 'manage_services', 'view_logistics', 'manage_logistics', 
-    'view_payments', 'manage_payments', 'view_reports', 'manage_staff', 'assign_roles', 
-    'manage_permissions', 'manage_settings', 'full_access', 'create_records', 
-    'edit_records', 'delete_records', 'view_all_data', 'access_all_modules'
+    'view_dashboard', 'view_customers', 'view_invoice_status', 'make_invoice', 
+    'view_services', 'view_logistics', 'view_payments', 'view_reports', 
+    'manage_staff', 'manage_settings'
   ],
   'Counter Staff': [
-    'view_dashboard', 'view_customers', 'manage_customers', 'view_orders', 'make_invoice',
-    'view_invoice_status', 'change_invoice_status', 'view_invoice_details', 'view_payments',
-    'manage_payments', 'view_services'
+    'view_dashboard', 'view_customers', 'view_invoice_status', 'make_invoice', 
+    'view_services', 'view_payments'
   ],
   'Delivery Staff': [
-    'view_dashboard', 'view_logistics', 'view_invoice_status', 'change_invoice_status'
+    'view_dashboard', 'view_logistics', 'view_invoice_status'
   ],
 };
 
@@ -114,6 +88,17 @@ const RolesPermissions = () => {
   const [selectedRole, setSelectedRole] = useState('Admin');
   const [expandedCategory, setExpandedCategory] = useState('Dashboard');
   const [isEditing, setIsEditing] = useState(false);
+  const [matrixRoleFilter, setMatrixRoleFilter] = useState('Admin');
+
+  const filteredPermissions = useMemo(() => {
+    if (matrixRoleFilter === 'All') return permissionsList;
+    const allowedList = roleAllowedPermissionsWhitelist[matrixRoleFilter] || [];
+    return permissionsList.filter(p => allowedList.includes(p.id));
+  }, [matrixRoleFilter]);
+
+  const filteredCategories = useMemo(() => {
+    return [...new Set(filteredPermissions.map(p => p.category))];
+  }, [filteredPermissions]);
 
   const [rolePermissions, setRolePermissions] = useState(() => {
     const saved = localStorage.getItem('spinclean_role_permissions_v3');
@@ -123,8 +108,7 @@ const RolesPermissions = () => {
         // Clean up loaded permissions to conform to whitelists
         const cleaned = {};
         Object.keys(parsed).forEach(role => {
-          const whitelist = roleAllowedPermissionsWhitelist[role] || [];
-          cleaned[role] = (parsed[role] || []).filter(p => whitelist.includes(p));
+          cleaned[role] = parsed[role] || [];
         });
         return cleaned;
       } catch (e) {}
@@ -304,64 +288,134 @@ const RolesPermissions = () => {
 
       {/* Permission Matrix */}
       <section className="surface-card rounded-3xl border border-border p-8 shadow-xl">
-        <h2 className="mb-6 text-2xl font-semibold text-primary">Permission Matrix</h2>
+        <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
+          <h2 className="text-2xl font-semibold text-primary">Permission Matrix</h2>
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-semibold text-secondary uppercase tracking-wider">Show Role:</span>
+            <select
+              value={matrixRoleFilter}
+              onChange={(e) => setMatrixRoleFilter(e.target.value)}
+              className="text-xs font-semibold px-2 py-1.5 rounded-lg border border-border bg-surface text-primary focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="All" style={{ display: 'none' }}>All Roles</option>
+              <option value="Admin">Admin</option>
+              <option value="Counter Staff">Counter Staff</option>
+              <option value="Delivery Staff">Delivery Staff</option>
+            </select>
+          </div>
+        </div>
 
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-border">
                 <th className="px-4 py-4 text-left font-semibold text-primary">Feature</th>
-                <th className="px-4 py-4 text-center font-semibold text-primary">Admin</th>
-                <th className="px-4 py-4 text-center font-semibold text-primary">Counter Staff</th>
-                <th className="px-4 py-4 text-center font-semibold text-primary">Delivery Staff</th>
+                {(matrixRoleFilter === 'All' || matrixRoleFilter === 'Admin') && (
+                  <th className="px-4 py-4 text-center font-semibold text-primary">Admin</th>
+                )}
+                {(matrixRoleFilter === 'All' || matrixRoleFilter === 'Counter Staff') && (
+                  <th className="px-4 py-4 text-center font-semibold text-primary">Counter Staff</th>
+                )}
+                {(matrixRoleFilter === 'All' || matrixRoleFilter === 'Delivery Staff') && (
+                  <th className="px-4 py-4 text-center font-semibold text-primary">Delivery Staff</th>
+                )}
               </tr>
             </thead>
             <tbody>
-              {categories.map((category) => (
+              {filteredCategories.map((category) => (
                 <React.Fragment key={category}>
-                  <tr className="border-b border-border bg-surface">
-                    <td colSpan="4" className="px-4 py-3 font-semibold text-primary">
+                  <tr className="border-b border-border bg-surface-alt/40">
+                    <td colSpan={matrixRoleFilter === 'All' ? 4 : 2} className="px-4 py-3 font-semibold text-primary">
                       {category}
                     </td>
                   </tr>
-                  {categoryPermissions(category).map((permission) => (
-                    <tr key={permission.id} className="border-b border-border hover:bg-surface">
-                      <td className="px-4 py-3 text-secondary">{permission.label}</td>
-                      <td className="px-4 py-3 text-center">
-                        {rolePermissions['Admin']?.includes(permission.id) ? (
-                          <span className="inline-flex h-6 w-6 items-center justify-center rounded bg-emerald-500/10 text-emerald-600">
-                            ✓
-                          </span>
-                        ) : (
-                          <span className="inline-flex h-6 w-6 items-center justify-center rounded bg-rose-500/10 text-rose-600">
-                            ✗
-                          </span>
+                  {filteredPermissions.filter(p => p.category === category).map((permission) => {
+                    const hasAdmin = rolePermissions['Admin']?.includes(permission.id);
+                    const hasCounter = rolePermissions['Counter Staff']?.includes(permission.id);
+                    const hasDelivery = rolePermissions['Delivery Staff']?.includes(permission.id);
+
+                    const togglePermission = (roleName) => {
+                      setRolePermissions(prev => {
+                        const currentList = prev[roleName] || [];
+                        const newList = currentList.includes(permission.id)
+                          ? currentList.filter(id => id !== permission.id)
+                          : [...currentList, permission.id];
+                        return {
+                          ...prev,
+                          [roleName]: newList
+                        };
+                      });
+                      toast.success(`Updated ${roleName} permission: ${permission.label}`);
+                    };
+
+                    return (
+                      <tr key={permission.id} className="border-b border-border hover:bg-surface-alt/25 transition-colors">
+                        <td className="px-4 py-3 text-secondary">
+                          <div>
+                            <div className="font-semibold text-primary">{permission.label}</div>
+                            <div className="text-[10px] text-slate-400 font-mono">{permission.id}</div>
+                          </div>
+                        </td>
+                        {(matrixRoleFilter === 'All' || matrixRoleFilter === 'Admin') && (
+                          <td className="px-4 py-3 text-center">
+                            <button
+                              type="button"
+                              onClick={() => togglePermission('Admin')}
+                              className="focus:outline-none transition hover:scale-110 active:scale-95 cursor-pointer"
+                            >
+                              {hasAdmin ? (
+                                <span className="inline-flex h-6 w-6 items-center justify-center rounded bg-emerald-500 text-white font-bold shadow-sm text-xs">
+                                  ✓
+                                </span>
+                              ) : (
+                                <span className="inline-flex h-6 w-6 items-center justify-center rounded border border-rose-200 bg-rose-500/10 text-rose-600 font-bold text-xs">
+                                  ✗
+                                </span>
+                              )}
+                            </button>
+                          </td>
                         )}
-                      </td>
-                      <td className="px-4 py-3 text-center">
-                        {rolePermissions['Counter Staff']?.includes(permission.id) ? (
-                          <span className="inline-flex h-6 w-6 items-center justify-center rounded bg-emerald-500/10 text-emerald-600">
-                            ✓
-                          </span>
-                        ) : (
-                          <span className="inline-flex h-6 w-6 items-center justify-center rounded bg-rose-500/10 text-rose-600">
-                            ✗
-                          </span>
+                        {(matrixRoleFilter === 'All' || matrixRoleFilter === 'Counter Staff') && (
+                          <td className="px-4 py-3 text-center">
+                            <button
+                              type="button"
+                              onClick={() => togglePermission('Counter Staff')}
+                              className="focus:outline-none transition hover:scale-110 active:scale-95 cursor-pointer"
+                            >
+                              {hasCounter ? (
+                                <span className="inline-flex h-6 w-6 items-center justify-center rounded bg-emerald-500 text-white font-bold shadow-sm text-xs">
+                                  ✓
+                                </span>
+                              ) : (
+                                <span className="inline-flex h-6 w-6 items-center justify-center rounded border border-rose-200 bg-rose-500/10 text-rose-600 font-bold text-xs">
+                                  ✗
+                                </span>
+                              )}
+                            </button>
+                          </td>
                         )}
-                      </td>
-                      <td className="px-4 py-3 text-center">
-                        {rolePermissions['Delivery Staff']?.includes(permission.id) ? (
-                          <span className="inline-flex h-6 w-6 items-center justify-center rounded bg-emerald-500/10 text-emerald-600">
-                            ✓
-                          </span>
-                        ) : (
-                          <span className="inline-flex h-6 w-6 items-center justify-center rounded bg-rose-500/10 text-rose-600">
-                            ✗
-                          </span>
+                        {(matrixRoleFilter === 'All' || matrixRoleFilter === 'Delivery Staff') && (
+                          <td className="px-4 py-3 text-center">
+                            <button
+                              type="button"
+                              onClick={() => togglePermission('Delivery Staff')}
+                              className="focus:outline-none transition hover:scale-110 active:scale-95 cursor-pointer"
+                            >
+                              {hasDelivery ? (
+                                <span className="inline-flex h-6 w-6 items-center justify-center rounded bg-emerald-500 text-white font-bold shadow-sm text-xs">
+                                  ✓
+                                </span>
+                              ) : (
+                                <span className="inline-flex h-6 w-6 items-center justify-center rounded border border-rose-200 bg-rose-500/10 text-rose-600 font-bold text-xs">
+                                  ✗
+                                </span>
+                              )}
+                            </button>
+                          </td>
                         )}
-                      </td>
-                    </tr>
-                  ))}
+                      </tr>
+                    );
+                  })}
                 </React.Fragment>
               ))}
             </tbody>

@@ -153,7 +153,8 @@ const PublicReceipt = () => {
     <div className="min-h-screen bg-gray-100 py-6 px-4 flex justify-center font-sans text-gray-900">
       <div className="bg-white w-full max-w-md shadow-lg rounded-xl overflow-hidden print:shadow-none print:w-full print:max-w-none">
         {/* Header */}
-        <div className="p-6 border-b-2 border-blue-600 text-center bg-blue-50/30">
+        <div className="p-6 border-b-2 border-blue-600 text-center bg-blue-50/30 flex flex-col items-center">
+          <img src="/logo.png" alt="Tuhama Logo" className="w-16 h-16 object-contain rounded-2xl mb-3 shadow-md" />
           <h1 className="text-2xl font-black text-blue-600 tracking-wide uppercase m-0">Tuhama Pro</h1>
           <h2 className="text-xl font-bold text-blue-600 mt-1 mb-2">تهامة برو</h2>
           <div className="text-xs font-bold text-gray-800 uppercase tracking-widest">

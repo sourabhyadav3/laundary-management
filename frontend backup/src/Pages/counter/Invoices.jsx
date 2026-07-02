@@ -32,6 +32,9 @@ const Invoices = () => {
               o.customerName.toLowerCase().includes(searchTerm.toLowerCase()))
         )
         .sort((a, b) => {
+          if (a.createdAt && b.createdAt) {
+            return new Date(b.createdAt) - new Date(a.createdAt);
+          }
           const numA = Number(a.id);
           const numB = Number(b.id);
           if (!isNaN(numA) && !isNaN(numB)) return numB - numA;

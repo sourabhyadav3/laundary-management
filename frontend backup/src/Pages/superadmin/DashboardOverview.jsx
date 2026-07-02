@@ -25,11 +25,77 @@ const DashboardOverview = () => {
     return d.getMonth() === currentMonth && d.getFullYear() === currentYear;
   }).reduce((sum, p) => sum + (parseFloat(p.amount) || 0), 0) || 0;
 
-  // Recent activity: last 5 actions from any staff
-  const recentActivity = [...allUsers]
-    .filter(u => u.recentActivity)
-    .slice(0, 5)
-    .map(u => ({ name: u.name, role: u.role, activity: u.recentActivity, branch: u.branch || '—' }));
+  // Recent activity: last 5 actions from any staff or order timeline
+  const getBranchName = (bId) => {
+    if (!bId) return '—';
+    const b = branches?.find(x => String(x.id || x._id) === String(bId));
+    return b ? b.name : '—';
+  };
+
+  const dynamicActivities = [];
+
+  (orders || []).forEach(o => {
+    const branchName = getBranchName(o.branchId);
+
+    // 1. Order Creation Event
+    if (o.createdBy) {
+      const userObj = staff?.find(s => s.name === o.createdBy);
+      const role = userObj ? userObj.role : 'Staff';
+      
+      dynamicActivities.push({
+        name: o.createdBy,
+        role,
+        activity: `Created Order #${o.number}`,
+        branch: branchName,
+        timestamp: new Date(o.date || o.createdAt || 0).getTime()
+      });
+    }
+
+    // 2. Timeline Status Update Events
+    if (o.timeline && Array.isArray(o.timeline)) {
+      o.timeline.forEach(node => {
+        if (node.updatedBy && node.updatedBy !== 'System') {
+          const userObj = staff?.find(s => s.name === node.updatedBy);
+          const role = userObj ? userObj.role : 'Staff';
+
+          let nodeTimestamp = 0;
+          try {
+            nodeTimestamp = new Date(`${node.date}T${node.time || '00:00:00'}`).getTime();
+          } catch(e) {}
+          if (isNaN(nodeTimestamp) || nodeTimestamp === 0) {
+            nodeTimestamp = new Date(o.date || o.createdAt || 0).getTime() + 1000;
+          }
+
+          dynamicActivities.push({
+            name: node.updatedBy,
+            role,
+            activity: `Marked Order #${o.number} as ${node.status}`,
+            branch: branchName,
+            timestamp: nodeTimestamp
+          });
+        }
+      });
+    }
+  });
+
+  // Sort by timestamp descending
+  dynamicActivities.sort((a, b) => b.timestamp - a.timestamp);
+
+  // If no dynamic activities exist, fallback to staff recentActivity or mock
+  if (dynamicActivities.length === 0) {
+    const activeStaff = staff?.filter(s => s.status === 'Active') || [];
+    activeStaff.forEach((s, idx) => {
+      dynamicActivities.push({
+        name: s.name,
+        role: s.role,
+        activity: s.recentActivity || (idx % 2 === 0 ? 'LoggedIn to dashboard' : 'Checked branch status'),
+        branch: getBranchName(s.branch),
+        timestamp: Date.now() - idx * 60000
+      });
+    });
+  }
+
+  const recentActivity = dynamicActivities.slice(0, 5);
 
   const activityColumns = [
     {

@@ -12,11 +12,23 @@ const { authenticate, requirePermission } = require('../middleware/auth');
 
 const router = express.Router();
 
-// Helper to apply branch filter based on user role
-const applyBranchFilter = (req, baseFilter = {}) => {
-  if (req.user.role !== 'Super Admin' && req.user.branch) {
-    return { ...baseFilter, branchId: new mongoose.Types.ObjectId(req.user.branch) };
+// Helper to apply branch filter based on user role and query parameter
+const applyBranchFilter = (req, baseFilter = {}, isUser = false) => {
+  const queryBranchId = req.query.branchId || req.headers['x-branch-id'];
+  const field = isUser ? 'branch' : 'branchId';
+
+  if (queryBranchId && queryBranchId !== 'all' && queryBranchId !== 'undefined' && queryBranchId !== 'null') {
+    try {
+      return { ...baseFilter, [field]: new mongoose.Types.ObjectId(queryBranchId) };
+    } catch (e) {
+      console.error('Invalid branchId query parameter:', queryBranchId);
+    }
   }
+
+  if (req.user.role !== 'Super Admin' && req.user.branch) {
+    return { ...baseFilter, [field]: new mongoose.Types.ObjectId(req.user.branch) };
+  }
+
   return baseFilter;
 };
 
@@ -61,7 +73,7 @@ router.get('/dashboard', authenticate, requirePermission('view_reports'), async 
     const customers = await Customer.find({});
     const pickups = await Pickup.find(pickupFilter);
     const deliveries = await Delivery.find(deliveryFilter);
-    const users = await User.find(applyBranchFilter(req, {})).populate('role');
+    const users = await User.find(applyBranchFilter(req, {}, true)).populate('role');
     
     const totalRevenue = orders.reduce((sum, o) => sum + (o.totalAmount || o.amount || 0), 0);
     const totalOrders = orders.length;
@@ -334,9 +346,14 @@ router.get('/generate', authenticate, requirePermission('view_reports'), async (
     else if (reportType === 'sales_detail') {
        const orders = await Order.find(orderFilter);
        orders.forEach(o => {
+         const serviceLower = (o.serviceType || 'Normal').toLowerCase();
+         const isExpress = serviceLower.includes('express');
+         if (parameter === 'Express' && !isExpress) return;
+         if (parameter === 'Normal' && isExpress) return;
+
          if (o.itemDetails) {
            o.itemDetails.forEach(it => {
-             if (parameter && parameter !== 'All' && it.name !== parameter) return;
+             if (parameter && parameter !== 'All' && parameter !== 'Express' && parameter !== 'Normal' && it.name !== parameter) return;
              data.push({
                id: `${o.id}-${it.name}`,
                orderNo: o.number,
@@ -419,8 +436,8 @@ router.get('/generate', authenticate, requirePermission('view_reports'), async (
          pFilter.status = { $ne: 'Completed' };
          dFilter.status = { $ne: 'Delivered' };
        }
-       const pickups = await Pickup.find(pFilter);
-       const deliveries = await Delivery.find(dFilter);
+        const pickups = await Pickup.find(applyBranchFilter(req, pFilter));
+        const deliveries = await Delivery.find(applyBranchFilter(req, dFilter));
        const items = [];
        pickups.forEach(p => items.push({ 
          id: `PKP-${p._id}`, reqId: p.pickupId || `PKP-${p._id}`, type: 'Pickup', 
@@ -482,9 +499,14 @@ router.get('/generate', authenticate, requirePermission('view_reports'), async (
        const orders = await Order.find(orderFilter);
        const groups = {};
        orders.forEach(o => {
+         const serviceLower = (o.serviceType || 'Normal').toLowerCase();
+         const isExpress = serviceLower.includes('express');
+         if (parameter === 'Express' && !isExpress) return;
+         if (parameter === 'Normal' && isExpress) return;
+
          if (o.itemDetails) {
            o.itemDetails.forEach(it => {
-             if (parameter && parameter !== 'All' && it.name !== parameter) return;
+             if (parameter && parameter !== 'All' && parameter !== 'Express' && parameter !== 'Normal' && it.name !== parameter) return;
              if (!groups[it.name]) groups[it.name] = { name: it.name, qty: 0, revenue: 0 };
              groups[it.name].qty += it.quantity;
              groups[it.name].revenue += it.quantity * it.unitPrice;

@@ -17,6 +17,11 @@ const emptyServiceForm = {
 
 const LaundryServices = () => {
   const { services, addService, updateService, deleteService } = useContext(AdminStateContext);
+  
+  // Role check to allow only Super Admin to Add, Edit, or Delete laundry services
+  const storedUser = JSON.parse(localStorage.getItem('user') || '{}');
+  const isSuperAdmin = storedUser?.role === 'Super Admin';
+
   const [searchTerm, setSearchTerm] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('All');
   const [statusFilter, setStatusFilter] = useState('All');
@@ -153,17 +158,21 @@ const LaundryServices = () => {
           <button type="button" className="icon-button-small" onClick={() => handleViewService(row)} aria-label="View">
             <FiEye size={16} />
           </button>
-          <button type="button" className="icon-button-small" onClick={() => handleEdit(row)} aria-label="Edit">
-            <FiEdit2 size={16} />
-          </button>
-          <button
-            type="button"
-            className="icon-button-small text-rose-600"
-            onClick={() => handleDelete(row)}
-            aria-label="Delete"
-          >
-            <FiTrash2 size={16} />
-          </button>
+          {isSuperAdmin && (
+            <>
+              <button type="button" className="icon-button-small" onClick={() => handleEdit(row)} aria-label="Edit">
+                <FiEdit2 size={16} />
+              </button>
+              <button
+                type="button"
+                className="icon-button-small text-rose-600"
+                onClick={() => handleDelete(row)}
+                aria-label="Delete"
+              >
+                <FiTrash2 size={16} />
+              </button>
+            </>
+          )}
         </div>
       ),
     },
@@ -179,14 +188,16 @@ const LaundryServices = () => {
               <h1 className="mt-3 text-3xl font-semibold text-primary">Laundry Services</h1>
               <p className="mt-2 max-w-2xl text-sm text-secondary">Manage service categories and pricing.</p>
             </div>
-            <button
-              type="button"
-              onClick={handleAddService}
-              className="dashboard-hero-pill btn-solid-primary flex w-full items-center justify-center gap-2 md:w-auto"
-            >
-              <FiPlus size={18} />
-              <span className="font-semibold">Add Service</span>
-            </button>
+            {isSuperAdmin && (
+              <button
+                type="button"
+                onClick={handleAddService}
+                className="dashboard-hero-pill btn-solid-primary flex w-full items-center justify-center gap-2 md:w-auto"
+              >
+                <FiPlus size={18} />
+                <span className="font-semibold">Add Service</span>
+              </button>
+            )}
           </div>
         </div>
       </section>
@@ -266,13 +277,15 @@ const LaundryServices = () => {
               </div>
             </div>
             <div className="flex gap-3 border-t border-border pt-4">
-              <button
-                type="button"
-                onClick={() => handleEdit(selectedService)}
-                className="btn-solid-primary flex-1 rounded-xl py-2 font-semibold transition"
-              >
-                Edit Service
-              </button>
+              {isSuperAdmin && (
+                <button
+                  type="button"
+                  onClick={() => handleEdit(selectedService)}
+                  className="btn-solid-primary flex-1 rounded-xl py-2 font-semibold transition"
+                >
+                  Edit Service
+                </button>
+              )}
               <button
                 type="button"
                 onClick={() => setShowModal(false)}

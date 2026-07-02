@@ -40,9 +40,7 @@ const RoleSidebar = ({ menuItems, roleLabel, footerText }) => {
       try {
         const parsed = JSON.parse(saved);
         if (parsed && parsed[role]) {
-          // Filter to only allow default/whitelist permissions to avoid dirty localStorage state
-          const allowed = defaultPermissions[role] || [];
-          return parsed[role].filter(p => allowed.includes(p));
+          return parsed[role];
         }
       } catch (e) {
         console.error("Failed to parse role permissions", e);
@@ -114,28 +112,8 @@ const RoleSidebar = ({ menuItems, roleLabel, footerText }) => {
           </button>
 
           <div className="mb-6 flex items-center justify-center p-4 transition-all duration-300">
-            <div className="flex items-center justify-center w-12 h-12 md:w-16 md:h-16 bg-gradient-to-tr from-blue-600 to-cyan-500 rounded-2xl shadow-md transition-all duration-300 hover:scale-105">
-              {/* border-> bg-surface-alt */}
-              <svg
-                className="w-6 h-6 md:w-8 md:h-8 text-white"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2.2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
-                {/* Washing Machine Outer Frame */}
-                <rect x="3" y="3" width="18" height="18" rx="4" />
-                {/* Tub glass door */}
-                <circle cx="12" cy="13" r="5" />
-                {/* Controls */}
-                <line x1="7" y1="7" x2="7" y2="7" strokeWidth="3" />
-                <line x1="11" y1="7" x2="11" y2="7" strokeWidth="3" />
-                <line x1="15" y1="7" x2="17" y2="7" strokeWidth="2" />
-                {/* Spin spiral wave */}
-                <path d="M11 11.5c.5-.5 1-.5 1.5 0s1 .5 1.5 0" strokeWidth="1.5" />
-              </svg>
+            <div className="w-16 h-16 rounded-lg shadow-md bg-white flex items-center justify-center transition-all duration-300 hover:scale-105 p-1">
+              <img src="/logo.png" alt="Tuhama Logo" className="w-full h-full object-contain" />
             </div>
           </div>
 

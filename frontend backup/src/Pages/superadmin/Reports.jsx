@@ -11,6 +11,7 @@ import {
   FiSearch,
 } from 'react-icons/fi';
 import { toast } from 'react-toastify';
+import { useSearchParams } from 'react-router-dom';
 import api from '../../utils/api';
 import { useLanguage } from '../../context/LanguageContext';
 import { AdminStateContext } from '../../context/AdminStateContext';
@@ -97,7 +98,16 @@ const REPORT_TYPES = {
 
 const Reports = () => {
   const { language } = useLanguage();
-  const { customers, staff, drivers, catalog } = useContext(AdminStateContext);
+  const { customers, staff, drivers, catalog, branches } = useContext(AdminStateContext);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const branchId = searchParams.get('branchId') || 'all';
+
+  const currentBranchName = useMemo(() => {
+    if (!branchId || branchId === 'all') return language === 'ar' ? 'جميع الفروع' : 'All Branches';
+    const b = branches.find(x => String(x.id || x._id) === String(branchId));
+    return b ? b.name : (language === 'ar' ? 'الفرع المحدد' : 'Selected Branch');
+  }, [branches, branchId, language]);
+
   const [datePreset, setDatePreset] = useState('month');
   const [customStart, setCustomStart] = useState('');
   const [customEnd, setCustomEnd] = useState('');
@@ -137,8 +147,12 @@ const Reports = () => {
       case 'sales_detail':
       case 'garment_stats':
         return [
-          { value: 'All', label: language === 'ar' ? 'جميع الأصناف' : 'All Garments' },
+          { value: 'Express', label: language === 'ar' ? 'مستعجل' : 'Express' },
+          { value: 'Normal', label: language === 'ar' ? 'عادي' : 'Normal' },
+          { value: 'All', label: language === 'ar' ? 'جميع الأصناف' : 'All Garments' }
+          /* Commented out as requested - can be restored later if client asks
           ...(catalog || []).map(g => ({ value: g.name, label: g.name }))
+          */
         ];
       case 'branch_sales':
         return [
@@ -314,7 +328,7 @@ const Reports = () => {
       if(end) eStr = end.toISOString().slice(0, 10);
       
       const res = await api.get('/reports/generate', {
-         params: { reportType: stepReportType, category: stepCategory, parameter: stepParameter, start: sStr, end: eStr }
+         params: { reportType: stepReportType, category: stepCategory, parameter: stepParameter, start: sStr, end: eStr, branchId }
       });
       setCustomReport({ title, columns, data: res.data.data });
       toast.success(language === 'ar' ? 'تم إنشاء التقرير بنجاح' : 'Report generated successfully');
@@ -387,7 +401,7 @@ const Reports = () => {
         if(start) sStr = start.toISOString().slice(0, 10);
         if(end) eStr = end.toISOString().slice(0, 10);
         
-        const res = await api.get('/reports/dashboard', { params: { start: sStr, end: eStr } });
+        const res = await api.get('/reports/dashboard', { params: { start: sStr, end: eStr, branchId } });
         setDashboardData(res.data);
       } catch (e) {
         console.error(e);
@@ -396,7 +410,7 @@ const Reports = () => {
       }
     };
     fetchDashboard();
-  }, [datePreset, customStart, customEnd]);
+  }, [datePreset, customStart, customEnd, branchId]);
 
   const summaryLines = [
     `Period: ${DATE_PRESETS.find((p) => p.id === datePreset)?.label || datePreset}`,
@@ -427,12 +441,32 @@ const Reports = () => {
           <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
             <div>
               <p className="text-sm uppercase tracking-[0.3em] text-secondary">Admin Dashboard</p>
-              <h1 className="mt-3 text-3xl font-semibold text-primary">Reports & Analytics</h1>
+              <h1 className="mt-3 text-3xl font-semibold text-primary">
+                Reports & Analytics ({currentBranchName})
+              </h1>
               <p className="mt-2 max-w-2xl text-sm text-secondary">
                 Monitor business performance and business growth.
               </p>
             </div>
-            <div className="flex flex-wrap gap-2 print:hidden">
+            <div className="flex flex-wrap items-center gap-3 print:hidden">
+              <div className="relative">
+                <select
+                  value={branchId}
+                  onChange={(e) => setSearchParams({ branchId: e.target.value })}
+                  className="appearance-none rounded-2xl border border-border bg-surface-alt px-5 py-3 pr-10 text-xs font-bold text-primary focus:outline-none focus:ring-2 focus:ring-blue-400/40 cursor-pointer shadow-sm hover:scale-[1.02] transition-all uppercase tracking-wider"
+                >
+                  <option value="all">{language === 'ar' ? 'جميع الفروع' : 'All Branches'}</option>
+                  {branches.map((b) => {
+                    const bId = b.id || b._id;
+                    return (
+                      <option key={bId} value={bId}>
+                        {b.name}
+                      </option>
+                    );
+                  })}
+                </select>
+                <FiChevronDown className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-secondary" />
+              </div>
               <button type="button" onClick={handleExportPDF} className="dashboard-hero-pill flex items-center gap-2 hover:bg-blue-500/10">
                 <FiDownload size={18} />
                 <span className="font-semibold">Export PDF</span>
@@ -727,6 +761,7 @@ const Reports = () => {
         <StatsCard accent="rose" icon={FiTrendingUp} label="Average Order Value" value={formatCurrency(summary.averageOrderValue)} change={summary.growth.avgOrder.text} changePositive={summary.growth.avgOrder.positive} />
       </div>
 
+      {/* Commented out as requested - can be restored later if client asks
       <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
         <RevenueTrendChart orders={metrics.periodOrders} range={range} />
         <OrdersTrendChart orders={metrics.periodOrders} range={range} />
@@ -734,6 +769,7 @@ const Reports = () => {
         <PaymentMethodDistributionChart breakdown={metrics.paymentMethodBreakdown} />
         <OrderStatusDistributionChart breakdown={metrics.orderStatusBreakdown} />
       </div>
+      */}
 
       <div className="grid gap-6 lg:grid-cols-2">
         <section className="report-section-card surface-card border border-border p-6 shadow-xl">
@@ -766,6 +802,7 @@ const Reports = () => {
           </div>
         </section>
 
+        {/* Commented out as requested - can be restored later if client asks
         <section className="report-section-card surface-card border border-border p-6 shadow-xl">
           <h3 className="text-lg font-semibold text-primary">Service-wise Revenue Report</h3>
           <div className="mt-4 grid gap-3 sm:grid-cols-2">
@@ -775,6 +812,7 @@ const Reports = () => {
             <MetricBlock label="Premium Service Revenue" value={formatCurrency(metrics.serviceRevenue.premium)} />
           </div>
         </section>
+        */}
 
         <section className="report-section-card surface-card border border-border p-6 shadow-xl">
           <h3 className="text-lg font-semibold text-primary">Payment Analytics</h3>

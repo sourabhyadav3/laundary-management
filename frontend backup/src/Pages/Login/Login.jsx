@@ -55,22 +55,7 @@ const Login = () => {
               {/* Brand Header */}
               <div className="side-brand">
                 <div className="side-logo-box">
-                  <svg
-                    className="side-logo-svg"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2.2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  >
-                    <rect x="3" y="3" width="18" height="18" rx="4" />
-                    <circle cx="12" cy="13" r="5" />
-                    <line x1="7" y1="7" x2="7" y2="7" strokeWidth="3" />
-                    <line x1="11" y1="7" x2="11" y2="7" strokeWidth="3" />
-                    <line x1="15" y1="7" x2="17" y2="7" strokeWidth="2" />
-                    <path d="M11 11.5c.5-.5 1-.5 1.5 0s1 .5 1.5 0" strokeWidth="1.5" />
-                  </svg>
+                  <img src="/logo.png" alt="Tuhama Logo" className="w-full h-full object-contain rounded-xl" />
                 </div>
                 <div className="side-brand-text">
                   <h2 className="side-brand-name">Tuhama <span>PRO</span></h2>
@@ -113,22 +98,7 @@ const Login = () => {
               {/* Brand Header for Mobile View (Hidden when side image is visible) */}
               <div className="mobile-card-brand">
                 <div className="logo-wrapper">
-                  <svg
-                    className="logo-svg"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2.2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  >
-                    <rect x="3" y="3" width="18" height="18" rx="4" />
-                    <circle cx="12" cy="13" r="5" />
-                    <line x1="7" y1="7" x2="7" y2="7" strokeWidth="3" />
-                    <line x1="11" y1="7" x2="11" y2="7" strokeWidth="3" />
-                    <line x1="15" y1="7" x2="17" y2="7" strokeWidth="2" />
-                    <path d="M11 11.5c.5-.5 1-.5 1.5 0s1 .5 1.5 0" strokeWidth="1.5" />
-                  </svg>
+                  <img src="/logo.png" alt="Tuhama Logo" className="w-full h-full object-contain rounded-xl" />
                 </div>
                 <h2 className="brand-title">Tuhama PRO</h2>
                 <p className="brand-subtitle">Enterprise Laundry Suite</p>
