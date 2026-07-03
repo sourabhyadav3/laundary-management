@@ -224,7 +224,7 @@ export const exportToPDF = ({ title, subtitle, columns, data, filename, summaryL
       doc.setFontSize(8);
       doc.setTextColor(150);
       doc.text(
-        'Tuhama PRO — Confidential',
+        'Tuhama laundry co. — Confidential',
         pageWidth / 2,
         doc.internal.pageSize.getHeight() - 8,
         { align: 'center' }
@@ -496,6 +496,23 @@ export const findReceiptOrder = (id, mockOrders = []) => {
 export const generateInvoicePDF = (order, { showPaidTotal = false } = {}) => {
   cacheReceiptSnapshot(order);
 
+  // Look up customer displayId and phone number from window cache
+  const customersList = window.__cachedCustomers || [];
+  const customerObj = customersList.find(
+    (c) =>
+      c.id === order?.customerId ||
+      c._id === order?.customerId ||
+      c.name?.toLowerCase() === order?.customerName?.toLowerCase()
+  );
+
+  const customerIdStr = customerObj
+    ? (customerObj.customerNo || `CUST-${String(customerObj.displayId || '').padStart(4, '0')}`)
+    : 'N/A';
+  const customerPhoneStr = customerObj?.phone || order?.contactNumber || 'N/A';
+
+  // Calculate total quantity
+  const totalQuantity = (order?.itemDetails || []).reduce((acc, it) => acc + (Number(it.quantity) || 0), 0);
+
   const translatedPayment = translatePaymentStatus(order?.paymentStatus);
   const translatedDelivery = translateDeliveryStatus(order?.deliveryStatus || order?.status);
   const translatedDeliveryType = getDeliveryTypeLabel(order);
@@ -504,27 +521,29 @@ export const generateInvoicePDF = (order, { showPaidTotal = false } = {}) => {
   const displayTotal = showPaidTotal
     ? Number(order?.totalAmount) || 0
     : getDisplayTotal(order);
+  
+  // Construct QR URL
   const receiptUrl = getReceiptUrl(order?.number || '', order);
 
   // Parse items
   const itemsHtml = (order?.itemDetails || []).map((it) => {
     const translatedItem = translateGarment(it.name);
-    const noteHtml = it.notes ? `<div class="item-notes">Note: ${it.notes}</div>` : '';
+    const noteHtml = it.notes ? `<div class="item-notes" style="color: #000 !important; font-weight: bold; font-size: 10px;">Note: ${it.notes}</div>` : '';
     
     return `
       <tr>
-        <td style="padding: 6px 4px; border-bottom: 1px solid #eee; text-align: left;">
-          <div style="font-weight: bold; font-size: 11px;">${translatedItem.en}</div>
-          <div style="font-size: 11px; color: #222; direction: rtl; text-align: right; font-weight: 700;">${translatedItem.ar}</div>
+        <td style="padding: 5px 2px; border-bottom: 1.5px dashed #000; text-align: left;">
+          <div class="item-name-en">${translatedItem.en}</div>
+          <div class="item-name-ar">${translatedItem.ar}</div>
           ${noteHtml}
         </td>
-        <td style="padding: 6px 4px; border-bottom: 1px solid #eee; text-align: center; font-size: 11px; font-weight: bold;">
+        <td style="padding: 5px 2px; border-bottom: 1.5px dashed #000; text-align: center;" class="item-qty">
           ${it.quantity}
         </td>
-        <td style="padding: 6px 4px; border-bottom: 1px solid #eee; text-align: right; font-family: monospace; font-size: 10px;">
+        <td style="padding: 5px 2px; border-bottom: 1.5px dashed #000; text-align: right;" class="item-price">
           ${formatCurrency(it.unitPrice)}
         </td>
-        <td style="padding: 6px 4px; border-bottom: 1px solid #eee; text-align: right; font-family: monospace; font-size: 11px; font-weight: bold;">
+        <td style="padding: 5px 2px; border-bottom: 1.5px dashed #000; text-align: right;" class="item-total">
           ${formatCurrency(it.quantity * it.unitPrice)}
         </td>
       </tr>
@@ -535,9 +554,9 @@ export const generateInvoicePDF = (order, { showPaidTotal = false } = {}) => {
   let discountLine = '';
   if (order?.discount > 0) {
     discountLine = `
-      <div style="display: flex; justify-content: space-between; font-size: 11px; color: #e11d48; font-weight: bold; margin-bottom: 3px;">
-        <span style="font-size: 12px; font-weight: 800;">Discount / الخصم:</span>
-        <span style="font-family: monospace;">-${formatCurrency(order.discount)}</span>
+      <div style="display: flex; justify-content: space-between; font-size: 11px; color: #000 !important; font-weight: 700; margin-bottom: 3px;">
+        <span style="font-size: 11px; font-weight: 700;">Discount / الخصم:</span>
+        <span style="font-family: monospace; font-size: 11px; font-weight: 700;">-${formatCurrency(order.discount)}</span>
       </div>
     `;
   }
@@ -546,9 +565,9 @@ export const generateInvoicePDF = (order, { showPaidTotal = false } = {}) => {
   let taxLine = '';
   if (order?.tax > 0) {
     taxLine = `
-      <div style="display: flex; justify-content: space-between; font-size: 11px; margin-bottom: 3px; color: #555;">
-        <span>Tax (${order.taxRate || 0}%) / الضريبة (${order.taxRate || 0}%):</span>
-        <span style="font-family: monospace;">${formatCurrency(order.tax)}</span>
+      <div style="display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 3px; color: #000 !important; font-weight: 700;">
+        <span style="font-size: 11px; font-weight: 700;">Tax (${order.taxRate || 0}%) / الضريبة (${order.taxRate || 0}%):</span>
+        <span style="font-family: monospace; font-size: 11px; font-weight: 700;">${formatCurrency(order.tax)}</span>
       </div>
     `;
   }
@@ -560,62 +579,77 @@ export const generateInvoicePDF = (order, { showPaidTotal = false } = {}) => {
         <meta charset="utf-8">
         <title>Invoice ${order?.number || 'N/A'}</title>
         <style>
+          @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+Arabic:wght@600;700;800&display=swap');
           @media print {
             @page {
-              margin: 4mm 4mm 4mm 4mm;
+              margin: 0;
+              size: 80mm auto;
             }
             body {
               margin: 0;
               padding: 0;
+              background-color: #fff;
+            }
+            .receipt-container {
+              width: 78mm !important;
+              max-width: 78mm !important;
+              border: 2px solid #000 !important;
+              padding: 4px !important;
+              box-shadow: none !important;
+              margin: 0 auto !important;
             }
           }
           body {
-            font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
-            color: #111;
+            font-family: 'Helvetica Neue', Helvetica, Arial, 'Noto Sans Arabic', Tahoma, sans-serif;
+            color: #000 !important;
             margin: 0;
             padding: 5px;
             font-size: 11px;
-            line-height: 1.3;
+            line-height: 1.35;
             background-color: #fff;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
           }
           .receipt-container {
-            max-width: 100mm;
+            width: 78mm;
             margin: 0 auto;
             box-sizing: border-box;
             border: 2px solid #000;
             padding: 8px;
+            background-color: #fff;
           }
           .brand-header {
             text-align: center;
             margin-bottom: 10px;
-            border-bottom: 2px solid #2563eb;
+            border-bottom: 3px solid #000;
             padding-bottom: 6px;
           }
           .brand-name {
             font-size: 18px;
             font-weight: 800;
-            color: #2563eb;
+            color: #000 !important;
             margin: 0;
             text-transform: uppercase;
             letter-spacing: 0.5px;
           }
           .brand-name-ar {
             font-size: 18px;
-            font-weight: 900;
-            color: #2563eb;
+            font-weight: 800;
+            color: #000 !important;
             margin: 2px 0 0 0;
           }
           .receipt-title {
-            font-size: 13px;
-            color: #000;
-            margin: 4px 0 0 0;
-            font-weight: 900;
+            font-size: 14px;
+            color: #000 !important;
+            margin: 6px 0 0 0;
+            font-weight: 800;
             text-transform: uppercase;
             letter-spacing: 1px;
+            text-align: center;
           }
           .info-section {
-            border-bottom: 1px dashed #bbb;
-            padding-bottom: 5px;
+            border-bottom: 2px dashed #000;
+            padding-bottom: 6px;
             margin-bottom: 8px;
           }
           .info-row {
@@ -623,52 +657,90 @@ export const generateInvoicePDF = (order, { showPaidTotal = false } = {}) => {
             justify-content: space-between;
             margin-bottom: 5px;
             font-size: 11px;
+            color: #000 !important;
+            gap: 6px;
           }
           .info-label {
-            color: #111;
-            font-weight: 800;
+            color: #000 !important;
+            font-weight: 700 !important;
             font-size: 11px;
+            white-space: nowrap;
+            flex-shrink: 0;
           }
           .info-value {
-            font-weight: 800;
+            font-weight: 700 !important;
             text-align: right;
             font-size: 11px;
+            color: #000 !important;
           }
           .table-header th {
-            border-bottom: 1px solid #111;
-            font-size: 9px;
-            font-weight: 900;
+            border-bottom: 2.5px solid #000 !important;
+            font-size: 11px;
+            font-weight: 800 !important;
             padding: 4px 2px;
             text-transform: uppercase;
-            color: #000;
+            color: #000 !important;
+          }
+          .item-name-en {
+            font-weight: 700 !important;
+            font-size: 11px;
+            color: #000 !important;
+          }
+          .item-name-ar {
+            font-size: 11px;
+            color: #000 !important;
+            direction: rtl;
+            text-align: right;
+            font-weight: 700 !important;
+          }
+          .item-qty {
+            font-size: 11px;
+            font-weight: 700 !important;
+            color: #000 !important;
+          }
+          .item-price {
+            font-family: monospace;
+            font-size: 11px;
+            font-weight: 700 !important;
+            color: #000 !important;
+          }
+          .item-total {
+            font-family: monospace;
+            font-size: 11px;
+            font-weight: 700 !important;
+            color: #000 !important;
           }
           .item-notes {
-            font-size: 8px;
-            color: #666;
+            font-size: 9px;
+            color: #000 !important;
             font-style: italic;
             margin-top: 1px;
+            font-weight: 700;
           }
           .summary-section {
-            border-top: 1px dashed #bbb;
-            padding-top: 5px;
+            border-top: 2px dashed #000;
+            padding-top: 6px;
             margin-top: 6px;
           }
           .total-row {
             display: flex;
             justify-content: space-between;
-            font-size: 14px;
-            font-weight: 900;
-            border-top: 2px solid #111;
-            padding-top: 6px;
+            font-size: 15px;
+            font-weight: 800 !important;
+            border-top: 3px solid #000 !important;
+            border-bottom: 3px solid #000 !important;
+            padding: 6px 0;
             margin-top: 6px;
+            color: #000 !important;
           }
           .footer-section {
             text-align: center;
-            font-size: 10px;
-            color: #444;
+            font-size: 11px;
+            color: #000 !important;
             margin-top: 15px;
-            border-top: 1px dashed #bbb;
+            border-top: 2px dashed #000;
             padding-top: 6px;
+            font-weight: 700 !important;
           }
         </style>
       </head>
@@ -678,29 +750,28 @@ export const generateInvoicePDF = (order, { showPaidTotal = false } = {}) => {
             <!-- Top row: English left | Logo center | Arabic right -->
             <div style="display: flex; align-items: center; justify-content: space-between; width: 100%; margin-bottom: 4px;">
               <div style="text-align: left; flex: 1;">
-                <div style="font-size: 10px; font-weight: 800; color: #1a1a1a; line-height: 1.3;">Tuhama Laundry Co.</div>
-                <div style="font-size: 8px; color: #555; line-height: 1.2;">Cleaning, Ironing &amp; Wash in K.</div>
+                <div style="font-size: 12px; font-weight: 800; color: #000 !important; line-height: 1.3;">Tuhama Laundry Co.</div>
+                <div style="font-size: 9px; color: #000 !important; line-height: 1.2; font-weight: 700;">Cleaning, Ironing &amp; Wash in K.</div>
               </div>
-              <div style="flex: 0 0 auto; margin: 0 8px;">
-                <img src="${window.location.origin}/logo.png" alt="Tuhama Logo" style="width: 50px; height: 50px; object-fit: contain; border-radius: 10px; display: block;" />
+              <div style="flex: 0 0 auto; margin: 0 6px;">
+                <img src="${window.location.origin}/logo.png" alt="Tuhama Logo" style="width: 80px; height: 80px; object-fit: contain; border-radius: 12px; display: block; image-rendering: -webkit-optimize-contrast; image-rendering: crisp-edges;" />
               </div>
               <div style="text-align: right; flex: 1; direction: rtl;">
-                <div style="font-size: 11px; font-weight: 800; color: #1a1a1a; line-height: 1.3;">شركة مصابغ تهامة</div>
-                <div style="font-size: 8px; color: #555; line-height: 1.2;">تنظيف وكي وغسيل</div>
+                <div style="font-size: 13px; font-weight: 800; color: #000 !important; line-height: 1.3;">شركة مصابغ تهامة</div>
+                <div style="font-size: 9px; color: #000 !important; line-height: 1.2; font-weight: 700;">تنظيف وكي وغسيل</div>
               </div>
             </div>
             <!-- Phone numbers row -->
-            <div style="display: flex; justify-content: center; gap: 16px; margin-top: 2px; margin-bottom: 4px;">
-              <span style="font-size: 9px; font-weight: bold; color: #333;">Tel: 222 03 222</span>
-              <span style="font-size: 9px; font-weight: bold; color: #333;">222 03 222</span>
+            <div style="display: flex; justify-content: center; gap: 12px; margin-top: 4px; margin-bottom: 4px;">
+              <span style="font-size: 10px; font-weight: 800; color: #000 !important;">Tel: 222 03 222</span>
+              <span style="font-size: 10px; font-weight: 800; color: #000 !important;">222 03 222</span>
             </div>
             <div class="receipt-title">Receipt / Invoice - إيصال / فاتورة</div>
           </div>
           
           <div class="info-section">
-            <div class="info-row" style="background: #f0f4ff; border: 1.5px solid #2563eb; border-radius: 4px; padding: 6px 8px; margin-bottom: 8px;">
-              <span class="info-label" style="font-size: 13px; color: #2563eb;">Invoice / رقم الفاتورة:</span>
-              <span class="info-value" style="font-size: 14px; color: #2563eb; font-weight: 900;">${order?.number || 'N/A'}</span>
+            <div style="text-align: center; border: 1.5px solid #000; border-radius: 6px; background-color: #f3f4f6; padding: 6px; margin-bottom: 8px; -webkit-print-color-adjust: exact; print-color-adjust: exact;">
+              <span style="font-size: 13px; font-weight: 800; color: #000;">Invoice # ${order?.number || 'N/A'}</span>
             </div>
             <div class="info-row">
               <span class="info-label">Date / التاريخ:</span>
@@ -713,6 +784,14 @@ export const generateInvoicePDF = (order, { showPaidTotal = false } = {}) => {
             <div class="info-row">
               <span class="info-label">Customer / العميل:</span>
               <span class="info-value">${order?.customerName || 'N/A'}</span>
+            </div>
+            <div class="info-row">
+              <span class="info-label">Customer ID / رقم العميل:</span>
+              <span class="info-value">${customerIdStr}</span>
+            </div>
+            <div class="info-row">
+              <span class="info-label">Phone / الهاتف:</span>
+              <span class="info-value">${customerPhoneStr}</span>
             </div>
             <div class="info-row">
               <span class="info-label">Staff / الموظف:</span>
@@ -734,15 +813,21 @@ export const generateInvoicePDF = (order, { showPaidTotal = false } = {}) => {
               <span class="info-label">Delivery Status / Delivery:</span>
               <span class="info-value">${translatedDelivery.en} / <span style="direction: rtl;">${translatedDelivery.ar}</span></span>
             </div>
+            ${(order?.isHomeDelivery || String(order?.deliveryType || '').toLowerCase() === 'home delivery') ? `
+            <div class="info-row">
+              <span class="info-label">Delivery Date / تاريخ التوصيل:</span>
+              <span class="info-value">${formatDate(order?.deliveryDate) || 'N/A'}</span>
+            </div>
+            ` : ''}
           </div>
           
           <table style="width: 100%; border-collapse: collapse; margin-bottom: 8px;">
             <thead>
               <tr class="table-header">
-                <th style="width: 50%; text-align: left; padding: 4px 2px;">Item<br><span style="font-size: 10px; font-weight: 900;">الصنف</span></th>
-                <th style="width: 12%; text-align: center; padding: 4px 2px;">Qty<br><span style="font-size: 10px; font-weight: 900;">الكمية</span></th>
-                <th style="width: 18%; text-align: right; padding: 4px 2px;">Price<br><span style="font-size: 10px; font-weight: 900;">السعر</span></th>
-                <th style="width: 20%; text-align: right; padding: 4px 2px;">Total<br><span style="font-size: 10px; font-weight: 900;">الإجمالي</span></th>
+                <th style="width: 50%; text-align: left; padding: 4px 2px;">Item<br><span style="font-size: 10px; font-weight: 800;">الصنف</span></th>
+                <th style="width: 12%; text-align: center; padding: 4px 2px;">Qty<br><span style="font-size: 10px; font-weight: 800;">الكمية</span></th>
+                <th style="width: 18%; text-align: right; padding: 4px 2px;">Price<br><span style="font-size: 10px; font-weight: 800;">السعر</span></th>
+                <th style="width: 20%; text-align: right; padding: 4px 2px;">Total<br><span style="font-size: 10px; font-weight: 800;">الإجمالي</span></th>
               </tr>
             </thead>
             <tbody>
@@ -751,27 +836,31 @@ export const generateInvoicePDF = (order, { showPaidTotal = false } = {}) => {
           </table>
           
           <div class="summary-section">
-            <div style="display: flex; justify-content: space-between; font-size: 11px; margin-bottom: 3px; color: #555;">
-              <span style="font-size: 12px; font-weight: 800;">Subtotal / المجموع الفرعي:</span>
-              <span style="font-family: monospace;">${formatCurrency(order?.amount || 0)}</span>
+            <div style="display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 3px; color: #000 !important; font-weight: 700;">
+              <span style="font-size: 11px; font-weight: 700;">Total Qty / إجمالي الكمية:</span>
+              <span style="font-family: monospace; font-size: 11px; font-weight: 700;">${totalQuantity}</span>
+            </div>
+            <div style="display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 3px; color: #000 !important; font-weight: 700;">
+              <span style="font-size: 11px; font-weight: 700;">Subtotal / المجموع الفرعي:</span>
+              <span style="font-family: monospace; font-size: 11px; font-weight: 700;">${formatCurrency(order?.amount || 0)}</span>
             </div>
             ${discountLine}
             ${taxLine}
             <div class="total-row">
-              <span style="font-size: 14px; font-weight: 900;">Total Amount / إجمالي السعر:</span>
-              <span style="font-family: monospace; font-size: 15px; font-weight: 900;">${formatCurrency(displayTotal)}</span>
+              <span style="font-size: 15px; font-weight: 800;">Total Amount / إجمالي السعر:</span>
+              <span style="font-family: monospace; font-size: 16px; font-weight: 800;">${formatCurrency(displayTotal)}</span>
             </div>
           </div>
           
-          <div style="text-align: center; margin-top: 15px; margin-bottom: 10px;">
-            <img src="https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=${encodeURIComponent(receiptUrl)}" alt="Invoice QR" style="width: 70px; height: 70px;" />
-            <div style="font-size: 10px; color: #444; margin-top: 4px; font-weight: 800;">Scan to View Invoice</div>
-            <div style="font-size: 10px; color: #444; direction: rtl; font-weight: 700;">امسح لفتح الفاتورة</div>
+          <div style="text-align: center; margin-top: 15px; margin-bottom: 10px; display: flex; flex-direction: column; align-items: center; justify-content: center;">
+            <img src="https://api.qrserver.com/v1/create-qr-code/?size=350x350&ecc=H&qzone=4&data=${encodeURIComponent(receiptUrl)}" alt="Invoice QR" style="width: 140px; height: 140px; display: block; margin: 0 auto 6px auto;" />
+            <div style="font-size: 11px; color: #000 !important; font-weight: 800; line-height: 1.3;">Scan to View Invoice</div>
+            <div style="font-size: 11px; color: #000 !important; direction: rtl; font-weight: 800; line-height: 1.3;">امسح لفتح الفاتورة</div>
           </div>
           
           <div class="footer-section">
-            <div style="font-weight: 800; margin-bottom: 2px; font-size: 10px;">Thank you for choosing Tuhama PRO!</div>
-            <div style="direction: rtl; font-weight: 900; font-size: 10px;">شكراً لاختياركم تهامة برو!</div>
+            <div style="font-weight: 800; margin-bottom: 2px; font-size: 11px; color: #000 !important;">Thank you for choosing Tuhama laundry co.!</div>
+            <div style="direction: rtl; font-weight: 800; font-size: 11px; color: #000 !important;">شكراً لاختياركم تهامة برو!</div>
           </div>
         </div>
       </body>
@@ -815,7 +904,6 @@ export const generateInvoicePDF = (order, { showPaidTotal = false } = {}) => {
     }
   }, 10000);
 };
-
 // ——— Payment report ———
 
 export const PAYMENT_EXPORT_COLUMNS = [

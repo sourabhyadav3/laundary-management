@@ -32,7 +32,7 @@ const CounterLayout = () => {
       'Counter Staff': [
         'view_dashboard', 'view_customers', 'manage_customers', 'view_orders', 'make_invoice',
         'view_invoice_status', 'change_invoice_status', 'view_invoice_details', 'view_payments',
-        'manage_payments', 'view_services'
+        'manage_payments', 'view_services', 'view_logistics'
       ],
       'Delivery Staff': [
         'view_dashboard', 'view_logistics', 'view_invoice_status', 'change_invoice_status'
@@ -44,7 +44,8 @@ const CounterLayout = () => {
       try {
         const parsed = JSON.parse(saved);
         if (parsed && parsed[role]) {
-          return parsed[role];
+          const allowed = defaultPermissions[role] || [];
+          return [...new Set([...allowed, ...parsed[role]])];
         }
       } catch (e) {
         console.error("Failed to parse role permissions", e);
@@ -63,6 +64,7 @@ const CounterLayout = () => {
   else if (path.includes('/counter/orders')) requiredPermission = 'view_orders';
   else if (path.includes('/counter/invoices')) requiredPermission = 'view_invoice_status';
   else if (path.includes('/counter/payments')) requiredPermission = 'view_payments';
+  else if (path.includes('/counter/pickups')) requiredPermission = 'view_logistics';
   else if (path.includes('/counter/tracking')) requiredPermission = 'view_orders';
 
   const hasAccess = !requiredPermission || allowedPermissions.includes(requiredPermission);

@@ -145,7 +145,7 @@ const Navbar = () => {
       <div className="mx-auto flex max-w-screen-2xl items-center justify-between gap-2 sm:gap-4 px-2 sm:px-4 py-1.5">
         <div className="flex flex-1 items-center gap-3 min-w-max shrink-0 max-lg:ml-10">
           <div className="hidden md:block whitespace-nowrap shrink-0 rounded-2xl border border-border bg-surface-alt px-4 py-2 text-sm font-semibold text-primary shadow-sm">
-            Tuhama <span className="brand-badge-pro ml-2 rounded-full bg-blue-500/15 px-2 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-blue-300">PRO</span>
+            Tuhama laundry co.
           </div>
         </div>
 

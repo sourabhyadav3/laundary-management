@@ -63,6 +63,15 @@ router.post('/login', async (req, res) => {
       return res.status(401).json({ message: 'Invalid credentials' });
     }
 
+    // Verify branch selection matches assigned branch for non-Super Admin users
+    if (user.role && user.role.name !== 'Super Admin') {
+      const selectedBranch = req.body.branchId ? req.body.branchId.toString() : '';
+      const userBranchId = user.branch ? user.branch._id.toString() : '';
+      if (!selectedBranch || userBranchId !== selectedBranch) {
+        return res.status(400).json({ message: 'Select a correct branch' });
+      }
+    }
+
     // Generate tokens
     const accessToken = generateAccessToken(user._id);
     const refreshToken = generateRefreshToken(user._id);
@@ -114,13 +123,13 @@ router.post('/refresh', async (req, res) => {
     // Verify token
     try {
       const decoded = jwt.verify(refreshToken, JWT_REFRESH_SECRET);
-      
+
       const newAccessToken = generateAccessToken(decoded.id);
       const newRefreshToken = generateRefreshToken(decoded.id);
 
       // Rotate token: delete old, save new
       await RefreshToken.deleteOne({ _id: tokenDoc._id });
-      
+
       const expiresAt = new Date();
       expiresAt.setDate(expiresAt.getDate() + 7);
       await RefreshToken.create({

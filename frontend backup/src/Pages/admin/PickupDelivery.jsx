@@ -998,8 +998,11 @@ const PickupDelivery = () => {
           <button className="icon-button-small" onClick={() => handleViewDelivery(row)} aria-label="View">
             <FiEye size={16} />
           </button>
-          <button className="icon-button-small" onClick={() => handleEditDelivery(row)} aria-label="Reassign">
-            <FiEdit2 size={16} />
+          <button
+            onClick={() => handleEditDelivery(row)}
+            className="px-3 py-1.5 rounded-xl bg-blue-600/10 text-blue-500 hover:bg-blue-600 hover:text-white text-xs font-bold transition-all border border-blue-500/20"
+          >
+            {language === 'ar' ? 'تعيين' : 'Assign'}
           </button>
         </div>
       ),
@@ -1383,17 +1386,8 @@ const PickupDelivery = () => {
 
             <div className="mt-8 flex gap-4">
               <button
-                onClick={() => {
-                  handleEditPickup(selectedPickup);
-                  setShowPickupModal(false);
-                }}
-                className="flex-1 rounded-3xl border border-border bg-surface-alt py-3 font-semibold text-primary transition hover:bg-surface"
-              >
-                Assign Staff
-              </button>
-              <button
                 onClick={() => setShowPickupModal(false)}
-                className="flex-1 rounded-3xl border border-blue-500/50 bg-blue-500/10 py-3 font-semibold text-blue-600 transition hover:bg-blue-500/15"
+                className="flex-1 rounded-3xl border border-blue-500/50 bg-blue-500/10 py-3 font-semibold text-blue-600 transition hover:bg-blue-500/15 text-sm"
               >
                 Close
               </button>
@@ -1478,17 +1472,8 @@ const PickupDelivery = () => {
 
             <div className="mt-8 flex gap-4">
               <button
-                onClick={() => {
-                  handleEditDelivery(selectedDelivery);
-                  setShowDeliveryModal(false);
-                }}
-                className="flex-1 rounded-3xl border border-border bg-surface-alt py-3 font-semibold text-primary transition hover:bg-surface"
-              >
-                Reassign Staff
-              </button>
-              <button
                 onClick={() => setShowDeliveryModal(false)}
-                className="flex-1 rounded-3xl border border-blue-500/50 bg-blue-500/10 py-3 font-semibold text-blue-600 transition hover:bg-blue-500/15"
+                className="flex-1 rounded-3xl border border-blue-500/50 bg-blue-500/10 py-3 font-semibold text-blue-600 transition hover:bg-blue-500/15 text-sm"
               >
                 Close
               </button>
@@ -1646,7 +1631,7 @@ const PickupDelivery = () => {
             className="surface-card max-h-[90vh] w-full max-w-xl overflow-y-auto rounded-3xl border border-border p-8 shadow-2xl"
           >
             <div className="flex items-center justify-between gap-4 border-b border-border pb-6">
-              <h2 className="text-2xl font-semibold text-primary">Edit Delivery Request</h2>
+              <h2 className="text-2xl font-semibold text-primary">{language === 'ar' ? 'تعيين التوصيل' : 'Assign Delivery'}</h2>
               <button type="button" onClick={() => setShowEditDeliveryModal(false)} className="text-secondary hover:text-primary">
                 ✕
               </button>

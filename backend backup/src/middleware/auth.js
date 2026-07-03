@@ -42,7 +42,13 @@ const requirePermission = (permission) => {
     }
 
     const permissionsToCheck = Array.isArray(permission) ? permission : [permission];
-    const hasPermission = permissionsToCheck.some(p => req.user.role.permissions.includes(p));
+    let hasPermission = permissionsToCheck.some(p => req.user.role.permissions.includes(p));
+
+    // Support Counter Staff managing/scheduling deliveries and pickups
+    if (!hasPermission && req.user.role.name === 'Counter Staff') {
+      const allowedCounterPermissions = ['manage_deliveries', 'manage_pickups', 'view_deliveries', 'view_pickups'];
+      hasPermission = permissionsToCheck.some(p => allowedCounterPermissions.includes(p));
+    }
 
     if (!hasPermission) {
       return res.status(403).json({ message: `Access denied. Requires '${permissionsToCheck.join("' or '")}' permission.` });

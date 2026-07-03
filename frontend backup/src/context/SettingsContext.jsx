@@ -6,7 +6,7 @@ const STORAGE_KEY = 'spinclean-settings';
 
 const DEFAULT_SETTINGS = {
   business: {
-    businessName: 'Tuhama PRO',
+    businessName: 'Tuhama laundry co.',
     ownerName: 'Dana Lee',
     email: 'admin@tuhama.com',
     phone: '555-0001',
@@ -63,7 +63,7 @@ export const SettingsProvider = ({ children }) => {
     loadSettings();
     const interval = setInterval(() => {
       const token = localStorage.getItem('token');
-      if (token && settings.business.businessName === 'Tuhama PRO' && settings.system.currency === 'KWD') {
+      if (token && settings.business.businessName === 'Tuhama laundry co.' && settings.system.currency === 'KWD') {
         loadSettings();
       }
     }, 3000);

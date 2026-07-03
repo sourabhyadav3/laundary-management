@@ -155,7 +155,7 @@ const PublicReceipt = () => {
         {/* Header */}
         <div className="p-6 border-b-2 border-blue-600 text-center bg-blue-50/30 flex flex-col items-center">
           <img src="/logo.png" alt="Tuhama Logo" className="w-16 h-16 object-contain rounded-2xl mb-3 shadow-md" />
-          <h1 className="text-2xl font-black text-blue-600 tracking-wide uppercase m-0">Tuhama Pro</h1>
+          <h1 className="text-2xl font-black text-blue-600 tracking-wide uppercase m-0">Tuhama laundry co.</h1>
           <h2 className="text-xl font-bold text-blue-600 mt-1 mb-2">تهامة برو</h2>
           <div className="text-xs font-bold text-gray-800 uppercase tracking-widest">
             Receipt / Invoice - إيصال / فاتورة
@@ -266,7 +266,7 @@ const PublicReceipt = () => {
               className="w-32 h-32 mx-auto" 
             />
           </div>
-          <p className="font-bold text-gray-800 text-sm">Thank you for choosing Tuhama PRO!</p>
+          <p className="font-bold text-gray-800 text-sm">Thank you for choosing Tuhama laundry co.!</p>
           <p className="font-bold text-gray-800 text-sm mt-1" dir="rtl">شكراً لاختياركم تهامة برو!</p>
         </div>
       </div>

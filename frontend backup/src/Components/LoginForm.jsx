@@ -109,6 +109,18 @@ const LoginForm = () => {
       setIsLoading(false);
       const { token, refreshToken, user } = response.data;
 
+      // Validate selected branch for non-Super Admin users
+      if (user.role !== 'Super Admin') {
+        const userBranchId = user.branchId;
+        if (!selectedBranchId || String(userBranchId) !== String(selectedBranchId)) {
+          toast.error('Select a correct branch', {
+            position: 'top-right',
+            theme: 'dark'
+          });
+          return;
+        }
+      }
+
       // Save credentials to localStorage
       localStorage.setItem('token', token);
       localStorage.setItem('refreshToken', refreshToken);
@@ -218,7 +230,7 @@ const LoginForm = () => {
           )}
         </div>
 
-        {/* Branch Selector Input (Commented out as requested - can be restored later)
+        {/* Branch Selector Input */}
         <div className="form-group">
           <label className="form-label" htmlFor="branch-input">Branch</label>
           <div className="input-wrapper">
@@ -242,7 +254,6 @@ const LoginForm = () => {
             <FiMapPin className="input-icon-prefix" />
           </div>
         </div>
-        */}
 
         {/* Action controls (Remember Me & Forgot Password) */}
         <div className="form-actions">

@@ -51,42 +51,21 @@ const Login = () => {
             <div className="side-image-overlay"></div>
             <img src={loginHero} alt="Laundry Operations Hero" className="side-bg-image" />
             
-            <div className="side-hero-content">
+            <div className="side-hero-content" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'space-between', height: '100%' }}>
               {/* Brand Header */}
-              <div className="side-brand">
-                <div className="side-logo-box">
+              <div className="side-brand" style={{ flexDirection: 'column', gap: '1.25rem', display: 'flex', alignItems: 'center', margin: 'auto 0' }}>
+                <div className="side-logo-box" style={{ width: '100px', height: '100px', padding: '12px', background: '#fff', borderRadius: '20px', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.3)' }}>
                   <img src="/logo.png" alt="Tuhama Logo" className="w-full h-full object-contain rounded-xl" />
                 </div>
-                <div className="side-brand-text">
-                  <h2 className="side-brand-name">Tuhama <span>PRO</span></h2>
-                  <p className="side-brand-tagline">Enterprise Operations Suite</p>
-                </div>
-              </div>
-
-              {/* Side visual promo details */}
-              <div className="side-promo-details">
-                <h3 className="side-promo-title">Optimizing Commercial Laundry</h3>
-                <p className="side-promo-desc">
-                  Cloud operations for processing, real-time routing, customer management, and counter desk ticketing.
-                </p>
-                <div className="side-bullet-points">
-                  <div className="bullet-point">
-                    <span className="bullet-dot"></span>
-                    <span>Intelligent Dispatch Rider Tracking</span>
-                  </div>
-                  <div className="bullet-point">
-                    <span className="bullet-dot"></span>
-                    <span>Walk-In Counter Operations Hub</span>
-                  </div>
-                  <div className="bullet-point">
-                    <span className="bullet-dot"></span>
-                    <span>Role-based Staff Authentication</span>
-                  </div>
+                <div className="side-brand-text" style={{ textAlign: 'center' }}>
+                  <h2 className="side-brand-name" style={{ fontSize: '1.75rem', fontWeight: '800', color: '#fff', margin: 0, justifyContent: 'center', display: 'flex' }}>
+                    Tuhama laundry co.
+                  </h2>
                 </div>
               </div>
 
               {/* Card Footer */}
-              <div className="side-hero-footer">
+              <div className="side-hero-footer" style={{ textAlign: 'center' }}>
                 <p>&copy; {new Date().getFullYear()} Tuhama Operations Inc.</p>
               </div>
             </div>
@@ -97,11 +76,10 @@ const Login = () => {
             <div className="card-form-content">
               {/* Brand Header for Mobile View (Hidden when side image is visible) */}
               <div className="mobile-card-brand">
-                <div className="logo-wrapper">
+                <div className="logo-wrapper" style={{ width: '80px', height: '80px', padding: '10px', background: '#fff', borderRadius: '16px', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 8px 20px -4px rgba(0, 0, 0, 0.2)', margin: '0 auto' }}>
                   <img src="/logo.png" alt="Tuhama Logo" className="w-full h-full object-contain rounded-xl" />
                 </div>
-                <h2 className="brand-title">Tuhama PRO</h2>
-                <p className="brand-subtitle">Enterprise Laundry Suite</p>
+                <h2 className="brand-title" style={{ fontSize: '1.5rem', fontWeight: '800', color: '#fff', margin: '0.75rem 0 0 0', textAlign: 'center' }}>Tuhama laundry co.</h2>
               </div>
 
               {/* Login Title */}

@@ -8,7 +8,6 @@ import './styles/admin.css';
 import Login from './Pages/Login/Login';
 import DashboardOverview from './Pages/admin/DashboardOverview';
 import Customers from './Pages/admin/Customers';
-import Orders from './Pages/admin/Orders';
 import AdminInvoices from './Pages/admin/Invoices';
 import LaundryServices from './Pages/admin/Services';
 import PickupDelivery from './Pages/admin/PickupDelivery';
@@ -83,6 +82,7 @@ function App() {
           <Route path="orders" element={<CounterOrderList />} />
           <Route path="invoices" element={<CounterInvoices />} />
           <Route path="payments" element={<CounterPayments />} />
+          <Route path="pickups" element={<PickupDelivery />} />
           <Route path="tracking" element={<CounterOrderTracking />} />
           <Route path="settings" element={<CounterSettings />} />
         </Route>
@@ -145,7 +145,7 @@ function App() {
           <Route index element={<DashboardOverview />} />
           <Route path="dashboard" element={<DashboardOverview />} />
           <Route path="customers" element={<Customers />} />
-          <Route path="orders" element={<Orders />} />
+          <Route path="orders" element={<CounterOrderList />} />
           <Route path="invoices" element={<AdminInvoices />} />
           <Route path="make-invoice" element={<MakeInvoice />} />
           <Route path="services" element={<LaundryServices />} />

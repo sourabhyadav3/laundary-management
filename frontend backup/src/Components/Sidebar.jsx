@@ -1,117 +1,45 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { NavLink } from 'react-router-dom';
-import { FiMenu, FiX, FiHome, FiUsers, FiFileText, FiTool, FiTruck, FiCreditCard, FiUserCheck, FiBarChart2, FiSettings, FiMapPin } from 'react-icons/fi';
+import { FiMenu, FiX, FiHome, FiUsers, FiFileText, FiTool, FiTruck, FiCreditCard, FiUserCheck, FiBarChart2, FiSettings, FiMapPin, FiList, FiPlusCircle } from 'react-icons/fi';
 import { useNavigate } from 'react-router-dom';
 import { FiLogOut } from 'react-icons/fi';
 import { toast } from 'react-toastify';
 import { useLanguage } from '../context/LanguageContext';
-import { FiPlusCircle } from 'react-icons/fi'
 
 const menuItems = [
   { label: 'Dashboard', icon: <FiHome />, to: '/admin/dashboard', permission: 'view_dashboard' },
-  {
-    label: 'Customers',
-    icon: <FiUsers />,
-    to: '/admin/customers',
-    permission: 'view_customers',
-  },
-  /* Hide for now - will restore if client asks
-  {
-    label: 'Orders',
-    icon: <FiShoppingBag />,
-    to: '/admin/orders',
-    permission: 'view_orders',
-  },
-  */
-  {
-    label: 'Invoices',
-    icon: <FiFileText />,
-    to: '/admin/invoices',
-    permission: 'view_invoice_status',
-  },
-  {
-    label: 'Branches',
-    icon: <FiMapPin />,
-    to: '/admin/branches',
-    permission: 'manage_settings',
-  },
-  {
-    label: 'Make Invoices',
-    icon: <FiPlusCircle />,
-    to: '/admin/make-invoice',
-    permission: 'make_invoice',
-  },
-  {
-    label: 'Laundry Services',
-    icon: <FiTool />,
-    to: '/admin/services',
-    permission: 'view_services',
-  },
-  {
-    label: 'Home Service',
-    icon: <FiTruck />,
-    to: '/admin/pickups',
-    permission: 'view_logistics',
-  },
-  {
-    label: 'Drivers',
-    icon: <FiUsers />,
-    to: '/admin/drivers',
-    permission: 'view_logistics',
-  },
-  {
-    label: 'Payments',
-    icon: <FiCreditCard />,
-    to: '/admin/payments',
-    permission: 'view_payments',
-  },
-  {
-    label: 'Staff Management',
-    icon: <FiUserCheck />,
-    to: '/admin/staff',
-    permission: 'manage_staff',
-  },
-  {
-    label: 'Reports',
-    icon: <FiBarChart2 />,
-    to: '/admin/reports',
-    permission: 'view_reports',
-  },
-  {
-    label: 'Settings',
-    icon: <FiSettings />,
-    to: '/admin/settings',
-    permission: 'manage_settings',
-  },
+  { label: 'Customers', icon: <FiUsers />, to: '/admin/customers', permission: 'view_customers' },
+  { label: 'Order List', icon: <FiList />, to: '/admin/orders', permission: 'view_orders' },
+  { label: 'Invoices', icon: <FiFileText />, to: '/admin/invoices', permission: 'view_invoice_status' },
+  { label: 'Branches', icon: <FiMapPin />, to: '/admin/branches', permission: 'manage_settings' },
+  { label: 'Make Invoices', icon: <FiPlusCircle />, to: '/admin/make-invoice', permission: 'make_invoice' },
+  { label: 'Laundry Services', icon: <FiTool />, to: '/admin/services', permission: 'view_services' },
+  { label: 'Home Service', icon: <FiTruck />, to: '/admin/pickups', permission: 'view_logistics' },
+  { label: 'Drivers', icon: <FiUsers />, to: '/admin/drivers', permission: 'view_logistics' },
+  { label: 'Payments', icon: <FiCreditCard />, to: '/admin/payments', permission: 'view_payments' },
+  { label: 'Staff Management', icon: <FiUserCheck />, to: '/admin/staff', permission: 'manage_staff' },
+  { label: 'Reports', icon: <FiBarChart2 />, to: '/admin/reports', permission: 'view_reports' },
+  { label: 'Settings', icon: <FiSettings />, to: '/admin/settings', permission: 'manage_settings' },
 ];
 
 const Sidebar = () => {
   const [open, setOpen] = useState(false);
   const toggle = () => setOpen(!open);
   const { t } = useLanguage();
+  const navigate = useNavigate();
 
-  const getTranslatedLabel = (label) => {
-    switch (label) {
-      case 'Dashboard': return t('sidebar.dashboard');
-      case 'Customers': return t('sidebar.customers');
-      case 'Orders': return t('sidebar.orders');
-      case 'Invoices': return t('sidebar.invoices') || 'Invoices';
-      case 'Branches': return t('sidebar.branches');
-      case 'Laundry Services': return t('sidebar.services');
-      case 'Home Service': return t('sidebar.pickups');
-      case 'Drivers': return t('sidebar.drivers');
-      case 'Payments': return t('sidebar.payments');
-      case 'Staff Management': return t('sidebar.staff');
-      case 'Reports': return t('sidebar.reports');
-      case 'Settings': return t('sidebar.settings');
-      case 'Make Invoice':
-      case 'Make Invoices': return t('sidebar.makeInvoice');
-      case 'LCD Display': return t('sidebar.lcdDisplay') || 'LCD Display';
-      default: return label;
-    }
-  };
+  const [storedUser, setStoredUser] = useState(() => {
+    return JSON.parse(localStorage.getItem('user') || '{}');
+  });
 
-  const storedUser = JSON.parse(localStorage.getItem('user') || '{}');
+  useEffect(() => {
+    const syncSession = () => {
+      setStoredUser(JSON.parse(localStorage.getItem('user') || '{}'));
+    };
+    window.addEventListener('storage', syncSession);
+    return () => window.removeEventListener('storage', syncSession);
+  }, []);
+
   const userRole = storedUser.role || 'Admin';
 
   const getPermissionsForRole = (role) => {
@@ -130,7 +58,8 @@ const Sidebar = () => {
       try {
         const parsed = JSON.parse(saved);
         if (parsed && parsed[role]) {
-          return parsed[role];
+          const allowed = defaultPermissions[role] || [];
+          return [...new Set([...allowed, ...parsed[role]])];
         }
       } catch (e) {
         console.error("Failed to parse role permissions", e);
@@ -141,16 +70,44 @@ const Sidebar = () => {
 
   const allowedPermissions = getPermissionsForRole(userRole);
 
-  //logout handler
-  const navigate = useNavigate();
+  const hasItemPermission = (item) => {
+    if (userRole === 'Super Admin') return true;
+    if (!item.permission) return true;
+    return allowedPermissions.includes(item.permission);
+  };
+
+  const getTranslatedLabel = (label) => {
+    switch (label) {
+      case 'Dashboard': return t('sidebar.dashboard');
+      case 'Customers': return t('sidebar.customers');
+      case 'Orders': return t('sidebar.orders');
+      case 'Order List': return t('sidebar.orderList') || 'Order List';
+      case 'Invoices': return t('sidebar.invoices') || 'Invoices';
+      case 'Branches': return t('sidebar.branches');
+      case 'Laundry Services': return t('sidebar.services');
+      case 'Home Service': return t('sidebar.pickups');
+      case 'Drivers': return t('sidebar.drivers');
+      case 'Payments': return t('sidebar.payments');
+      case 'Staff Management': return t('sidebar.staff');
+      case 'Reports': return t('sidebar.reports');
+      case 'Settings': return t('sidebar.settings');
+      case 'Make Invoice':
+      case 'Make Invoices': return t('sidebar.makeInvoice');
+      case 'LCD Display': return t('sidebar.lcdDisplay') || 'LCD Display';
+      default: return label;
+    }
+  };
+
   const handleLogout = () => {
     localStorage.removeItem('user');
+    localStorage.removeItem('token');
+    localStorage.removeItem('refreshToken');
     toast.success(t('nav.logoutSuccess') || 'Logged out successfully');
     navigate('/');
   };
+
   return (
     <>
-      {/* Mobile toggle button */}
       {!open && (
         <button
           className="fixed top-[9px] ltr:left-3 rtl:right-3 z-[40] icon-button lg:!hidden shadow-sm"
@@ -161,7 +118,6 @@ const Sidebar = () => {
         </button>
       )}
 
-      {/* Overlay for mobile */}
       {open && <div className="fixed inset-0 bg-black/20 z-40 lg:hidden" onClick={toggle}></div>}
 
       <aside
@@ -169,7 +125,6 @@ const Sidebar = () => {
           }`}
       >
         <div className="h-full flex flex-col p-4 pt-6 relative">
-          {/* Mobile exit/close button at top right of sidebar */}
           <button
             type="button"
             className="absolute top-4 ltr:right-4 rtl:left-4 lg:!hidden icon-button-small"
@@ -185,31 +140,33 @@ const Sidebar = () => {
             </div>
           </div>
 
+          <div className="text-center mb-4">
+            <span className="text-xs font-bold uppercase tracking-wider text-blue-500 bg-blue-500/10 px-2 py-1 rounded-full">
+              {userRole}
+            </span>
+          </div>
+
           <nav className="flex-1 space-y-2">
             {menuItems
-              .filter((item) => !item.permission || allowedPermissions.includes(item.permission))
+              .filter(hasItemPermission)
               .map((item) => (
-              <NavLink
-                key={item.label}
-                to={item.to}
-                className={({ isActive }) =>
-                  `flex items-center gap-2.5 rounded-3xl px-3 py-2.5 text-[13px] font-medium transition-all duration-200 ${isActive
-                    ? 'sidebar-nav-active bg-blue-500/10 text-blue-600 shadow-sm'
-                    : 'text-secondary hover:bg-surface-alt hover:text-primary'
-                  }`
-                }
-                onClick={() => setOpen(false)}
-              >
-                <span className="sidebar-nav-icon text-lg text-blue-500">{item.icon}</span>
-                {getTranslatedLabel(item.label)}
-              </NavLink>
-            ))}
+                <NavLink
+                  key={item.label}
+                  to={item.to}
+                  className={({ isActive }) =>
+                    `flex items-center gap-3 rounded-3xl px-4 py-3 text-sm transition-all duration-200 ${isActive
+                      ? 'sidebar-nav-active bg-blue-500/10 text-blue-600 shadow-sm'
+                      : 'text-secondary hover:bg-surface-alt hover:text-primary'
+                    }`
+                  }
+                  onClick={() => setOpen(false)}
+                >
+                  <span className="sidebar-nav-icon text-lg text-blue-500">{item.icon}</span>
+                  {getTranslatedLabel(item.label)}
+                </NavLink>
+              ))}
           </nav>
 
-          {/* <div className="sidebar-dispatch-card mt-6 rounded-3xl border border-border bg-surface-alt p-4 text-sm text-secondary shadow-sm">
-            <p className="font-semibold text-primary">Today&apos;s dispatch</p>
-            <p className="mt-2">7 orders are ready for delivery and 3 pickups are scheduled.</p>
-          </div> */}
           <button
             onClick={handleLogout}
             className="mt-4 flex w-full items-center gap-3 rounded-3xl border border-red-200 px-4 py-3 text-sm font-medium text-red-500 hover:bg-red-50"
@@ -217,7 +174,6 @@ const Sidebar = () => {
             <FiLogOut />
             {t('nav.logout') || 'Logout'}
           </button>
-
         </div>
       </aside>
     </>
@@ -225,5 +181,3 @@ const Sidebar = () => {
 };
 
 export default Sidebar;
-
-

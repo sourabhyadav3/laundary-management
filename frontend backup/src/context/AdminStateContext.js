@@ -99,6 +99,10 @@ export const AdminStateProvider = ({ children }) => {
       };
     });
   }, [rawCustomers, orders]);
+
+  useEffect(() => {
+    window.__cachedCustomers = customers;
+  }, [customers]);
   const [services, setServices] = useState([]);
   const [staff, setStaff] = useState([]);
   const [payments, setPayments] = useState([]);

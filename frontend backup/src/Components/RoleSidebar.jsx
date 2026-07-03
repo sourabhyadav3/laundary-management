@@ -10,6 +10,7 @@ const RoleSidebar = ({ menuItems, roleLabel, footerText }) => {
   const [open, setOpen] = useState(false);
   const toggle = () => setOpen(!open);
   const { t } = useLanguage();
+  const navigate = useNavigate();
 
   // Get active role and dynamic permissions from localStorage
   const storedUser = JSON.parse(localStorage.getItem('user') || '{}');
@@ -28,7 +29,7 @@ const RoleSidebar = ({ menuItems, roleLabel, footerText }) => {
       'Counter Staff': [
         'view_dashboard', 'view_customers', 'manage_customers', 'view_orders', 'make_invoice',
         'view_invoice_status', 'change_invoice_status', 'view_invoice_details', 'view_payments',
-        'manage_payments', 'view_services'
+        'manage_payments', 'view_services', 'view_logistics'
       ],
       'Delivery Staff': [
         'view_dashboard', 'view_logistics', 'view_invoice_status', 'change_invoice_status'
@@ -40,7 +41,8 @@ const RoleSidebar = ({ menuItems, roleLabel, footerText }) => {
       try {
         const parsed = JSON.parse(saved);
         if (parsed && parsed[role]) {
-          return parsed[role];
+          const allowed = defaultPermissions[role] || [];
+          return [...new Set([...allowed, ...parsed[role]])];
         }
       } catch (e) {
         console.error("Failed to parse role permissions", e);
@@ -65,6 +67,7 @@ const RoleSidebar = ({ menuItems, roleLabel, footerText }) => {
       case 'Assigned Pickups': return t('sidebar.assignedPickups');
       case 'Assigned Deliveries': return t('sidebar.assignedDeliveries');
       case 'Completed Jobs': return t('sidebar.completedJobs');
+      case 'Home Service':
       case 'Home Services': return t('sidebar.pickups') || 'Home Services';
       case 'Order': return t('sidebar.orders') || 'Order';
       case 'Driver': return t('sidebar.drivers') || 'Driver';
@@ -73,10 +76,10 @@ const RoleSidebar = ({ menuItems, roleLabel, footerText }) => {
     }
   };
 
-  //logout handler
-  const navigate = useNavigate();
   const handleLogout = () => {
     localStorage.removeItem('user');
+    localStorage.removeItem('token');
+    localStorage.removeItem('refreshToken');
     toast.success(t('nav.logoutSuccess') || 'Logged out successfully');
     navigate('/');
   };
@@ -117,33 +120,34 @@ const RoleSidebar = ({ menuItems, roleLabel, footerText }) => {
             </div>
           </div>
 
+          <div className="text-center mb-4">
+            <span className="text-xs font-bold uppercase tracking-wider text-blue-500 bg-blue-500/10 px-2 py-1 rounded-full">
+              {roleLabel || userRole || 'Staff'}
+            </span>
+          </div>
+
           <nav className="flex-1 space-y-2">
             {menuItems
               .filter((item) => !item.permission || allowedPermissions.includes(item.permission))
               .map((item) => (
-              <NavLink
-                key={item.label}
-                to={item.to}
-                end={item.end}
-                className={({ isActive }) =>
-                  `flex items-center gap-3 rounded-3xl px-4 py-3 text-sm transition-all duration-200 ${isActive
-                    ? 'sidebar-nav-active bg-blue-500/10 text-blue-600 shadow-sm'
-                    : 'text-secondary hover:bg-surface-alt hover:text-primary'
-                  }`
-                }
-                onClick={() => setOpen(false)}
-              >
-                <span className="sidebar-nav-icon text-lg text-blue-500">{item.icon}</span>
-                {getTranslatedLabel(item.label)}
-              </NavLink>
-            ))}
+                <NavLink
+                  key={item.label}
+                  to={item.to}
+                  end={item.end}
+                  className={({ isActive }) =>
+                    `flex items-center gap-3 rounded-3xl px-4 py-3 text-sm transition-all duration-200 ${isActive
+                      ? 'sidebar-nav-active bg-blue-500/10 text-blue-600 shadow-sm'
+                      : 'text-secondary hover:bg-surface-alt hover:text-primary'
+                    }`
+                  }
+                  onClick={() => setOpen(false)}
+                >
+                  <span className="sidebar-nav-icon text-lg text-blue-500">{item.icon}</span>
+                  {getTranslatedLabel(item.label)}
+                </NavLink>
+              ))}
           </nav>
 
-          {/* {footerText && (
-            <div className="sidebar-dispatch-card mt-6 rounded-3xl border border-border bg-surface-alt p-4 text-sm text-secondary shadow-sm">
-              {footerText}
-            </div>
-          )} */}
           <button
             onClick={handleLogout}
             className="mt-4 flex w-full items-center gap-3 rounded-3xl border border-red-200 px-4 py-3 text-sm font-medium text-red-500 hover:bg-red-50"

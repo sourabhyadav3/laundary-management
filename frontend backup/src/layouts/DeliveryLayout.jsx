@@ -38,7 +38,8 @@ const DeliveryLayout = () => {
       try {
         const parsed = JSON.parse(saved);
         if (parsed && parsed[role]) {
-          return parsed[role];
+          const allowed = defaultPermissions[role] || [];
+          return [...new Set([...allowed, ...parsed[role]])];
         }
       } catch (e) {
         console.error("Failed to parse role permissions", e);

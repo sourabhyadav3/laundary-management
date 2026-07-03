@@ -71,7 +71,9 @@ const OrderList = () => {
     <div className="space-y-8">
       <section className="surface-card overflow-hidden border border-border shadow-xl">
         <div className="dashboard-hero p-8 md:p-10">
-          <p className="text-sm uppercase tracking-[0.3em] text-secondary">Counter Staff</p>
+          <p className="text-sm uppercase tracking-[0.3em] text-secondary">
+            {JSON.parse(localStorage.getItem('user') || '{}').role || 'Counter Staff'}
+          </p>
           <h1 className="mt-3 text-3xl font-semibold text-primary">Order List</h1>
           <p className="mt-2 text-sm text-secondary">View orders and update status through the workflow.</p>
         </div>
