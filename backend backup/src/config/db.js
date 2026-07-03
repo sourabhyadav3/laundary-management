@@ -1,4 +1,10 @@
 const mongoose = require('mongoose');
+const dns = require('dns');
+
+// Fallback to public DNS to prevent querySrv ECONNREFUSED on routers that fail to resolve SRV records
+if (dns.setServers) {
+  dns.setServers(['8.8.8.8', '1.1.1.1']);
+}
 
 const connectDB = async () => {
   try {

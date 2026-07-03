@@ -18,10 +18,61 @@ import StatsCard from '../../Components/StatsCard';
 import ReusableTable from '../../Components/ReusableTable';
 import { formatCurrency } from '../../utils/exportUtils';
 import { getOrderStatusStyle, isReadyOrderStatus, ORDER_STATUSES } from '../../constants/statusStyles';
+import { translateNotification } from '../../utils/notificationTranslator';
+
+const formatTimeAgo = (dateValue, language) => {
+  if (!dateValue) return '';
+  const date = new Date(dateValue);
+  const now = new Date();
+  const seconds = Math.floor((now - date) / 1000);
+  const isAr = language === 'ar';
+
+  if (seconds < 60) {
+    return isAr ? 'الآن' : 'just now';
+  }
+
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60) {
+    if (isAr) {
+      if (minutes === 1) return 'منذ دقيقة';
+      if (minutes === 2) return 'منذ دقيقتين';
+      if (minutes >= 3 && minutes <= 10) return `منذ ${minutes} دقائق`;
+      return `منذ ${minutes} دقيقة`;
+    }
+    return `${minutes} min ago`;
+  }
+
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) {
+    if (isAr) {
+      if (hours === 1) return 'منذ ساعة';
+      if (hours === 2) return 'منذ ساعتين';
+      if (hours >= 3 && hours <= 10) return `منذ ${hours} ساعات`;
+      return `منذ ${hours} ساعة`;
+    }
+    return hours === 1 ? '1 hr ago' : `${hours} hrs ago`;
+  }
+
+  const days = Math.floor(hours / 24);
+  if (days < 7) {
+    if (isAr) {
+      if (days === 1) return 'منذ يوم';
+      if (days === 2) return 'منذ يومين';
+      if (days >= 3 && days <= 10) return `منذ ${days} أيام`;
+      return `منذ ${days} يوم`;
+    }
+    return days === 1 ? '1 day ago' : `${days} days ago`;
+  }
+
+  const day = String(date.getDate()).padStart(2, '0');
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const year = date.getFullYear();
+  return `${day}/${month}/${year}`;
+};
 
 const CounterDashboard = () => {
-  const { orders, customers, payments, selectedBranch } = useContext(AdminStateContext);
-  const { t } = useLanguage();
+  const { orders, customers, payments, selectedBranch, notifications } = useContext(AdminStateContext);
+  const { t, language } = useLanguage();
   const today = new Date().toDateString();
 
   // Get active role and dynamic permissions from localStorage
@@ -94,14 +145,29 @@ const CounterDashboard = () => {
         status,
         count: filteredOrders.filter((o) => o.status === status).length,
       })),
-      activity: [
-        { label: t('counter.activity.orderCreated') || 'New order created', time: t('counter.time.m10') || '10 min ago' },
-        { label: t('counter.activity.paymentCollected') || 'Payment collected', time: t('counter.time.m25') || '25 min ago' },
-        { label: t('counter.activity.profileUpdated') || 'Customer profile updated', time: t('counter.time.h1') || '1 hr ago' },
-        { label: t('counter.activity.markedReady') || 'Order marked Ready', time: t('counter.time.h2') || '2 hrs ago' },
-      ],
+      activity: (() => {
+        let filteredNotifs = notifications || [];
+        if (selectedBranch && selectedBranch !== 'All') {
+          filteredNotifs = filteredNotifs.filter(
+            (n) => n.branchId === selectedBranch
+          );
+        }
+        const todayNotifs = filteredNotifs
+          .filter((n) => new Date(n.time || n.timestamp || n.createdAt).toDateString() === today)
+          .sort((a, b) => new Date(b.time || b.timestamp || b.createdAt) - new Date(a.time || a.timestamp || a.createdAt));
+
+        return todayNotifs.map(n => {
+          const { title, text } = translateNotification(n.title, n.text, language);
+          return {
+            id: n.id || n._id,
+            title,
+            text,
+            time: formatTimeAgo(n.time || n.timestamp || n.createdAt, language)
+          };
+        });
+      })()
     };
-  }, [orders, customers, payments, today, t, selectedBranch]);
+  }, [orders, customers, payments, today, selectedBranch, notifications, language]);
 
   const tableColumns = [
     { header: t('admin.orderNo') || 'Order #', accessor: 'number' },
@@ -210,12 +276,21 @@ const CounterDashboard = () => {
         <p className="text-xs uppercase tracking-[0.3em] text-secondary">{t('counter.todayActivity') || "Today's activity"}</p>
         <h2 className="mt-2 text-xl font-semibold text-primary">{t('counter.activityFeed') || "Counter activity feed"}</h2>
         <div className="mt-5 space-y-3">
-          {metrics.activity.map((item) => (
-            <div key={item.label} className="flex items-center justify-between rounded-2xl border border-border bg-surface-alt px-4 py-3">
-              <span className="text-primary">{item.label}</span>
-              <span className="text-sm text-secondary">{item.time}</span>
+          {metrics.activity.length > 0 ? (
+            metrics.activity.map((item) => (
+              <div key={item.id} className="flex items-center justify-between rounded-2xl border border-border bg-surface-alt px-4 py-3">
+                <div className="flex flex-col">
+                  <span className="font-semibold text-primary">{item.title}</span>
+                  <span className="text-sm text-secondary mt-0.5">{item.text}</span>
+                </div>
+                <span className="text-sm text-secondary whitespace-nowrap ml-4">{item.time}</span>
+              </div>
+            ))
+          ) : (
+            <div className="text-center py-6 text-secondary text-sm">
+              {language === 'ar' ? 'لا توجد أنشطة مسجلة اليوم' : 'No activity logged today'}
             </div>
-          ))}
+          )}
         </div>
       </section>
     </div>
