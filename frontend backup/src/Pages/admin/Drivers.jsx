@@ -146,21 +146,31 @@ const Drivers = () => {
   }, [adminBranchObj, isSuperAdmin, form.branch, form.id]);
 
   const filteredDrivers = useMemo(() => {
-    return drivers.filter((d) => {
-      if (!searchQuery) return true;
-      if (searchType === 'name') {
-        return d.driverName.toLowerCase().includes(searchQuery.toLowerCase());
-      } else if (searchType === 'phone') {
-        return d.mobile.includes(searchQuery) || d.tel.includes(searchQuery);
-      } else if (searchType === 'area') {
-        const rawAreas = d.areas || (d.area ? [d.area] : []);
-        const driverAreas = rawAreas
-          .flatMap(a => typeof a === 'string' ? a.split(',').map(s => s.trim()) : a)
-          .filter(a => a && a !== '...' && a !== '…');
-        return driverAreas.some(a => a.toLowerCase().includes(searchQuery.toLowerCase()));
-      }
-      return true;
-    });
+    return drivers
+      .filter((d) => {
+        if (!searchQuery) return true;
+        if (searchType === 'name') {
+          return d.driverName.toLowerCase().includes(searchQuery.toLowerCase());
+        } else if (searchType === 'phone') {
+          return d.mobile.includes(searchQuery) || d.tel.includes(searchQuery);
+        } else if (searchType === 'area') {
+          const rawAreas = d.areas || (d.area ? [d.area] : []);
+          const driverAreas = rawAreas
+            .flatMap(a => typeof a === 'string' ? a.split(',').map(s => s.trim()) : a)
+            .filter(a => a && a !== '...' && a !== '…');
+          return driverAreas.some(a => a.toLowerCase().includes(searchQuery.toLowerCase()));
+        }
+        return true;
+      })
+      .sort((a, b) => {
+        if (a.createdAt && b.createdAt) {
+          return new Date(b.createdAt) - new Date(a.createdAt);
+        }
+        const numA = Number(a.id);
+        const numB = Number(b.id);
+        if (!isNaN(numA) && !isNaN(numB)) return numB - numA;
+        return String(b.id || '').localeCompare(String(a.id || ''));
+      });
   }, [drivers, searchQuery, searchType]);
 
   const handleSelectDriver = (drv) => {

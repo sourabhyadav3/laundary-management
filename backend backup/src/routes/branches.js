@@ -13,10 +13,29 @@ const formatBranch = (branch) => {
     name: branch.name,
     address: branch.address,
     phone: branch.phone,
+    email: branch.email || '',
     manager: branch.manager || '',
-    status: branch.status
+    status: branch.status,
+    createdAt: branch.createdAt,
+    updatedAt: branch.updatedAt
   };
 };
+
+// @route   GET /api/branches/public
+// @desc    Get active branches for public dropdowns (like Login)
+router.get('/public', async (req, res) => {
+  try {
+    const branches = await Branch.find({ status: 'Active' }).sort({ name: 1 });
+    const formatted = branches.map(branch => ({
+      id: branch._id.toString(),
+      name: branch.name
+    }));
+    res.json(formatted);
+  } catch (error) {
+    console.error('Get public branches error:', error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+});
 
 // @route   GET /api/branches
 // @desc    Get all branches with populated assigned Admin name
@@ -33,6 +52,7 @@ router.get('/', authenticate, async (req, res) => {
         name: branch.name,
         address: branch.address,
         phone: branch.phone,
+        email: branch.email || '',
         manager: assignedAdmin ? assignedAdmin.name : '',
         status: branch.status
       };
@@ -49,7 +69,7 @@ router.get('/', authenticate, async (req, res) => {
 // @desc    Create a branch
 router.post('/', authenticate, requirePermission('manage_settings'), async (req, res) => {
   try {
-    const { name, address, phone, manager, status } = req.body;
+    const { name, address, phone, email, manager, status } = req.body;
 
     if (!name || !address || !phone) {
       return res.status(400).json({ message: 'Name, address, and phone are required.' });
@@ -64,6 +84,7 @@ router.post('/', authenticate, requirePermission('manage_settings'), async (req,
       name,
       address,
       phone,
+      email: email || '',
       manager,
       status: status || 'Active'
     });
@@ -80,7 +101,7 @@ router.post('/', authenticate, requirePermission('manage_settings'), async (req,
 // @desc    Update a branch
 router.put('/:id', authenticate, requirePermission('manage_settings'), async (req, res) => {
   try {
-    const { name, address, phone, manager, status } = req.body;
+    const { name, address, phone, email, manager, status } = req.body;
     
     const branch = await Branch.findById(req.params.id);
     if (!branch) {
@@ -90,6 +111,7 @@ router.put('/:id', authenticate, requirePermission('manage_settings'), async (re
     if (name) branch.name = name;
     if (address) branch.address = address;
     if (phone) branch.phone = phone;
+    if (email !== undefined) branch.email = email;
     if (manager !== undefined) branch.manager = manager;
     if (status) branch.status = status;
 

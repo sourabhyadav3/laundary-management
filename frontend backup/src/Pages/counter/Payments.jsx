@@ -25,12 +25,22 @@ const Payments = () => {
   const filteredPayments = useMemo(
     () => {
       let result = payments;
-      return result.filter(
-        (p) =>
-          (p.orderNumber || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-          (p.customerName || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-          String(p.paymentId).includes(searchTerm)
-      );
+      return result
+        .filter(
+          (p) =>
+            (p.orderNumber || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+            (p.customerName || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+            String(p.paymentId).includes(searchTerm)
+        )
+        .sort((a, b) => {
+          if (a.createdAt && b.createdAt) {
+            return new Date(b.createdAt) - new Date(a.createdAt);
+          }
+          const numA = Number(a.id);
+          const numB = Number(b.id);
+          if (!isNaN(numA) && !isNaN(numB)) return numB - numA;
+          return String(b.id || '').localeCompare(String(a.id || ''));
+        });
     },
     [payments, searchTerm]
   );

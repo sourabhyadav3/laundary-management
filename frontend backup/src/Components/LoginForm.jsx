@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useContext } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import { FiMail, FiLock, FiEye, FiEyeOff, FiLoader, FiAlertCircle, FiCheck, FiArrowRight, FiMapPin } from 'react-icons/fi';
 import api from '../utils/api';
+import { AdminStateContext } from '../context/AdminStateContext';
 import Modal from './Modal';
 
 const defaultBranches = [
@@ -18,15 +19,22 @@ const defaultBranches = [
 
 const LoginForm = () => {
   const navigate = useNavigate();
+  const adminState = useContext(AdminStateContext);
+  const fetchData = adminState?.fetchData;
 
   // Load branches
-  const savedBranchesStr = localStorage.getItem('branches_list');
-  let branchesList = defaultBranches;
-  if (savedBranchesStr) {
-    try {
-      branchesList = JSON.parse(savedBranchesStr);
-    } catch (e) {}
-  }
+  const [branchesList, setBranchesList] = useState(() => {
+    const savedBranchesStr = localStorage.getItem('branches_list');
+    if (savedBranchesStr) {
+      try {
+        const parsed = JSON.parse(savedBranchesStr);
+        if (parsed && parsed.length > 0) {
+          return parsed;
+        }
+      } catch (e) {}
+    }
+    return defaultBranches;
+  });
 
   // State variables
   const [email, setEmail] = useState('');
@@ -41,6 +49,26 @@ const LoginForm = () => {
     }
     return 1;
   });
+
+  // Fetch branches dynamically on load
+  useEffect(() => {
+    api.get('/branches/public')
+      .then((res) => {
+        if (res.data && res.data.length > 0) {
+          setBranchesList(res.data);
+          // Set initial branch selection if the current selection is not valid in the new list
+          setSelectedBranchId((prevId) => {
+            const hasCurrentSelected = res.data.some(b => String(b.id || b._id) === String(prevId));
+            return hasCurrentSelected ? prevId : (res.data[0].id || res.data[0]._id);
+          });
+          // Cache the branches in localStorage
+          localStorage.setItem('branches_list', JSON.stringify(res.data));
+        }
+      })
+      .catch((err) => {
+        console.error('Failed to fetch public branches:', err);
+      });
+  }, []);
 
   // Validation errors
   const [errors, setErrors] = useState({});
@@ -129,6 +157,10 @@ const LoginForm = () => {
         localStorage.setItem('selected_branch', selectedBranchId);
       } else {
         localStorage.setItem('selected_branch', user.branchId || 'All');
+      }
+
+      if (fetchData) {
+        fetchData();
       }
 
       toast.success(`Welcome back, ${user.name}!`, {

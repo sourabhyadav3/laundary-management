@@ -140,7 +140,12 @@ const CounterDashboard = () => {
       deliveredOrders: filteredOrders.filter((o) => o.status === 'Delivered').length,
       revenueToday,
       totalCustomers: filteredCustomers.length,
-      recentOrders: [...filteredOrders].sort((a, b) => new Date(b.date) - new Date(a.date)).slice(0, 5),
+      recentOrders: [...filteredOrders].sort((a, b) => {
+        if (a.createdAt && b.createdAt) {
+          return new Date(b.createdAt) - new Date(a.createdAt);
+        }
+        return String(b.id || '').localeCompare(String(a.id || ''));
+      }).slice(0, 5),
       statusSummary: ORDER_STATUSES.map((status) => ({
         status,
         count: filteredOrders.filter((o) => o.status === status).length,

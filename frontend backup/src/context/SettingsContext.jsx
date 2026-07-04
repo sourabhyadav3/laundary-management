@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useContext, useEffect, useState, useRef } from 'react';
 import api from '../utils/api';
 import { toast } from 'react-toastify';
 
@@ -42,7 +42,12 @@ const DEFAULT_SETTINGS = {
 const SettingsContext = createContext();
 
 export const SettingsProvider = ({ children }) => {
-  const [settings, setSettings] = useState(DEFAULT_SETTINGS);
+  const [settings, setSettings] = useState({ ...DEFAULT_SETTINGS, isLoaded: false });
+  const settingsRef = useRef(settings);
+
+  useEffect(() => {
+    settingsRef.current = settings;
+  }, [settings]);
 
   // Fetch settings from database on mount
   const loadSettings = async () => {
@@ -52,7 +57,7 @@ export const SettingsProvider = ({ children }) => {
     try {
       const res = await api.get('/settings');
       if (res.data) {
-        setSettings(res.data);
+        setSettings({ ...res.data, isLoaded: true });
       }
     } catch (e) {
       console.error('Failed to load store settings from API:', e);
@@ -63,12 +68,11 @@ export const SettingsProvider = ({ children }) => {
     loadSettings();
     const interval = setInterval(() => {
       const token = localStorage.getItem('token');
-      if (token && settings.business.businessName === 'Tuhama laundry co.' && settings.system.currency === 'KWD') {
+      if (token && !settingsRef.current.isLoaded) {
         loadSettings();
       }
     }, 3000);
     return () => clearInterval(interval);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const updateSection = async (section, data) => {
@@ -76,6 +80,7 @@ export const SettingsProvider = ({ children }) => {
     const nextSettings = {
       ...settings,
       [section]: updatedSection,
+      isLoaded: true
     };
 
     setSettings(nextSettings);
@@ -93,6 +98,7 @@ export const SettingsProvider = ({ children }) => {
     const nextSettings = {
       ...settings,
       [section]: { ...DEFAULT_SETTINGS[section] },
+      isLoaded: true
     };
 
     setSettings(nextSettings);
@@ -107,7 +113,8 @@ export const SettingsProvider = ({ children }) => {
   };
 
   const resetAll = async () => {
-    setSettings(DEFAULT_SETTINGS);
+    const nextSettings = { ...DEFAULT_SETTINGS, isLoaded: true };
+    setSettings(nextSettings);
     localStorage.setItem(STORAGE_KEY, JSON.stringify(DEFAULT_SETTINGS));
 
     try {

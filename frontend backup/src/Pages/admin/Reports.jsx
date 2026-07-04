@@ -572,8 +572,8 @@ const Reports = () => {
                     {language === 'ar' ? '🔒 اختر نوع التقرير أولاً' : '🔒 Select Report Type First'}
                   </option>
                 ) : (
-                  getDynamicParameters().map((p) => (
-                    <option key={p.value} value={p.value}>
+                  getDynamicParameters().map((p, idx) => (
+                    <option key={`${p.value}-${idx}`} value={p.value}>
                       {p.label}
                     </option>
                   ))

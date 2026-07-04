@@ -71,12 +71,10 @@ export const formatDate = (value) => {
     const month = partMap.month;
     const year = partMap.year;
 
-    if (dateFormat === 'DD/MM/YYYY') {
-      return `${day}/${month}/${year}`;
-    } else if (dateFormat === 'YYYY-MM-DD') {
+    if (dateFormat === 'YYYY-MM-DD') {
       return `${year}-${month}-${day}`;
     } else {
-      return `${month}/${day}/${year}`;
+      return `${day}/${month}/${year}`;
     }
   } catch (e) {
     return d.toLocaleDateString('en-US', {

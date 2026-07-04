@@ -52,16 +52,26 @@ const Payments = () => {
   const dueCustomers = customers.filter((c) => c.balance > 0).length;
 
   const filteredPayments = useMemo(() => {
-    return payments.filter((payment) => {
-      const matchesSearch =
-        (payment.orderNumber || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (payment.customerName || '').toLowerCase().includes(searchTerm.toLowerCase());
+    return payments
+      .filter((payment) => {
+        const matchesSearch =
+          (payment.orderNumber || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+          (payment.customerName || '').toLowerCase().includes(searchTerm.toLowerCase());
 
-      const matchesStatus = statusFilter === 'All' || payment.status === statusFilter;
-      const matchesMethod = methodFilter === 'All' || payment.method === methodFilter;
+        const matchesStatus = statusFilter === 'All' || payment.status === statusFilter;
+        const matchesMethod = methodFilter === 'All' || payment.method === methodFilter;
 
-      return matchesSearch && matchesStatus && matchesMethod;
-    });
+        return matchesSearch && matchesStatus && matchesMethod;
+      })
+      .sort((a, b) => {
+        if (a.createdAt && b.createdAt) {
+          return new Date(b.createdAt) - new Date(a.createdAt);
+        }
+        const numA = Number(a.id);
+        const numB = Number(b.id);
+        if (!isNaN(numA) && !isNaN(numB)) return numB - numA;
+        return String(b.id || '').localeCompare(String(a.id || ''));
+      });
   }, [payments, searchTerm, statusFilter, methodFilter]);
 
   const duePayments = customers.filter((c) => c.balance > 0);

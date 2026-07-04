@@ -15,6 +15,9 @@ const branchSchema = new mongoose.Schema({
     type: String,
     required: true
   },
+  email: {
+    type: String
+  },
   manager: {
     type: String
   },

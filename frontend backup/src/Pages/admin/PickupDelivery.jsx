@@ -270,7 +270,7 @@ const PickupDelivery = () => {
             <div class="header-meta">
               <span><strong>Driver:</strong> ${driverName}</span>
               <span><strong>Total Pickups:</strong> ${totalPickups}</span>
-              <span><strong>Date:</strong> ${new Date().toLocaleDateString()}</span>
+              <span><strong>Date:</strong> ${new Date().toLocaleDateString('en-GB')}</span>
             </div>
           </div>
           <div class="entries">

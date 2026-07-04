@@ -849,7 +849,7 @@ const MakeInvoice = () => {
         navigate('/admin/invoices');
     };
 
-    const locale = language === 'ar' ? 'ar-KW' : 'en-US';
+    const locale = language === 'ar' ? 'ar-KW' : 'en-GB';
     const formattedTime = currentTime.toLocaleTimeString(locale, {
         timeZone: 'Asia/Kuwait',
         hour: 'numeric',

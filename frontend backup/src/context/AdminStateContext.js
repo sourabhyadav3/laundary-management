@@ -1,5 +1,5 @@
 // src/context/AdminStateContext.js
-import React, { createContext, useState, useEffect, useMemo } from 'react';
+import React, { createContext, useState, useEffect, useMemo, useRef } from 'react';
 import { toast } from 'react-toastify';
 import api from '../utils/api';
 import {
@@ -155,6 +155,14 @@ export const AdminStateProvider = ({ children }) => {
   }, [selectedBranch]);
 
   // Synchronous sync loader method
+  const customersRef = useRef(rawCustomers);
+  const ordersRef = useRef(orders);
+
+  useEffect(() => {
+    customersRef.current = rawCustomers;
+    ordersRef.current = orders;
+  }, [rawCustomers, orders]);
+
   const fetchData = async () => {
     const token = localStorage.getItem('token');
     if (!token) return;
@@ -170,47 +178,56 @@ export const AdminStateProvider = ({ children }) => {
       }
     } catch (e) {}
 
-    try {
-      const [
-        resCustomers, resOrders, resServices, resStaff,
-        resPayments, resPickups, resDeliveries, resDrivers,
-        resBranches, resNotifications, resCatalog, resAreas
-      ] = await Promise.all([
-        api.get('/customers').catch(() => ({ data: [] })),
-        api.get('/orders').catch(() => ({ data: [] })),
-        api.get('/services').catch(() => ({ data: [] })),
-        hasStaffPermission
-          ? api.get('/staff').catch(() => ({ data: [] }))
-          : Promise.resolve({ data: [] }),
-        api.get('/payments').catch(() => ({ data: [] })),
-        api.get('/pickups').catch(() => ({ data: [] })),
-        api.get('/deliveries').catch(() => ({ data: [] })),
-        api.get('/drivers').catch(() => ({ data: [] })),
-        api.get('/branches').catch(() => ({ data: [] })),
-        api.get('/notifications').catch(() => ({ data: [] })),
-        api.get('/catalog').catch(() => ({ data: [] })),
-        api.get('/areas').catch(() => ({ data: [] }))
-      ]);
-
-      setCustomers(resCustomers.data);
-      setOrders(resOrders.data);
-      setServices(resServices.data);
-      setStaff(resStaff.data);
-      setPayments(resPayments.data);
-      setPickups(resPickups.data);
-      setDeliveries(resDeliveries.data);
-      setDrivers(resDrivers.data);
-      setBranches(resBranches.data);
-      localStorage.setItem('branches_list', JSON.stringify(resBranches.data));
-      setNotifications(resNotifications.data);
-      setAreas(resAreas.data.map(a => a.name));
-      if (resCatalog && resCatalog.data && resCatalog.data.length > 0) {
-        setCatalog(resCatalog.data);
+    const fetchResource = async (path, setter, defaultValue = []) => {
+      try {
+        const res = await api.get(path);
+        if (res.data) {
+          setter(res.data);
+          return res.data;
+        }
+      } catch (e) {
+        console.error(`Failed to fetch ${path}:`, e);
       }
+      setter(defaultValue);
+      return defaultValue;
+    };
 
-      // Derive completed jobs
+    // Run parallel fetches and update states progressively as they resolve
+    fetchResource('/customers', setCustomers);
+    fetchResource('/orders', setOrders);
+    fetchResource('/services', setServices);
+    
+    if (hasStaffPermission) {
+      fetchResource('/staff', setStaff);
+    } else {
+      setStaff([]);
+    }
+
+    fetchResource('/payments', setPayments);
+    const pPickups = fetchResource('/pickups', setPickups);
+    const pDeliveries = fetchResource('/deliveries', setDeliveries);
+    fetchResource('/drivers', setDrivers);
+    
+    fetchResource('/branches', (data) => {
+      setBranches(data);
+      localStorage.setItem('branches_list', JSON.stringify(data));
+    });
+    
+    fetchResource('/notifications', setNotifications);
+    fetchResource('/catalog', (data) => {
+      if (data && data.length > 0) {
+        setCatalog(data);
+      }
+    });
+    
+    fetchResource('/areas', (data) => {
+      setAreas(data.map(a => a.name));
+    });
+
+    // Handle completed jobs progressive derivation
+    Promise.all([pPickups, pDeliveries]).then(([pickupsData, deliveriesData]) => {
       const compJobs = [
-        ...resPickups.data.filter(p => p.status === 'Completed').map(p => ({
+        ...pickupsData.filter(p => p.status === 'Completed').map(p => ({
           id: `p-${p.id}`,
           type: 'Pickup',
           jobId: p.pickupId,
@@ -220,7 +237,7 @@ export const AdminStateProvider = ({ children }) => {
           status: 'Completed',
           amount: 0.0
         })),
-        ...resDeliveries.data.filter(d => d.status === 'Delivered').map(d => ({
+        ...deliveriesData.filter(d => d.status === 'Delivered').map(d => ({
           id: `d-${d.id}`,
           type: 'Delivery',
           jobId: d.deliveryId,
@@ -232,10 +249,7 @@ export const AdminStateProvider = ({ children }) => {
         }))
       ];
       setCompletedJobs(compJobs);
-
-    } catch (error) {
-      console.error('Error fetching initial REST database states:', error);
-    }
+    });
   };
 
   // Run fetches on mount and poll for auth credentials shifts
@@ -243,7 +257,7 @@ export const AdminStateProvider = ({ children }) => {
     fetchData();
     const timer = setInterval(() => {
       const token = localStorage.getItem('token');
-      if (token && customers.length === 0 && orders.length === 0) {
+      if (token && customersRef.current.length === 0 && ordersRef.current.length === 0) {
         fetchData();
       }
     }, 2000);
@@ -264,7 +278,7 @@ export const AdminStateProvider = ({ children }) => {
       clearInterval(timer);
       clearInterval(notifTimer);
     };
-  }, [customers.length, orders.length]);
+  }, []);
 
   const addCatalogItem = async (item) => {
     try {
@@ -812,6 +826,8 @@ export const AdminStateProvider = ({ children }) => {
     markAllNotificationsRead,
     clearAllNotifications,
     addNotification,
+
+    fetchData,
   };
 
   return (

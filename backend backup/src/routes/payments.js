@@ -20,10 +20,13 @@ const formatPayment = (payment) => {
     branchId: branchIdStr,
     orderNumber: payment.orderNumber,
     customerName: payment.customerName,
+    customer: payment.customerName,
     date: payment.date,
     amount: payment.amount,
     method: payment.method,
-    status: payment.status
+    status: payment.status,
+    createdAt: payment.createdAt,
+    updatedAt: payment.updatedAt
   };
 };
 
@@ -32,6 +35,10 @@ const formatPayment = (payment) => {
 router.get('/', authenticate, async (req, res) => {
   try {
     let query = {};
+    const Branch = require('../models/Branch');
+    const branches = await Branch.find().select('_id');
+    const branchIds = branches.map(b => b._id);
+
     if (req.user.branch) {
       const orders = await Order.find({ branchId: req.user.branch }).select('_id');
       const orderIds = orders.map(o => o._id);
@@ -44,6 +51,22 @@ router.get('/', authenticate, async (req, res) => {
         $or: [
           { order: { $in: orderIds } },
           { branch: req.user.branch },
+          { orderNumber: { $in: balOrderNumbers } }
+        ]
+      };
+    } else {
+      // For Super Admin: filter out payments from deleted branches
+      const orders = await Order.find({ branchId: { $in: branchIds } }).select('_id');
+      const orderIds = orders.map(o => o._id);
+      
+      const Customer = require('../models/Customer');
+      const customers = await Customer.find({ branch: { $in: branchIds } }).select('_id');
+      const balOrderNumbers = customers.map(c => `BAL-${c._id.toString()}`);
+
+      query = {
+        $or: [
+          { order: { $in: orderIds } },
+          { branch: { $in: branchIds } },
           { orderNumber: { $in: balOrderNumbers } }
         ]
       };
@@ -135,8 +158,12 @@ router.put('/:id', authenticate, requirePermission('manage_payments'), async (re
       return res.status(404).json({ message: 'Payment ledger entry not found.' });
     }
 
+    const mongoose = require('mongoose');
+    const oldStatus = payment.status;
+    const newStatus = status || 'Paid';
+
     payment.method = method;
-    payment.status = status || 'Paid';
+    payment.status = newStatus;
     if (amount !== undefined) payment.amount = Number(amount);
     if (date !== undefined) payment.date = date;
     await payment.save();
@@ -148,11 +175,53 @@ router.put('/:id', authenticate, requirePermission('manage_payments'), async (re
       payment.branch || req.user.branch
     );
 
-    // Sync with order payment status
-    if (payment.order) {
+    // 1. Sync with Customer outstanding balance
+    if (oldStatus !== newStatus) {
+      const Customer = require('../models/Customer');
+      let customer = null;
+
+      // Try finding customer via BAL- prefix in orderNumber
+      if (payment.orderNumber && payment.orderNumber.startsWith('BAL-')) {
+        const customerId = payment.orderNumber.replace('BAL-', '');
+        if (mongoose.Types.ObjectId.isValid(customerId)) {
+          customer = await Customer.findById(customerId);
+        }
+      }
+
+      // Fallback 1: Try finding customer via linked order
+      if (!customer && payment.order) {
+        const order = await Order.findById(payment.order);
+        if (order && order.customer) {
+          customer = await Customer.findById(order.customer);
+        }
+      }
+
+      // Fallback 2: Find customer by name
+      if (!customer && payment.customerName) {
+        customer = await Customer.findOne({ name: payment.customerName });
+      }
+
+      if (customer) {
+        if (oldStatus === 'Paid' && newStatus !== 'Paid') {
+          // Changed from Paid to Pending -> increase customer balance
+          customer.balance = (customer.balance || 0) + payment.amount;
+          await customer.save();
+        } else if (oldStatus !== 'Paid' && newStatus === 'Paid') {
+          // Changed from Pending to Paid -> decrease customer balance
+          customer.balance = Math.max(0, (customer.balance || 0) - payment.amount);
+          await customer.save();
+        }
+      }
+    }
+
+    // 2. Sync with order(s) payment status
+    if (payment.orderNumber && !payment.orderNumber.startsWith('BAL-') && payment.orderNumber !== 'Balance Settle') {
+      const orderNumbers = payment.orderNumber.split(',').map(s => s.trim());
+      await Order.updateMany({ number: { $in: orderNumbers } }, { $set: { paymentStatus: newStatus } });
+    } else if (payment.order) {
       const order = await Order.findById(payment.order);
       if (order) {
-        order.paymentStatus = payment.status;
+        order.paymentStatus = newStatus;
         await order.save();
       }
     }

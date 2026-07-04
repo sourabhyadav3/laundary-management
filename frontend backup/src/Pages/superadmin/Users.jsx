@@ -47,17 +47,27 @@ const Users = () => {
   const lockedUsers = staff.filter(u => u.isLocked).length;
 
   const filteredUsers = useMemo(() => {
-    return staff.filter((user) => {
-      const matchesSearch =
-        user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (user.phone && user.phone.includes(searchTerm));
+    return staff
+      .filter((user) => {
+        const matchesSearch =
+          user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          (user.phone && user.phone.includes(searchTerm));
 
-      const matchesStatus = statusFilter === 'All' || user.status === statusFilter;
-      const matchesRole = roleFilter === 'All' || user.role === roleFilter;
+        const matchesStatus = statusFilter === 'All' || user.status === statusFilter;
+        const matchesRole = roleFilter === 'All' || user.role === roleFilter;
 
-      return matchesSearch && matchesStatus && matchesRole;
-    });
+        return matchesSearch && matchesStatus && matchesRole;
+      })
+      .sort((a, b) => {
+        if (a.createdAt && b.createdAt) {
+          return new Date(b.createdAt) - new Date(a.createdAt);
+        }
+        const numA = Number(a.id);
+        const numB = Number(b.id);
+        if (!isNaN(numA) && !isNaN(numB)) return numB - numA;
+        return String(b.id || '').localeCompare(String(a.id || ''));
+      });
   }, [staff, searchTerm, statusFilter, roleFilter]);
 
   const handleOpenAdd = () => {

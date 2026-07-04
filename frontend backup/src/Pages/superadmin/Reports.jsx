@@ -17,13 +17,13 @@ import { useLanguage } from '../../context/LanguageContext';
 import { AdminStateContext } from '../../context/AdminStateContext';
 import StatsCard from '../../Components/StatsCard';
 import ReportTable from '../../Components/ReportTable';
-import {
-  RevenueTrendChart,
-  OrdersTrendChart,
-  ServiceRevenueDistributionChart,
-  PaymentMethodDistributionChart,
-  OrderStatusDistributionChart,
-} from '../../Components/ReportCharts';
+// import {
+//   RevenueTrendChart,
+//   OrdersTrendChart,
+//   ServiceRevenueDistributionChart,
+//   PaymentMethodDistributionChart,
+//   OrderStatusDistributionChart,
+// } from '../../Components/ReportCharts';
 import {
   DATE_PRESETS,
   getDateRange,
@@ -336,10 +336,10 @@ const Reports = () => {
     }
   };
 
-  const range = useMemo(
-    () => getDateRange(datePreset, customStart, customEnd),
-    [datePreset, customStart, customEnd]
-  );
+  // const range = useMemo(
+  //   () => getDateRange(datePreset, customStart, customEnd),
+  //   [datePreset, customStart, customEnd]
+  // );
 
   const metrics = {
     ...dashboardData,
@@ -603,8 +603,8 @@ const Reports = () => {
                     {language === 'ar' ? '🔒 اختر نوع التقرير أولاً' : '🔒 Select Report Type First'}
                   </option>
                 ) : (
-                  getDynamicParameters().map((p) => (
-                    <option key={p.value} value={p.value}>
+                  getDynamicParameters().map((p, idx) => (
+                    <option key={`${p.value}-${idx}`} value={p.value}>
                       {p.label}
                     </option>
                   ))

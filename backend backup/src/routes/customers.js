@@ -41,7 +41,9 @@ const formatCustomer = (customer) => {
     freeBalance: customer.freeBalance || 0,
     freeTotal: customer.freeTotal || 0,
     balance: customer.balance || 0,
-    notes: customer.notes || ''
+    notes: customer.notes || '',
+    createdAt: customer.createdAt,
+    updatedAt: customer.updatedAt
   };
 };
 
@@ -51,10 +53,18 @@ router.get('/', authenticate, async (req, res) => {
   try {
     const { branchId } = req.query;
     const filter = {};
+    
+    const Branch = require('../models/Branch');
+    const branches = await Branch.find().select('_id');
+    const branchIds = branches.map(b => b._id);
+
     if (req.user.branch) {
       filter.branch = req.user.branch;
     } else if (branchId && branchId !== 'All') {
       filter.branch = branchId;
+    } else {
+      // For Super Admin: filter out customers of deleted branches, keeping general customers (null branch)
+      filter.branch = { $in: [...branchIds, null] };
     }
     const customers = await Customer.find(filter).sort({ createdAt: -1 });
     res.json(customers.map(formatCustomer));
@@ -233,22 +243,13 @@ router.post('/:id/settle', authenticate, requirePermission('manage_payments'), a
     }
 
     // Find corresponding pending orders before updating them
-    const pendingOrders = await Order.find({ customer: customer._id, paymentStatus: 'Pending' }).select('number _id');
-    const orderNumbers = pendingOrders.map(o => o.number).filter(Boolean);
-    const orderNumberVal = orderNumbers.length > 0 ? orderNumbers.join(', ') : 'Balance Settle';
-    const singleOrderId = pendingOrders.length === 1 ? pendingOrders[0]._id : undefined;
+    const pendingOrders = await Order.find({ customer: customer._id, paymentStatus: 'Pending' }).select('number _id totalAmount branchId');
 
     // Reset customer balance to 0
     customer.balance = 0;
     await customer.save();
 
-    // Mark corresponding pending orders as Paid
-    await Order.updateMany(
-      { customer: customer._id, paymentStatus: 'Pending' },
-      { $set: { paymentStatus: 'Paid' } }
-    );
-
-    // Register a new Payment document
+    // Register payments
     const latestPayment = await Payment.findOne().sort({ createdAt: -1 });
     let nextNum = 1;
     if (latestPayment && latestPayment.paymentId) {
@@ -257,21 +258,53 @@ router.post('/:id/settle', authenticate, requirePermission('manage_payments'), a
         nextNum = parseInt(match[1], 10) + 1;
       }
     }
-    const paymentId = `PAY-${String(nextNum).padStart(4, '0')}`;
 
-    const payment = new Payment({
-      paymentId,
-      order: singleOrderId,
-      orderNumber: orderNumberVal,
-      customerName: customer.name,
-      date: new Date().toISOString().split('T')[0],
-      amount: settledAmount,
-      method: method || 'Cash',
-      status: 'Paid',
-      branch: customer.branch
-    });
+    let remainingAmount = settledAmount;
+    const createdPayments = [];
 
-    await payment.save();
+    // 1. Process each pending order
+    for (const order of pendingOrders) {
+      const orderAmount = order.totalAmount || 0;
+      
+      // Update order paymentStatus to Paid
+      order.paymentStatus = 'Paid';
+      await order.save();
+      
+      const paymentId = `PAY-${String(nextNum++).padStart(4, '0')}`;
+      
+      const payment = new Payment({
+        paymentId,
+        order: order._id,
+        orderNumber: order.number,
+        customerName: customer.name,
+        date: new Date().toISOString().split('T')[0],
+        amount: orderAmount,
+        method: method || 'Cash',
+        status: 'Paid',
+        branch: order.branchId || customer.branch
+      });
+      await payment.save();
+      createdPayments.push(payment);
+      
+      remainingAmount -= orderAmount;
+    }
+
+    // 2. If there is remaining balance (no pending orders, or manual adjustment), create a general balance payment
+    if (remainingAmount > 0) {
+      const paymentId = `PAY-${String(nextNum++).padStart(4, '0')}`;
+      const payment = new Payment({
+        paymentId,
+        orderNumber: `BAL-${customer._id.toString()}`,
+        customerName: customer.name,
+        date: new Date().toISOString().split('T')[0],
+        amount: remainingAmount,
+        method: method || 'Cash',
+        status: 'Paid',
+        branch: customer.branch
+      });
+      await payment.save();
+      createdPayments.push(payment);
+    }
 
     await notify(
       'Balance Settled',
@@ -283,16 +316,16 @@ router.post('/:id/settle', authenticate, requirePermission('manage_payments'), a
     res.json({
       message: `Payment of ${settledAmount} via ${method || 'Cash'} recorded successfully.`,
       customer: formatCustomer(customer),
-      payment: {
-        id: payment._id.toString(),
-        paymentId: payment.paymentId,
-        orderNumber: payment.orderNumber,
-        customerName: payment.customerName,
-        date: payment.date,
-        amount: payment.amount,
-        method: payment.method,
-        status: payment.status
-      }
+      payments: createdPayments.map(p => ({
+        id: p._id.toString(),
+        paymentId: p.paymentId,
+        orderNumber: p.orderNumber,
+        customerName: p.customerName,
+        date: p.date,
+        amount: p.amount,
+        method: p.method,
+        status: p.status
+      }))
     });
   } catch (error) {
     console.error('Settle customer balance error:', error);

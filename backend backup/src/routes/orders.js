@@ -41,7 +41,9 @@ const formatOrder = (order) => {
       time: t.time,
       updatedBy: t.updatedBy,
       comment: t.comment || ''
-    }))
+    })),
+    createdAt: order.createdAt,
+    updatedAt: order.updatedAt
   };
 };
 
@@ -63,10 +65,15 @@ router.get('/', authenticate, async (req, res) => {
     const { branchId, status } = req.query;
     const filter = {};
     
+    const branches = await Branch.find().select('_id');
+    const existingBranchIds = branches.map(b => b._id.toString());
+
     if (req.user.branch) {
       filter.branchId = req.user.branch;
-    } else if (branchId) {
+    } else if (branchId && branchId !== 'All') {
       filter.branchId = branchId;
+    } else {
+      filter.branchId = { $in: existingBranchIds };
     }
     
     if (status) filter.status = status;
@@ -303,8 +310,29 @@ router.put('/:id/payment-status', authenticate, requirePermission(['manage_order
       return res.status(404).json({ message: 'Order not found.' });
     }
 
-    order.paymentStatus = paymentStatus;
+    const oldPaymentStatus = order.paymentStatus;
+    const newPaymentStatus = paymentStatus;
+
+    order.paymentStatus = newPaymentStatus;
     await order.save();
+
+    // Sync with Customer outstanding balance
+    if (oldPaymentStatus !== newPaymentStatus) {
+      const Customer = require('../models/Customer');
+      const customer = await Customer.findById(order.customer);
+      if (customer) {
+        if (oldPaymentStatus === 'Paid' && newPaymentStatus !== 'Paid') {
+          // Changed from Paid to Pending -> increase customer balance
+          customer.balance = (customer.balance || 0) + order.totalAmount;
+          await customer.save();
+        } else if (oldPaymentStatus !== 'Paid' && newPaymentStatus === 'Paid') {
+          // Changed from Pending to Paid -> decrease customer balance
+          customer.balance = Math.max(0, (customer.balance || 0) - order.totalAmount);
+          await customer.save();
+        }
+      }
+    }
+
     res.json(formatOrder(order));
   } catch (error) {
     console.error('Update order payment status error:', error);

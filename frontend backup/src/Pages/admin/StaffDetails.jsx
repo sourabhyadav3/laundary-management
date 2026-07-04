@@ -2,7 +2,7 @@ import React, { useContext, useState } from 'react';
 import { FiArrowLeft, FiEdit2, FiMail, FiPhone, FiMapPin, FiCalendar, FiBriefcase, FiTrendingUp } from 'react-icons/fi';
 import { useNavigate, useParams } from 'react-router-dom';
 import { AdminStateContext } from '../../context/AdminStateContext';
-import { formatCurrency } from '../../utils/exportUtils';
+import { formatCurrency, formatDate } from '../../utils/exportUtils';
 
 const roleColors = {
   Admin: 'bg-purple-500/10 text-purple-600 border-purple-500/15',
@@ -189,7 +189,7 @@ const StaffDetails = () => {
               </div>
               <div>
                 <p className="text-xs uppercase tracking-[0.3em] text-secondary">Joining Date</p>
-                <p className="mt-2 text-lg font-semibold text-primary">{new Date(staffMember.joiningDate).toLocaleDateString()}</p>
+                <p className="mt-2 text-lg font-semibold text-primary">{formatDate(staffMember.joiningDate)}</p>
                 <p className="mt-1 text-xs text-secondary">{daysSinceJoining} days ago</p>
               </div>
             </div>
@@ -263,7 +263,7 @@ const StaffDetails = () => {
             <div className="h-2 w-2 flex-shrink-0 rounded-full bg-slate-400"></div>
             <div className="flex-1">
               <p className="font-semibold text-primary">Account created</p>
-              <p className="text-xs text-secondary">{new Date(staffMember.joiningDate).toLocaleDateString()}</p>
+              <p className="text-xs text-secondary">{formatDate(staffMember.joiningDate)}</p>
             </div>
           </div>
         </div>

@@ -65,10 +65,13 @@ const Orders = () => {
         return matchesBranch && matchesSearch && matchesStatus && matchesPayment && matchesLiveUpdate;
       })
       .sort((a, b) => {
+        if (a.createdAt && b.createdAt) {
+          return new Date(b.createdAt) - new Date(a.createdAt);
+        }
         const numA = Number(a.id);
         const numB = Number(b.id);
         if (!isNaN(numA) && !isNaN(numB)) return numB - numA;
-        return String(b.id || '').localeCompare(String(a.id || ''), undefined, { numeric: true, sensitivity: 'base' });
+        return String(b.id || '').localeCompare(String(a.id || ''));
       });
   }, [orders, searchTerm, statusFilter, paymentFilter, selectedBranch, liveUpdateFilter]);
 

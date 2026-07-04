@@ -76,7 +76,15 @@ const Settings = () => {
     }
   };
 
+  const [hasInitialized, setHasInitialized] = useState(false);
   const [businessForm, setBusinessForm] = useState({ ...settings.business });
+
+  React.useEffect(() => {
+    if (settings && settings.business && settings.isLoaded && !hasInitialized) {
+      setBusinessForm({ ...settings.business });
+      setHasInitialized(true);
+    }
+  }, [settings, hasInitialized]);
 
 
   const storedUser = JSON.parse(localStorage.getItem('user') || '{}');
@@ -100,6 +108,7 @@ const Settings = () => {
   const handleResetBusiness = () => {
     resetSection('business');
     setBusinessForm({ ...DEFAULT_SETTINGS.business });
+    setHasInitialized(false);
     toast.info('Business profile reset');
   };
 
