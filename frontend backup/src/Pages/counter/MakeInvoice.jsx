@@ -177,6 +177,10 @@ const MakeInvoice = () => {
     const saved = localStorage.getItem('counter_draft_invoice_items');
     return saved ? JSON.parse(saved) : [];
   });
+  const [editingLineTotalIdx, setEditingLineTotalIdx] = useState(null);
+  const [editingLineTotalValue, setEditingLineTotalValue] = useState('');
+  const [editingSubtotal, setEditingSubtotal] = useState(false);
+  const [editingSubtotalValue, setEditingSubtotalValue] = useState('');
   const [customerSearchQuery, setCustomerSearchQuery] = useState('');
   const [showSearchResults, setShowSearchResults] = useState(false);
   const customerDropdownRef = useRef(null);
@@ -369,6 +373,77 @@ const MakeInvoice = () => {
     });
   };
 
+  const startEditLineTotal = (idx) => {
+    const item = orderItems[idx];
+    if (!item) return;
+    const currentTotal = Number(item.quantity || 0) * Number(item.unitPrice || 0);
+    setEditingLineTotalIdx(idx);
+    setEditingLineTotalValue(String(currentTotal.toFixed(3)));
+  };
+
+  const saveEditedLineTotal = (idx) => {
+    const parsedTotal = Number(editingLineTotalValue);
+    if (!Number.isFinite(parsedTotal) || parsedTotal < 0) {
+      toast.error(language === 'ar' ? 'يرجى إدخال قيمة صحيحة' : 'Please enter a valid total');
+      return;
+    }
+
+    setOrderItems((prev) => {
+      const copy = [...prev];
+      const item = copy[idx];
+      if (!item) return prev;
+      const qty = Number(item.quantity) || 1;
+      const unitPrice = Math.round((parsedTotal / qty) * 1000) / 1000;
+      copy[idx] = { ...item, unitPrice };
+      return copy;
+    });
+
+    setEditingLineTotalIdx(null);
+    setEditingLineTotalValue('');
+  };
+
+  const startEditSubtotal = () => {
+    if (orderItems.length === 0) return;
+    setEditingSubtotal(true);
+    setEditingSubtotalValue(String(subtotal.toFixed(3)));
+  };
+
+  const saveEditedSubtotal = () => {
+    const parsedSubtotal = Number(editingSubtotalValue);
+    if (!Number.isFinite(parsedSubtotal) || parsedSubtotal < 0) {
+      toast.error(language === 'ar' ? 'يرجى إدخال قيمة صحيحة' : 'Please enter a valid subtotal');
+      return;
+    }
+    if (orderItems.length === 0) return;
+
+    const currentSubtotal = orderItems.reduce((sum, item) => sum + (item.quantity * item.unitPrice), 0);
+    if (currentSubtotal === 0) return;
+
+    setOrderItems((prev) => {
+      const copy = prev.map(item => ({ ...item }));
+      let runningSum = 0;
+
+      for (let i = 0; i < copy.length - 1; i++) {
+        const item = copy[i];
+        const ratio = parsedSubtotal / currentSubtotal;
+        const newUnitPrice = Math.round((item.unitPrice * ratio) * 1000) / 1000;
+        item.unitPrice = newUnitPrice;
+        runningSum += item.quantity * newUnitPrice;
+      }
+
+      const lastIndex = copy.length - 1;
+      const lastItem = copy[lastIndex];
+      const remainingAmount = parsedSubtotal - runningSum;
+      const lastQty = lastItem.quantity || 1;
+      lastItem.unitPrice = Math.max(0, Math.round((remainingAmount / lastQty) * 1000) / 1000);
+
+      return copy;
+    });
+
+    setEditingSubtotal(false);
+    setEditingSubtotalValue('');
+  };
+
   const removeItem = (idx) => {
     setOrderItems((prev) => prev.filter((_, i) => i !== idx));
   };
@@ -388,6 +463,10 @@ const MakeInvoice = () => {
     setOrderItems([]);
     setCustomerSearchQuery('');
     setActiveGarmentIdx(null);
+    setEditingLineTotalIdx(null);
+    setEditingLineTotalValue('');
+    setEditingSubtotal(false);
+    setEditingSubtotalValue('');
     clearDraftInvoice();
     toast.info('Invoice template reset');
   };
@@ -1140,7 +1219,43 @@ const MakeInvoice = () => {
                         </div>
                       </td>
                       <td className="p-2 text-right font-mono font-bold text-primary">
-                        {formatCurrency(item.quantity * item.unitPrice)}
+                        {editingLineTotalIdx === idx ? (
+                          <div className="flex items-center justify-end gap-1">
+                            <input
+                              type="number"
+                              min="0"
+                              step="0.001"
+                              value={editingLineTotalValue}
+                              onChange={(e) => setEditingLineTotalValue(e.target.value)}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter') saveEditedLineTotal(idx);
+                                if (e.key === 'Escape') {
+                                  setEditingLineTotalIdx(null);
+                                  setEditingLineTotalValue('');
+                                }
+                              }}
+                              className="w-20 rounded border border-border bg-surface px-1.5 py-1 text-right text-[11px] font-mono focus:outline-none focus:ring-1 focus:ring-blue-400"
+                              autoFocus
+                            />
+                            <button
+                              type="button"
+                              onClick={() => saveEditedLineTotal(idx)}
+                              className="text-emerald-600 hover:text-emerald-700"
+                              title={language === 'ar' ? 'حفظ' : 'Save'}
+                            >
+                              <FiCheck size={14} />
+                            </button>
+                          </div>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => startEditLineTotal(idx)}
+                            className="font-mono font-bold text-primary hover:text-blue-600 underline decoration-dotted underline-offset-4"
+                            title={language === 'ar' ? 'اضغط للتعديل' : 'Click to edit'}
+                          >
+                            {formatCurrency(item.quantity * item.unitPrice)}
+                          </button>
+                        )}
                       </td>
                       <td className="p-2 text-center">
                         <button
@@ -1214,7 +1329,46 @@ const MakeInvoice = () => {
             {/* Subtotal, Discount & Tax lines */}
             <div className="grid grid-cols-2 gap-y-1 text-xs px-1 font-medium">
               <div className="text-secondary">{t('counter.makeInvoice.subtotalLabel') || "Subtotal"}:</div>
-              <div className="text-right font-mono text-primary">{formatCurrency(subtotal)}</div>
+              <div className="text-right font-mono text-primary">
+                {editingSubtotal ? (
+                  <div className="flex items-center justify-end gap-1">
+                    <input
+                      type="number"
+                      min="0"
+                      step="0.001"
+                      value={editingSubtotalValue}
+                      onChange={(e) => setEditingSubtotalValue(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') saveEditedSubtotal();
+                        if (e.key === 'Escape') {
+                          setEditingSubtotal(false);
+                          setEditingSubtotalValue('');
+                        }
+                      }}
+                      className="w-20 rounded border border-border bg-surface px-1.5 py-1 text-right text-[11px] font-mono focus:outline-none focus:ring-1 focus:ring-blue-400"
+                      autoFocus
+                    />
+                    <button
+                      type="button"
+                      onClick={saveEditedSubtotal}
+                      className="text-emerald-600 hover:text-emerald-700"
+                      title={language === 'ar' ? 'حفظ' : 'Save'}
+                    >
+                      <FiCheck size={14} />
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={startEditSubtotal}
+                    className="font-mono font-bold text-primary hover:text-blue-600 underline decoration-dotted underline-offset-4"
+                    title={language === 'ar' ? 'اضغط للتعديل' : 'Click to edit'}
+                    disabled={orderItems.length === 0}
+                  >
+                    {formatCurrency(subtotal)}
+                  </button>
+                )}
+              </div>
               {form.discountChecked && (
                 <>
                   <div className="text-rose-500 font-semibold">{t('counter.makeInvoice.discountLabel') || "Discount"}:</div>

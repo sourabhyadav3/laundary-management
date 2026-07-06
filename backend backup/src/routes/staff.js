@@ -1,4 +1,5 @@
 const express = require('express');
+const mongoose = require('mongoose');
 const User = require('../models/User');
 const Role = require('../models/Role');
 const Branch = require('../models/Branch');
@@ -96,19 +97,26 @@ const formatUserWithStats = (user, orders, deliveries, pickups, payments) => {
 router.get('/', authenticate, requirePermission('manage_staff'), async (req, res) => {
   try {
     let query = {};
-    if (req.user.branch) {
+    if (req.user.branch && mongoose.Types.ObjectId.isValid(req.user.branch)) {
       query = { branch: req.user.branch };
     } else {
       // For Super Admin: filter out staff of deleted branches
       const branches = await Branch.find().select('_id');
-      const branchIds = branches.map(b => b._id);
+      const branchIds = branches.map(b => b._id).filter(id => id && mongoose.Types.ObjectId.isValid(id));
+      
+      const superAdminRole = await Role.findOne({ name: 'Super Admin' });
+      const superAdminRoleId = superAdminRole ? superAdminRole._id : null;
+
       query = {
         $or: [
           { branch: { $in: branchIds } },
-          { branch: null },
-          { role: await Role.findOne({ name: 'Super Admin' }).then(r => r?._id) }
+          { branch: null }
         ]
       };
+
+      if (superAdminRoleId) {
+        query.$or.push({ role: superAdminRoleId });
+      }
     }
     const users = await User.find(query)
       .populate('role')
