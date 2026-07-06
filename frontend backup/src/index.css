@@ -22,3 +22,20 @@ code {
   font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
     monospace;
 }
+
+/* Custom premium horizontal scrollbar */
+.custom-scrollbar-horizontal::-webkit-scrollbar {
+  height: 8px;
+}
+.custom-scrollbar-horizontal::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: 10px;
+}
+.custom-scrollbar-horizontal::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 10px;
+  border: 1px solid rgba(0, 0, 0, 0.2);
+}
+.custom-scrollbar-horizontal::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.25);
+}

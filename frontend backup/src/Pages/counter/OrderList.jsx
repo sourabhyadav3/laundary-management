@@ -9,11 +9,23 @@ import { ORDER_STATUSES, getNextOrderStatus, getOrderStatusStyle, HOLD_STATUS } 
 import OrderTimeline from '../../Components/counter/OrderTimeline';
 
 const OrderList = () => {
-  const { orders, updateOrderStatus, selectedBranch } = useContext(AdminStateContext);
+  const { orders, updateOrderStatus, selectedBranch, bulkUpdateOrderStatus } = useContext(AdminStateContext);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('All');
   const [paymentFilter, setPaymentFilter] = useState('All');
+  const [deliveryFilter, setDeliveryFilter] = useState('All');
   const [selectedOrder, setSelectedOrder] = useState(null);
+  const [selectedOrderIds, setSelectedOrderIds] = useState([]);
+  const [bulkStatus, setBulkStatus] = useState('');
+
+  const handleBulkStatusUpdate = async () => {
+    if (!bulkStatus) return;
+    const success = await bulkUpdateOrderStatus(selectedOrderIds, bulkStatus);
+    if (success) {
+      setSelectedOrderIds([]);
+      setBulkStatus('');
+    }
+  };
   
   const activeOrder = useMemo(() => {
     if (!selectedOrder) return null;
@@ -29,12 +41,18 @@ const OrderList = () => {
     () =>
       orders
         .filter(
-          (o) =>
-            (!selectedBranch || selectedBranch === 'All' || o.branchId === selectedBranch || o.branch === selectedBranch) &&
-            (o.number.toLowerCase().includes(searchTerm.toLowerCase()) ||
-              o.customerName.toLowerCase().includes(searchTerm.toLowerCase())) &&
-            (statusFilter === 'All' || o.status === statusFilter) &&
-            (paymentFilter === 'All' || o.paymentStatus === paymentFilter)
+          (o) => {
+            const matchesBranch = !selectedBranch || selectedBranch === 'All' || o.branchId === selectedBranch || o.branch === selectedBranch;
+            const matchesSearch = o.number.toLowerCase().includes(searchTerm.toLowerCase()) || o.customerName.toLowerCase().includes(searchTerm.toLowerCase());
+            const matchesStatus = statusFilter === 'All' || o.status === statusFilter;
+            const matchesPayment = paymentFilter === 'All' || o.paymentStatus === paymentFilter;
+            const isHome = o.deliveryType === 'Home Delivery' || o.isHomeDelivery;
+            const matchesDelivery = deliveryFilter === 'All' ||
+              (deliveryFilter === 'Home Delivery' && isHome) ||
+              (deliveryFilter === 'Branch Pickup' && !isHome);
+
+            return matchesBranch && matchesSearch && matchesStatus && matchesPayment && matchesDelivery;
+          }
         )
         .sort((a, b) => {
           if (a.createdAt && b.createdAt) {
@@ -45,7 +63,7 @@ const OrderList = () => {
           if (!isNaN(numA) && !isNaN(numB)) return numB - numA;
           return String(b.id || '').localeCompare(String(a.id || ''));
         }),
-    [orders, searchTerm, selectedBranch, statusFilter, paymentFilter]
+    [orders, searchTerm, selectedBranch, statusFilter, paymentFilter, deliveryFilter]
   );
 
   const handleUpdateStatus = (order) => {
@@ -82,7 +100,7 @@ const OrderList = () => {
         </div>
       </section>
 
-      <div className="grid gap-4 md:grid-cols-4">
+      <div className="grid gap-4 md:grid-cols-5">
         <div className="relative md:col-span-2">
           <FiSearch className="absolute left-4 top-1/2 -translate-y-1/2 text-secondary" />
           <input
@@ -121,11 +139,67 @@ const OrderList = () => {
           </select>
           <FiChevronDown className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-secondary" />
         </div>
+
+        <div className="relative">
+          <select
+            value={deliveryFilter}
+            onChange={(e) => setDeliveryFilter(e.target.value)}
+            className="w-full appearance-none rounded-3xl border border-border bg-surface py-3 px-4 text-primary focus:outline-none focus:ring-2 focus:ring-blue-400/40"
+          >
+            <option value="All">All Types</option>
+            <option value="Home Delivery">Home Delivery</option>
+            <option value="Branch Pickup">Branch Pickup</option>
+          </select>
+          <FiChevronDown className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-secondary" />
+        </div>
       </div>
+
+      {/* Bulk Status Update Area */}
+      {selectedOrderIds.length > 0 && (
+        <div className="flex flex-wrap items-center justify-between gap-4 p-5 bg-blue-500/10 border border-blue-500/20 rounded-2xl animate-fade-in">
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-bold text-primary">
+              Selected {selectedOrderIds.length} orders
+            </span>
+          </div>
+          <div className="flex items-center gap-3">
+            <div className="relative">
+              <select
+                value={bulkStatus}
+                onChange={(e) => setBulkStatus(e.target.value)}
+                className="appearance-none rounded-xl border border-border bg-surface py-2.5 px-4 pr-10 text-sm font-semibold text-primary focus:outline-none focus:ring-2 focus:ring-blue-400/40"
+              >
+                <option value="">-- Select Status --</option>
+                {ORDER_STATUSES.map((status) => (
+                  <option key={status} value={status}>
+                    {status}
+                  </option>
+                ))}
+              </select>
+              <FiChevronDown className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-secondary" />
+            </div>
+            <button
+              onClick={handleBulkStatusUpdate}
+              disabled={!bulkStatus}
+              className="action-button bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2.5 px-5 rounded-xl text-xs uppercase tracking-wider disabled:opacity-50 disabled:cursor-not-allowed shadow-md hover:shadow-lg transition-all duration-200"
+            >
+              Update Status
+            </button>
+            <button
+              onClick={() => setSelectedOrderIds([])}
+              className="px-4 py-2.5 text-xs font-bold text-secondary hover:text-primary transition uppercase tracking-wider"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
 
       <section className="surface-card border border-border overflow-hidden">
         <OrderTable
           orders={filteredOrders}
+          selectedOrderIds={selectedOrderIds}
+          setSelectedOrderIds={setSelectedOrderIds}
           onView={(o) => {
             setSelectedOrder(o);
             setShowViewModal(true);

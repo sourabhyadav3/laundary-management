@@ -186,14 +186,35 @@ const Payments = () => {
     { header: 'Payment ID', accessor: 'paymentId' },
     { header: 'Order #', accessor: 'orderNumber' },
     { header: 'Customer', accessor: 'customerName' },
-    { header: 'Amount', accessor: 'amount', format: (val) => formatCurrency(val) },
+    {
+      header: 'Amount',
+      accessor: 'amount',
+      cell: (row) => {
+        const showDetails = row.orderTotal && row.orderTotal > row.amount;
+        const due = showDetails ? Math.max(0, row.orderTotal - (row.orderAmountPaid || 0)) : 0;
+        return (
+          <div className="flex flex-col">
+            <span className="font-mono">{formatCurrency(row.amount)}</span>
+            {showDetails && (
+              <div className="flex flex-col mt-0.5">
+                <span className="text-[10px] text-secondary font-medium">Total: {formatCurrency(row.orderTotal)}</span>
+                {due > 0 && (
+                  <span className="text-[10px] text-rose-500 font-bold">Due: {formatCurrency(due)}</span>
+                )}
+              </div>
+            )}
+          </div>
+        );
+      }
+    },
     { header: 'Method', accessor: 'method' },
     {
       header: 'Status',
       accessor: 'status',
       cell: (row) => {
-        const statusClass = `status-pill ${paymentStatusColors[row.status] || paymentStatusColors.Pending}`;
-        return <span className={statusClass}>{row.status}</span>;
+        const displayStatus = row.orderPaymentStatus || row.status || 'Paid';
+        const statusClass = `status-pill ${paymentStatusColors[displayStatus] || paymentStatusColors.Pending}`;
+        return <span className={statusClass}>{displayStatus}</span>;
       },
     },
     { header: 'Date', accessor: 'date', format: (val) => formatDate(val) },
@@ -636,10 +657,11 @@ const Payments = () => {
                     onChange={(e) => {
                       const selectedId = e.target.value;
                       const orderObj = orders.find(o => String(o.id) === String(selectedId) || String(o._id) === String(selectedId));
+                      const due = orderObj ? (orderObj.totalAmount - (orderObj.amountPaid || 0)) : 0;
                       setRecordPaymentForm({
                         ...recordPaymentForm,
                         orderId: selectedId,
-                        amount: orderObj ? orderObj.totalAmount : ''
+                        amount: due > 0 ? due.toFixed(3) : ''
                       });
                     }}
                     className="w-full appearance-none rounded-2xl border border-border bg-surface py-3 px-4 text-primary focus:outline-none focus:ring-2 focus:ring-blue-400/40 text-sm font-medium"
@@ -649,7 +671,7 @@ const Payments = () => {
                       .filter(o => o.paymentStatus !== 'Paid')
                       .map((o) => (
                         <option key={o.id || o._id} value={o.id || o._id}>
-                          {o.number} ({o.customerName}) - Due: {formatCurrency(o.totalAmount)}
+                          {o.number} ({o.customerName}) - Due: {formatCurrency(o.totalAmount - (o.amountPaid || 0))}
                         </option>
                       ))}
                   </select>

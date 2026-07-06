@@ -42,7 +42,7 @@ export const translations = {
       deliveryOperations: "Delivery operations",
       newOrder: "New Order",
       makeInvoice: "Make Invoice",
-      orderList: "Order List",
+      orderList: "Change invoice status",
       orderTracking: "Order Tracking",
       lcdDisplay: "LCD Display",
     },

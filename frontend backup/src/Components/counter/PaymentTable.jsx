@@ -11,15 +11,33 @@ const PaymentTable = ({ payments }) => {
     {
       header: 'Amount',
       accessor: 'amount',
-      format: (val) => formatCurrency(val),
+      cell: (row) => {
+        const showDetails = row.orderTotal && row.orderTotal > row.amount;
+        const due = showDetails ? Math.max(0, row.orderTotal - (row.orderAmountPaid || 0)) : 0;
+        return (
+          <div className="flex flex-col">
+            <span className="font-mono">{formatCurrency(row.amount)}</span>
+            {showDetails && (
+              <div className="flex flex-col mt-0.5">
+                <span className="text-[10px] text-secondary font-medium">Total: {formatCurrency(row.orderTotal)}</span>
+                {due > 0 && (
+                  <span className="text-[10px] text-rose-500 font-bold">Due: {formatCurrency(due)}</span>
+                )}
+              </div>
+            )}
+          </div>
+        );
+      }
     },
     { header: 'Payment Method', accessor: 'method' },
     {
       header: 'Status',
       accessor: 'status',
-      cell: (row) => (
-        <span className={paymentStatusStyles[row.status] || paymentStatusStyles.Pending}>{row.status}</span>
-      ),
+      cell: (row) => {
+        const displayStatus = row.orderPaymentStatus || row.status || 'Paid';
+        const statusClass = paymentStatusStyles[displayStatus] || paymentStatusStyles.Pending;
+        return <span className={statusClass}>{displayStatus}</span>;
+      },
     },
     {
       header: 'Date',

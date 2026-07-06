@@ -67,7 +67,7 @@ export const ALL_MODULES = [
   },
   {
     id: 'admin_orders',
-    label: 'Order List',
+    label: 'Change invoice status',
     category: 'Admin',
     route: '/admin/orders',
     supportedActions: ['view', 'create', 'edit', 'delete', 'print', 'export', 'approve']
@@ -167,7 +167,7 @@ export const ALL_MODULES = [
   },
   {
     id: 'counter_orders',
-    label: 'Order List',
+    label: 'Change invoice status',
     category: 'Counter Staff',
     route: '/counter/orders',
     supportedActions: ['view', 'create', 'edit', 'print']

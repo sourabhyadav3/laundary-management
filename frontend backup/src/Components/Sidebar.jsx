@@ -9,7 +9,7 @@ import { useLanguage } from '../context/LanguageContext';
 const menuItems = [
   { label: 'Dashboard', icon: <FiHome />, to: '/admin/dashboard', permission: 'view_dashboard' },
   { label: 'Customers', icon: <FiUsers />, to: '/admin/customers', permission: 'view_customers' },
-  { label: 'Order List', icon: <FiList />, to: '/admin/orders', permission: 'view_orders' },
+  { label: 'Change invoice status', icon: <FiList />, to: '/admin/orders', permission: 'view_orders' },
   { label: 'Invoices', icon: <FiFileText />, to: '/admin/invoices', permission: 'view_invoice_status' },
   { label: 'Branches', icon: <FiMapPin />, to: '/admin/branches', permission: 'manage_settings' },
   { label: 'Make Invoices', icon: <FiPlusCircle />, to: '/admin/make-invoice', permission: 'make_invoice' },
@@ -81,7 +81,7 @@ const Sidebar = () => {
       case 'Dashboard': return t('sidebar.dashboard');
       case 'Customers': return t('sidebar.customers');
       case 'Orders': return t('sidebar.orders');
-      case 'Order List': return t('sidebar.orderList') || 'Order List';
+      case 'Change invoice status': return t('sidebar.orderList') || 'Change invoice status';
       case 'Invoices': return t('sidebar.invoices') || 'Invoices';
       case 'Branches': return t('sidebar.branches');
       case 'Laundry Services': return t('sidebar.services');

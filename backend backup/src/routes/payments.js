@@ -25,6 +25,9 @@ const formatPayment = (payment) => {
     amount: payment.amount,
     method: payment.method,
     status: payment.status,
+    orderTotal: isOrderPopulated ? payment.order.totalAmount : null,
+    orderPaymentStatus: isOrderPopulated ? payment.order.paymentStatus : null,
+    orderAmountPaid: isOrderPopulated ? payment.order.amountPaid : null,
     createdAt: payment.createdAt,
     updatedAt: payment.updatedAt
   };
@@ -128,15 +131,30 @@ router.post('/', authenticate, requirePermission('manage_payments'), async (req,
       payment.branch || req.user.branch
     );
 
-    // Sync with order payment status
-    if (payment.order) {
+    // Sync with order payment status, amountPaid, and customer balance
+    if (payment.order && payment.status === 'Paid') {
       const order = await Order.findById(payment.order);
       if (order) {
-        order.paymentStatus = payment.status;
+        order.amountPaid = (order.amountPaid || 0) + payment.amount;
+        if (order.amountPaid >= order.totalAmount) {
+          order.paymentStatus = 'Paid';
+        } else {
+          order.paymentStatus = 'Partial';
+        }
         await order.save();
+
+        const Customer = require('../models/Customer');
+        const customer = await Customer.findById(order.customer);
+        if (customer) {
+          customer.balance = Math.max(0, (customer.balance || 0) - payment.amount);
+          await customer.save();
+        }
       }
     }
 
+    if (payment.order) {
+      await payment.populate('order');
+    }
     res.status(201).json(formatPayment(payment));
   } catch (error) {
     console.error('Create payment error:', error);
@@ -161,10 +179,13 @@ router.put('/:id', authenticate, requirePermission('manage_payments'), async (re
     const mongoose = require('mongoose');
     const oldStatus = payment.status;
     const newStatus = status || 'Paid';
+    const oldAmount = payment.amount;
+    const newAmount = amount !== undefined ? Number(amount) : oldAmount;
+    const diff = newAmount - oldAmount;
 
     payment.method = method;
     payment.status = newStatus;
-    if (amount !== undefined) payment.amount = Number(amount);
+    payment.amount = newAmount;
     if (date !== undefined) payment.date = date;
     await payment.save();
 
@@ -175,57 +196,46 @@ router.put('/:id', authenticate, requirePermission('manage_payments'), async (re
       payment.branch || req.user.branch
     );
 
-    // 1. Sync with Customer outstanding balance
-    if (oldStatus !== newStatus) {
-      const Customer = require('../models/Customer');
-      let customer = null;
-
-      // Try finding customer via BAL- prefix in orderNumber
-      if (payment.orderNumber && payment.orderNumber.startsWith('BAL-')) {
-        const customerId = payment.orderNumber.replace('BAL-', '');
-        if (mongoose.Types.ObjectId.isValid(customerId)) {
-          customer = await Customer.findById(customerId);
-        }
-      }
-
-      // Fallback 1: Try finding customer via linked order
-      if (!customer && payment.order) {
-        const order = await Order.findById(payment.order);
-        if (order && order.customer) {
-          customer = await Customer.findById(order.customer);
-        }
-      }
-
-      // Fallback 2: Find customer by name
-      if (!customer && payment.customerName) {
-        customer = await Customer.findOne({ name: payment.customerName });
-      }
-
-      if (customer) {
-        if (oldStatus === 'Paid' && newStatus !== 'Paid') {
-          // Changed from Paid to Pending -> increase customer balance
-          customer.balance = (customer.balance || 0) + payment.amount;
-          await customer.save();
-        } else if (oldStatus !== 'Paid' && newStatus === 'Paid') {
-          // Changed from Pending to Paid -> decrease customer balance
-          customer.balance = Math.max(0, (customer.balance || 0) - payment.amount);
-          await customer.save();
-        }
-      }
-    }
-
-    // 2. Sync with order(s) payment status
-    if (payment.orderNumber && !payment.orderNumber.startsWith('BAL-') && payment.orderNumber !== 'Balance Settle') {
-      const orderNumbers = payment.orderNumber.split(',').map(s => s.trim());
-      await Order.updateMany({ number: { $in: orderNumbers } }, { $set: { paymentStatus: newStatus } });
-    } else if (payment.order) {
+    // Sync with order payment status, order amountPaid, and customer balance
+    if (payment.order) {
       const order = await Order.findById(payment.order);
       if (order) {
-        order.paymentStatus = newStatus;
+        // Adjust order's amountPaid by the difference in payment transaction amount
+        order.amountPaid = (order.amountPaid || 0) + diff;
+        
+        // Recompute order paymentStatus
+        if (order.amountPaid >= order.totalAmount) {
+          order.paymentStatus = 'Paid';
+        } else if (order.amountPaid > 0) {
+          order.paymentStatus = 'Partial';
+        } else {
+          order.paymentStatus = 'Pending';
+        }
         await order.save();
+
+        // Adjust customer balance
+        const Customer = require('../models/Customer');
+        const customer = await Customer.findById(order.customer);
+        if (customer) {
+          customer.balance = Math.max(0, (customer.balance || 0) - diff);
+          await customer.save();
+        }
+      }
+    } else if (payment.orderNumber && payment.orderNumber.startsWith('BAL-')) {
+      const Customer = require('../models/Customer');
+      const customerId = payment.orderNumber.replace('BAL-', '');
+      if (mongoose.Types.ObjectId.isValid(customerId)) {
+        const customer = await Customer.findById(customerId);
+        if (customer) {
+          customer.balance = Math.max(0, (customer.balance || 0) - diff);
+          await customer.save();
+        }
       }
     }
 
+    if (payment.order) {
+      await payment.populate('order');
+    }
     res.json(formatPayment(payment));
   } catch (error) {
     console.error('Update payment error:', error);

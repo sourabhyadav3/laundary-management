@@ -242,8 +242,8 @@ router.post('/:id/settle', authenticate, requirePermission('manage_payments'), a
       return res.status(400).json({ message: 'Customer has no outstanding balance.' });
     }
 
-    // Find corresponding pending orders before updating them
-    const pendingOrders = await Order.find({ customer: customer._id, paymentStatus: 'Pending' }).select('number _id totalAmount branchId');
+    // Find corresponding pending or partial orders before updating them
+    const pendingOrders = await Order.find({ customer: customer._id, paymentStatus: { $in: ['Pending', 'Partial'] } }).select('number _id totalAmount amountPaid branchId');
 
     // Reset customer balance to 0
     customer.balance = 0;
@@ -262,12 +262,15 @@ router.post('/:id/settle', authenticate, requirePermission('manage_payments'), a
     let remainingAmount = settledAmount;
     const createdPayments = [];
 
-    // 1. Process each pending order
+    // 1. Process each pending/partial order
     for (const order of pendingOrders) {
-      const orderAmount = order.totalAmount || 0;
+      const paidAlready = order.amountPaid || 0;
+      const orderAmount = Math.max(0, (order.totalAmount || 0) - paidAlready);
+      if (orderAmount <= 0) continue;
       
       // Update order paymentStatus to Paid
       order.paymentStatus = 'Paid';
+      order.amountPaid = order.totalAmount;
       await order.save();
       
       const paymentId = `PAY-${String(nextNum++).padStart(4, '0')}`;

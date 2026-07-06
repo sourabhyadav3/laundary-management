@@ -5,8 +5,8 @@ import { useLanguage } from '../context/LanguageContext';
 const ReusableTable = ({ columns, data, getRowStyle, getRowClassName }) => {
   const { tr } = useLanguage();
   return (
-    <div className="overflow-x-auto rounded-3xl border border-border bg-surface shadow-xl">
-      <table className="min-w-full">
+    <div className="overflow-x-auto rounded-3xl border border-border bg-surface shadow-xl custom-scrollbar-horizontal">
+      <table className="min-w-max md:min-w-[1200px]">
         <thead className="bg-surface-alt">
           <tr>
             {columns.map((col, colIdx) => (
@@ -14,7 +14,7 @@ const ReusableTable = ({ columns, data, getRowStyle, getRowClassName }) => {
                 key={col.accessor ? `${col.accessor}-${colIdx}` : colIdx}
                 className="px-5 py-4 text-left text-xs font-semibold uppercase tracking-[0.3em] text-muted"
               >
-                {tr(col.header)}
+                {typeof col.header === 'string' ? tr(col.header) : col.header}
               </th>
             ))}
           </tr>

@@ -60,7 +60,7 @@ const RoleSidebar = ({ menuItems, roleLabel, footerText }) => {
       case 'New Order': return t('sidebar.makeInvoice') || t('sidebar.newOrder');
       case 'Make Invoice':
       case 'Make Invoices': return t('sidebar.makeInvoice');
-      case 'Order List': return t('sidebar.orderList');
+      case 'Change invoice status': return t('sidebar.orderList');
       case 'Invoices': return t('sidebar.invoices') || 'Invoices';
       case 'Payments': return t('sidebar.payments');
       case 'Order Tracking': return t('sidebar.orderTracking');

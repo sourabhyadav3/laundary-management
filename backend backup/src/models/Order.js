@@ -89,6 +89,10 @@ const orderSchema = new mongoose.Schema({
     type: Number,
     default: 0.0
   },
+  amountPaid: {
+    type: Number,
+    default: 0.0
+  },
   date: {
     type: String,
     required: true

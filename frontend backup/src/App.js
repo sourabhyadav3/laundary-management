@@ -102,6 +102,8 @@ function App() {
           <Route path="completed" element={<CompletedJobs />} />
           <Route path="make-invoice" element={<CounterMakeInvoice />} />
           <Route path="orders" element={<CounterOrderList />} />
+          <Route path="customers" element={<CounterCustomers />} />
+          <Route path="invoices" element={<CounterInvoices />} />
           <Route path="drivers" element={<Drivers />} />
           <Route path="tracking" element={<CounterOrderTracking />} />
           <Route path="settings" element={<DeliverySettings />} />

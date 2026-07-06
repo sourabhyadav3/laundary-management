@@ -139,6 +139,18 @@ const Invoices = () => {
                   <span className="text-primary">Total:</span>
                   <span className="text-primary">{formatCurrency(activeOrder.totalAmount)}</span>
                 </div>
+                <div className="flex justify-between text-emerald-600 font-semibold text-xs mt-1 pt-1 border-t border-dashed border-border/60">
+                  <span>Amount Paid:</span>
+                  <span>
+                    {formatCurrency(activeOrder.paymentStatus === 'Paid' ? activeOrder.totalAmount : (activeOrder.paymentStatus === 'Pending' ? 0 : (activeOrder.amountPaid || 0)))}
+                  </span>
+                </div>
+                <div className="flex justify-between text-rose-500 font-bold text-xs mt-1">
+                  <span>Remaining Balance:</span>
+                  <span>
+                    {formatCurrency(activeOrder.paymentStatus === 'Paid' ? 0 : (activeOrder.paymentStatus === 'Pending' ? activeOrder.totalAmount : (activeOrder.totalAmount - (activeOrder.amountPaid || 0))))}
+                  </span>
+                </div>
               </div>
             </div>
             <div>

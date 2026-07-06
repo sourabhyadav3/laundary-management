@@ -529,9 +529,21 @@ export const AdminStateProvider = ({ children }) => {
     }
   };
 
-  const updateOrderPaymentStatus = async (orderId, paymentStatus) => {
+  const bulkUpdateOrderStatus = async (orderIds, status) => {
     try {
-      await api.put(`/orders/${orderId}/payment-status`, { paymentStatus });
+      await api.put('/orders/bulk/status', { orderIds, status });
+      await fetchData();
+      toast.success(`Successfully updated ${orderIds.length} orders to: ${status}`);
+      return true;
+    } catch (e) {
+      toast.error(e.response?.data?.message || 'Failed to bulk update orders');
+      return false;
+    }
+  };
+
+  const updateOrderPaymentStatus = async (orderId, paymentStatus, amountPaid) => {
+    try {
+      await api.put(`/orders/${orderId}/payment-status`, { paymentStatus, amountPaid });
       await fetchData();
       toast.success(`Payment status updated to: ${paymentStatus}`);
     } catch (e) {
@@ -743,6 +755,7 @@ export const AdminStateProvider = ({ children }) => {
     orders,
     addOrder,
     updateOrderStatus,
+    bulkUpdateOrderStatus,
     updateOrderPaymentStatus,
     deleteOrder,
     setOrders,

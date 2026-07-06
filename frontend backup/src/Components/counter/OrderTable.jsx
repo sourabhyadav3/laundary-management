@@ -5,7 +5,7 @@ import { formatCurrency, formatDate } from '../../utils/exportUtils';
 import { getOrderStatusStyle, paymentStatusStyles } from '../../constants/statusStyles';
 import { AdminStateContext } from '../../context/AdminStateContext';
 
-const OrderTable = ({ orders, onView, onUpdateStatus }) => {
+const OrderTable = ({ orders, onView, onUpdateStatus, selectedOrderIds, setSelectedOrderIds }) => {
   const { catalog, branches } = useContext(AdminStateContext);
 
   const getBranchName = (branchIdOrName) => {
@@ -30,10 +30,54 @@ const OrderTable = ({ orders, onView, onUpdateStatus }) => {
     return {};
   };
   const columns = [
+    ...(setSelectedOrderIds ? [{
+      header: (
+        <input
+          type="checkbox"
+          checked={orders.length > 0 && selectedOrderIds.length === orders.length}
+          onChange={(e) => {
+            if (e.target.checked) {
+              setSelectedOrderIds(orders.map(o => o.id || o._id));
+            } else {
+              setSelectedOrderIds([]);
+            }
+          }}
+          className="w-4 h-4 rounded text-blue-600 focus:ring-blue-500 border-border bg-surface-alt cursor-pointer"
+        />
+      ),
+      accessor: 'checkbox',
+      cell: (row) => (
+        <input
+          type="checkbox"
+          checked={selectedOrderIds.includes(row.id || row._id)}
+          onChange={(e) => {
+            const id = row.id || row._id;
+            if (e.target.checked) {
+              setSelectedOrderIds(prev => [...prev, id]);
+            } else {
+              setSelectedOrderIds(prev => prev.filter(item => item !== id));
+            }
+          }}
+          className="w-4 h-4 rounded text-blue-600 focus:ring-blue-500 border-border bg-surface-alt cursor-pointer"
+        />
+      )
+    }] : []),
     { header: 'Order Number', accessor: 'number' },
     { header: 'Customer', accessor: 'customerName' },
     { header: 'Branch', accessor: 'branchId', cell: (row) => getBranchName(row.branchId || row.branch) },
     { header: 'Service', accessor: 'serviceType' },
+    {
+      header: 'Delivery Type',
+      accessor: 'deliveryType',
+      cell: (row) => {
+        const isHome = row.deliveryType === 'Home Delivery' || row.isHomeDelivery;
+        return (
+          <span className={`px-2.5 py-1 rounded-full text-xs font-bold whitespace-nowrap ${isHome ? 'bg-indigo-500/10 text-indigo-500' : 'bg-slate-500/10 text-slate-500'}`}>
+            {isHome ? 'Home Delivery' : 'Branch Pickup'}
+          </span>
+        );
+      }
+    },
     {
       header: 'Amount',
       accessor: 'totalAmount',

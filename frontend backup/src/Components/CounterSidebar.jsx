@@ -16,7 +16,7 @@ const menuItems = [
   { label: 'Dashboard', icon: <FiHome />, to: '/counter/dashboard', end: true, permission: 'view_dashboard' },
   { label: 'Customers', icon: <FiUsers />, to: '/counter/customers', permission: 'view_customers' },
   { label: 'Make Invoice', icon: <FiPlusCircle />, to: '/counter/orders/new', permission: 'make_invoice' },
-  { label: 'Order List', icon: <FiList />, to: '/counter/orders', end: true, permission: 'view_orders' },
+  { label: 'Change invoice status', icon: <FiList />, to: '/counter/orders', end: true, permission: 'view_orders' },
   { label: 'Invoices', icon: <FiFileText />, to: '/counter/invoices', permission: 'view_invoice_status' },
   { label: 'Payments', icon: <FiCreditCard />, to: '/counter/payments', permission: 'view_payments' },
   { label: 'Home Service', icon: <FiTruck />, to: '/counter/pickups', permission: 'view_logistics' },

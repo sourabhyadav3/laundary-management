@@ -520,6 +520,14 @@ export const generateInvoicePDF = (order, { showPaidTotal = false } = {}) => {
     ? Number(order?.totalAmount) || 0
     : getDisplayTotal(order);
   
+  const paidVal = order?.paymentStatus === 'Paid'
+    ? displayTotal
+    : order?.paymentStatus === 'Pending'
+      ? 0
+      : Number(order?.amountPaid || 0);
+
+  const balanceVal = Math.max(0, displayTotal - paidVal);
+  
   // Construct QR URL
   const receiptUrl = getReceiptUrl(order?.number || '', order);
 
@@ -847,6 +855,14 @@ export const generateInvoicePDF = (order, { showPaidTotal = false } = {}) => {
             <div class="total-row">
               <span style="font-size: 15px; font-weight: 800;">Total Amount / إجمالي السعر:</span>
               <span style="font-family: monospace; font-size: 16px; font-weight: 800;">${formatCurrency(displayTotal)}</span>
+            </div>
+            <div style="display: flex; justify-content: space-between; font-size: 12px; margin-top: 5px; margin-bottom: 3px; color: #000 !important; font-weight: 700;">
+              <span style="font-size: 11px; font-weight: 700;">Paid Amount / المبلغ المدفوع:</span>
+              <span style="font-family: monospace; font-size: 11px; font-weight: 700; color: #059669;">${formatCurrency(paidVal)}</span>
+            </div>
+            <div style="display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 3px; color: #000 !important; font-weight: 700;">
+              <span style="font-size: 11px; font-weight: 700;">Remaining Balance / المتبقي:</span>
+              <span style="font-family: monospace; font-size: 11px; font-weight: 700; color: #dc2626;">${formatCurrency(balanceVal)}</span>
             </div>
           </div>
           

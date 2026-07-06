@@ -22,6 +22,7 @@ const formatOrder = (order) => {
     tax: order.tax,
     totalAmount: order.totalAmount,
     discountAmount: order.discountAmount || 0.0,
+    amountPaid: order.amountPaid || 0.0,
     date: order.date,
     pickupDate: order.pickupDate || '',
     deliveryDate: order.deliveryDate || '',
@@ -142,6 +143,7 @@ router.post('/', authenticate, requirePermission('create_orders'), async (req, r
       tax,
       totalAmount,
       discountAmount: discountAmount || 0.0,
+      amountPaid: paymentStatus === 'Paid' ? parseFloat(totalAmount) : parseFloat(req.body.amountPaid || 0.0),
       date: date || new Date().toISOString().split('T')[0],
       deliveryDate,
       deliveryType: deliveryType || 'Branch Pickup',
@@ -196,6 +198,36 @@ router.post('/', authenticate, requirePermission('create_orders'), async (req, r
         status: 'Paid'
       });
       await payment.save();
+    } else if (order.paymentStatus === 'Partial') {
+      const actualAmountPaid = parseFloat(req.body.amountPaid || 0);
+      const remainingBalance = parseFloat(totalAmount) - actualAmountPaid;
+      
+      // Update customer balance with unpaid amount
+      customer.balance = (customer.balance || 0) + Math.max(0, remainingBalance);
+      
+      if (actualAmountPaid > 0) {
+        const latestPayment = await Payment.findOne().sort({ createdAt: -1 });
+        let nextNum = 1;
+        if (latestPayment && latestPayment.paymentId) {
+          const match = latestPayment.paymentId.match(/PAY-(\d+)/);
+          if (match) {
+            nextNum = parseInt(match[1], 10) + 1;
+          }
+        }
+        const paymentId = `PAY-${String(nextNum).padStart(4, '0')}`;
+
+        const payment = new Payment({
+          paymentId,
+          order: order._id,
+          orderNumber: order.number,
+          customerName: customerName,
+          date: new Date().toISOString().split('T')[0],
+          amount: actualAmountPaid,
+          method: paymentMethod || 'Cash',
+          status: 'Paid'
+        });
+        await payment.save();
+      }
     }
 
     await customer.save();
@@ -250,6 +282,48 @@ router.post('/', authenticate, requirePermission('create_orders'), async (req, r
   }
 });
 
+// @route   PUT /api/orders/bulk/status
+// @desc    Bulk update order statuses
+router.put('/bulk/status', authenticate, requirePermission(['manage_orders', 'create_orders']), async (req, res) => {
+  try {
+    const { orderIds, status } = req.body;
+    if (!orderIds || !Array.isArray(orderIds) || orderIds.length === 0 || !status) {
+      return res.status(400).json({ message: 'orderIds (array) and status are required.' });
+    }
+
+    const { dateStr, timeStr } = getTimelineDateTime();
+
+    const ordersToUpdate = await Order.find({ _id: { $in: orderIds } });
+    for (const order of ordersToUpdate) {
+      order.status = status;
+      order.timeline.push({
+        status,
+        date: dateStr,
+        time: timeStr,
+        updatedBy: req.user.name,
+        comment: 'Bulk status update'
+      });
+
+      if (status === 'Delivered') {
+        order.paymentStatus = 'Paid';
+      }
+      await order.save();
+
+      await notify(
+        'Order Status Updated',
+        `Order ${order.number} status changed to ${status}.`,
+        'order',
+        order.branchId || req.user.branch
+      );
+    }
+
+    res.json({ message: `Successfully updated status of ${ordersToUpdate.length} orders.` });
+  } catch (error) {
+    console.error('Bulk update orders error:', error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+});
+
 // @route   PUT /api/orders/:id/status
 // @desc    Update order status and append to timeline
 router.put('/:id/status', authenticate, requirePermission(['manage_orders', 'create_orders']), async (req, res) => {
@@ -300,7 +374,7 @@ router.put('/:id/status', authenticate, requirePermission(['manage_orders', 'cre
 // @desc    Update order payment status
 router.put('/:id/payment-status', authenticate, requirePermission(['manage_orders', 'create_orders', 'manage_payments']), async (req, res) => {
   try {
-    const { paymentStatus } = req.body;
+    const { paymentStatus, amountPaid } = req.body;
     if (!paymentStatus) {
       return res.status(400).json({ message: 'paymentStatus is required.' });
     }
@@ -311,26 +385,30 @@ router.put('/:id/payment-status', authenticate, requirePermission(['manage_order
     }
 
     const oldPaymentStatus = order.paymentStatus;
-    const newPaymentStatus = paymentStatus;
+    const oldAmountPaid = order.amountPaid || 0;
 
-    order.paymentStatus = newPaymentStatus;
+    let newAmountPaid = oldAmountPaid;
+    if (paymentStatus === 'Paid') {
+      newAmountPaid = order.totalAmount;
+    } else if (paymentStatus === 'Pending') {
+      newAmountPaid = 0;
+    } else if (paymentStatus === 'Partial') {
+      newAmountPaid = amountPaid !== undefined ? parseFloat(amountPaid) : oldAmountPaid;
+    }
+
+    order.paymentStatus = paymentStatus;
+    order.amountPaid = newAmountPaid;
     await order.save();
 
     // Sync with Customer outstanding balance
-    if (oldPaymentStatus !== newPaymentStatus) {
-      const Customer = require('../models/Customer');
-      const customer = await Customer.findById(order.customer);
-      if (customer) {
-        if (oldPaymentStatus === 'Paid' && newPaymentStatus !== 'Paid') {
-          // Changed from Paid to Pending -> increase customer balance
-          customer.balance = (customer.balance || 0) + order.totalAmount;
-          await customer.save();
-        } else if (oldPaymentStatus !== 'Paid' && newPaymentStatus === 'Paid') {
-          // Changed from Pending to Paid -> decrease customer balance
-          customer.balance = Math.max(0, (customer.balance || 0) - order.totalAmount);
-          await customer.save();
-        }
-      }
+    const Customer = require('../models/Customer');
+    const customer = await Customer.findById(order.customer);
+    if (customer) {
+      const oldUnpaid = oldPaymentStatus === 'Paid' ? 0 : (order.totalAmount - oldAmountPaid);
+      const newUnpaid = paymentStatus === 'Paid' ? 0 : (order.totalAmount - newAmountPaid);
+      
+      customer.balance = Math.max(0, (customer.balance || 0) - oldUnpaid + newUnpaid);
+      await customer.save();
     }
 
     res.json(formatOrder(order));

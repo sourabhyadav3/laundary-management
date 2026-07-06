@@ -967,6 +967,7 @@ const PickupDelivery = () => {
 
   const deliveryColumns = [
     { header: 'Delivery ID', accessor: 'deliveryId' },
+    { header: 'Invoice No.', accessor: 'orderNumber' },
     { header: 'Customer', accessor: 'customer' },
     {
       header: 'Order Date',

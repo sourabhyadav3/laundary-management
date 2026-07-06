@@ -653,7 +653,17 @@ const MakeInvoice = () => {
 
     // ── Settle & Pay ────────────────────────────────────────────────
     const [showSettleModal, setShowSettleModal] = useState(false);
+    const [paymentMode, setPaymentMode] = useState('full'); // 'full' | 'partial'
+    const [amountReceived, setAmountReceived] = useState('');
     const [paymentStep, setPaymentStep] = useState('select'); // 'select' | 'card' | 'link' | 'wamt'
+    const [isPrintFlow, setIsPrintFlow] = useState(false);
+
+    useEffect(() => {
+        if (showSettleModal) {
+            setPaymentMode('full');
+            setAmountReceived(String(totalAmount.toFixed(3)));
+        }
+    }, [showSettleModal, totalAmount]);
     const [cardForm, setCardForm] = useState({ name: '', number: '', expiry: '', cvv: '' });
     const [linkForm, setLinkForm] = useState({ email: '' });
     const [wamtForm, setWamtForm] = useState({ mobile: '' });
@@ -674,10 +684,22 @@ const MakeInvoice = () => {
     };
 
     const handleSettleAndPay = (method) => {
+        const received = paymentMode === 'full' ? totalAmount : Number(amountReceived);
+        if (isNaN(received) || received < 0 || received > totalAmount) {
+            toast.error('Please enter a valid amount');
+            return;
+        }
+
         const customerObj = customers.find((c) => String(c.id) === String(form.customerId));
         const orderId = Date.now();
         const branchId = (userRole === 'Admin' || userRole === 'Super Admin') ? (selectedBranch !== 'All' ? selectedBranch : null) : assignedBranch;
         const orderNo = getNextBranchOrderNo(orders, branchId, 'INV');
+
+        const remaining = totalAmount - received;
+        let finalPaymentStatus = 'Paid';
+        if (remaining > 0) {
+            finalPaymentStatus = received === 0 ? 'Pending' : 'Partial';
+        }
 
         const newOrder = {
             id: orderId,
@@ -689,13 +711,14 @@ const MakeInvoice = () => {
             deliveryStatus: 'Waiting',
             isHomeDelivery: form.deliveryMode === 'home',
             deliveryType: form.deliveryMode === 'home' ? 'Home Delivery' : 'Branch Pickup',
-            paymentStatus: 'Paid',
+            paymentStatus: finalPaymentStatus,
             paymentMethod: method,
             amount: subtotal,
             tax,
             taxRate,
             discount: discountAmount,
             totalAmount,
+            amountPaid: received,
             date: new Date().toISOString().split('T')[0],
             pickupDate: new Date().toISOString().split('T')[0],
             deliveryDate: form.expectedDeliveryDate,
@@ -713,35 +736,37 @@ const MakeInvoice = () => {
         addOrder(newOrder);
 
         // Add payment record
-        const nextPaymentId = payments && payments.length
-            ? Math.max(...payments.map((p) => Number(p.id) || 0)) + 1
-            : 1;
-        const newPayment = {
-            id: nextPaymentId,
-            orderId: orderId,
-            orderNumber: orderNo,
-            customer: customerObj.name,
-            amount: totalAmount,
-            method: method,
-            status: 'Paid',
-            date: new Date().toISOString().split('T')[0],
-        };
-        if (setPayments) setPayments((prev) => [newPayment, ...prev]);
+        if (received > 0) {
+            const nextPaymentId = payments && payments.length
+                ? Math.max(...payments.map((p) => Number(p.id) || 0)) + 1
+                : 1;
+            const newPayment = {
+                id: nextPaymentId,
+                orderId: orderId,
+                orderNumber: orderNo,
+                customer: customerObj.name,
+                amount: received,
+                method: method,
+                status: 'Paid',
+                date: new Date().toISOString().split('T')[0],
+            };
+            if (setPayments) setPayments((prev) => [newPayment, ...prev]);
+        }
 
-        // Update customer order count
+        // Update customer order count and balance in state
         setCustomers(
             customers.map((c) =>
                 c.id === customerObj.id
                     ? {
                         ...c,
                         totalOrders: (c.totalOrders || 0) + 1,
-                        ...(method === 'Cash' ? { balance: 0 } : {}),
+                        balance: (c.balance || 0) + remaining,
                     }
                     : c
             )
         );
 
-        if (method === 'Cash') {
+        if (method === 'Cash' || isPrintFlow) {
             generateInvoicePDF(newOrder);
         }
 
@@ -752,69 +777,7 @@ const MakeInvoice = () => {
         navigate('/admin/invoices');
     };
 
-    const handleSaveAndPrint = () => {
-        if (!form.customerId) {
-            toast.error('Please select or add a customer');
-            return;
-        }
 
-        if (orderItems.length === 0) {
-            toast.error('Add at least one garment to create invoice');
-            return;
-        }
-
-        const customerObj = customers.find((c) => String(c.id) === String(form.customerId));
-        const orderId = Date.now();
-        const branchId = (userRole === 'Admin' || userRole === 'Super Admin') ? (selectedBranch !== 'All' ? selectedBranch : null) : assignedBranch;
-        const orderNo = getNextBranchOrderNo(orders, branchId, 'INV');
-
-        const newOrder = {
-            id: orderId,
-            number: orderNo,
-            customerId: customerObj.id,
-            customerName: customerObj.name,
-            serviceType: quickServiceMode,
-            status: 'Waiting',
-            deliveryStatus: 'Waiting',
-            isHomeDelivery: form.deliveryMode === 'home',
-            deliveryType: form.deliveryMode === 'home' ? 'Home Delivery' : 'Branch Pickup',
-            paymentStatus: 'Pending',
-            amount: subtotal,
-            tax,
-            taxRate,
-            discount: discountAmount,
-            totalAmount,
-            date: new Date().toISOString().split('T')[0],
-            pickupDate: new Date().toISOString().split('T')[0],
-            deliveryDate: form.expectedDeliveryDate,
-            paperInvoiceNo: form.paperInvNo,
-            itemDetails: orderItems.map((it) => ({
-                name: it.name,
-                quantity: it.quantity,
-                unitPrice: it.unitPrice,
-                service: it.service,
-                notes: it.notes,
-            })),
-            notes: form.notes,
-            createdBy: storedUser.name || 'Admin',
-            staffName: storedUser.name || 'Admin',
-            branchId: branchId,
-        };
-
-        addOrder(newOrder);
-
-        // Update customer order count
-        setCustomers(
-            customers.map((c) =>
-                c.id === customerObj.id ? { ...c, totalOrders: (c.totalOrders || 0) + 1 } : c
-            )
-        );
-
-        toast.success(`Invoice ${orderNo} saved successfully`);
-        generateInvoicePDF(newOrder);
-        clearDraftInvoice();
-        navigate('/admin/invoices');
-    };
 
     const handleSendToWhatsApp = (phoneNumber, invoiceMessage) => {
         const cleanPhone = phoneNumber.replace(/\D/g, "");
@@ -1506,7 +1469,44 @@ const MakeInvoice = () => {
                 <div className="xl:col-span-3 bg-slate-950 border border-slate-800 rounded-2xl p-3 flex flex-col justify-between shadow-inner">
                     <div className="flex justify-between items-center text-xs text-slate-400 font-medium">
                         <span>{t('counter.makeInvoice.totalPriceLabel') || "TOTAL PRICE"} ({orderItems.reduce((acc, it) => acc + it.quantity, 0)} {t('counter.makeInvoice.itemsLabel') || "items"})</span>
-                        <span className="text-slate-500 font-mono">{t('counter.makeInvoice.subtotalLabel') || "SUB"}: {formatCurrency(subtotal)}</span>
+                        {editingSubtotal ? (
+                            <div className="flex items-center gap-1">
+                                <span className="text-slate-500 font-mono">{t('counter.makeInvoice.subtotalLabel') || "SUB"}:</span>
+                                <input
+                                    type="number"
+                                    min="0"
+                                    step="0.001"
+                                    value={editingSubtotalValue}
+                                    onChange={(e) => setEditingSubtotalValue(e.target.value)}
+                                    onKeyDown={(e) => {
+                                        if (e.key === 'Enter') saveEditedSubtotal();
+                                        if (e.key === 'Escape') {
+                                            setEditingSubtotal(false);
+                                            setEditingSubtotalValue('');
+                                        }
+                                    }}
+                                    className="w-16 rounded border border-slate-700 bg-slate-900 px-1 py-0.5 text-right text-[10px] font-mono text-slate-300 focus:outline-none focus:ring-1 focus:ring-blue-500/50"
+                                    autoFocus
+                                />
+                                <button
+                                    type="button"
+                                    onClick={saveEditedSubtotal}
+                                    className="text-emerald-500 hover:text-emerald-400"
+                                >
+                                    <FiCheck size={12} />
+                                </button>
+                            </div>
+                        ) : (
+                            <button
+                                type="button"
+                                onClick={startEditSubtotal}
+                                className="text-slate-500 font-mono hover:text-blue-400 underline decoration-dotted underline-offset-2"
+                                title={language === 'ar' ? 'اضغط للتعديل' : 'Click to edit'}
+                                disabled={orderItems.length === 0}
+                            >
+                                {t('counter.makeInvoice.subtotalLabel') || "SUB"}: {formatCurrency(subtotal)}
+                            </button>
+                        )}
                     </div>
                     <div className="mt-2 text-right">
                         <span className="font-mono text-2xl xl:text-3xl font-extrabold text-green-500 tracking-wider drop-shadow-[0_0_8px_rgba(34,197,94,0.6)]">
@@ -2073,7 +2073,7 @@ const MakeInvoice = () => {
                             </button>
                             <button
                                 type="button"
-                                onClick={() => { if (validateInvoice()) setShowSettleModal(true); }}
+                                onClick={() => { if (validateInvoice()) { setIsPrintFlow(false); setShowSettleModal(true); } }}
                                 className="flex-1 min-w-[110px] font-bold py-2 rounded-xl text-xs uppercase tracking-wider shadow-md hover:shadow-lg transition-all duration-200 text-white"
                                 style={{ background: 'linear-gradient(135deg, #059669, #10b981)', boxShadow: '0 4px 14px rgba(16,185,129,0.4)' }}
                             >
@@ -2081,7 +2081,7 @@ const MakeInvoice = () => {
                             </button>
                             <button
                                 type="button"
-                                onClick={handleSaveAndPrint}
+                                onClick={() => { if (validateInvoice()) { setIsPrintFlow(true); setShowSettleModal(true); } }}
                                 className="flex-1 min-w-[110px] bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 rounded-xl text-xs uppercase tracking-wider shadow-md hover:shadow-lg transition-all duration-200"
                             >
                                 {t('counter.makeInvoice.printButton') || "Print Invoice"}
@@ -2146,8 +2146,60 @@ const MakeInvoice = () => {
 
                             {/* ── STEP: SELECT ── */}
                             {paymentStep === 'select' && (
-                                <div className="grid grid-cols-2 gap-3">
-                                    {[
+                                <div className="space-y-4">
+                                    {/* Payment Type Selector */}
+                                    <div className="bg-surface-alt/50 border border-border p-1 rounded-2xl flex gap-1 text-xs font-semibold">
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                setPaymentMode('full');
+                                                setAmountReceived(String(totalAmount.toFixed(3)));
+                                            }}
+                                            className={`flex-1 py-2 text-center rounded-xl transition-all duration-200 ${paymentMode === 'full' ? 'bg-surface text-primary shadow-sm' : 'text-secondary hover:text-primary'}`}
+                                        >
+                                            {language === 'ar' ? 'دفع كامل' : 'Full Payment'}
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={() => setPaymentMode('partial')}
+                                            className={`flex-1 py-2 text-center rounded-xl transition-all duration-200 ${paymentMode === 'partial' ? 'bg-surface text-primary shadow-sm' : 'text-secondary hover:text-primary'}`}
+                                        >
+                                            {language === 'ar' ? 'دفع جزئي / آجل' : 'Partial / Unpaid'}
+                                        </button>
+                                    </div>
+
+                                    {/* Amount Received Input */}
+                                    {paymentMode === 'partial' && (
+                                        <div className="bg-surface-alt/30 border border-border/80 rounded-2xl p-3 space-y-2">
+                                            <div className="flex justify-between items-center text-xs font-medium text-secondary">
+                                                <span>{language === 'ar' ? 'المبلغ المستلم' : 'Amount Received'}:</span>
+                                                <span className="font-mono">{language === 'ar' ? 'د.ك' : 'KWD'}</span>
+                                            </div>
+                                            <input
+                                                type="number"
+                                                min="0"
+                                                max={totalAmount}
+                                                step="0.001"
+                                                value={amountReceived}
+                                                onChange={(e) => setAmountReceived(e.target.value)}
+                                                className="w-full text-sm rounded-xl border border-border bg-surface px-3 py-2 text-right font-mono focus:outline-none focus:ring-2 focus:ring-blue-500/30"
+                                                placeholder="0.000"
+                                            />
+                                            {(() => {
+                                                const received = Number(amountReceived) || 0;
+                                                const remaining = Math.max(0, totalAmount - received);
+                                                return (
+                                                    <div className="flex justify-between items-center text-[10px] font-bold text-rose-500 pt-1 border-t border-border/40">
+                                                        <span>{language === 'ar' ? 'المتبقي في الحساب' : 'Balance Remaining'}:</span>
+                                                        <span className="font-mono">{formatCurrency(remaining)}</span>
+                                                    </div>
+                                                );
+                                            })()}
+                                        </div>
+                                    )}
+
+                                    <div className="grid grid-cols-2 gap-3">
+                                        {[
                                         { method: t('counter.makeInvoice.paymentCash'), icon: '💵', bg: 'linear-gradient(135deg,#059669,#10b981)', shadow: 'rgba(16,185,129,0.4)', step: null, payMethod: 'Cash' },
                                         { method: t('counter.makeInvoice.paymentCard'), icon: '💳', bg: 'linear-gradient(135deg,#3b82f6,#4f46e5)', shadow: 'rgba(59,130,246,0.4)', step: 'card', payMethod: 'Card' },
                                         { method: t('counter.makeInvoice.paymentLink'), icon: '🔗', bg: 'linear-gradient(135deg,#f59e0b,#d97706)', shadow: 'rgba(245,158,11,0.4)', step: 'link', payMethod: 'Link' },
@@ -2165,6 +2217,7 @@ const MakeInvoice = () => {
                                         </button>
                                     ))}
                                 </div>
+                            </div>
                             )}
 
                             {/* ── CARD ── */}
@@ -2213,7 +2266,7 @@ const MakeInvoice = () => {
                                         className="w-full mt-2 py-3 rounded-2xl font-bold text-white text-sm tracking-wider transition-all hover:scale-[1.02] active:scale-95"
                                         style={{ background: 'linear-gradient(135deg,#3b82f6,#4f46e5)', boxShadow: '0 6px 18px rgba(59,130,246,0.4)' }}
                                     >
-                                        💳 Pay {formatCurrency(totalAmount)}
+                                        💳 Pay {formatCurrency(paymentMode === 'full' ? totalAmount : (Number(amountReceived) || 0))}
                                     </button>
                                 </div>
                             )}
@@ -2245,7 +2298,7 @@ const MakeInvoice = () => {
                                         className="w-full mt-2 py-3 rounded-2xl font-bold text-white text-sm tracking-wider transition-all hover:scale-[1.02] active:scale-95"
                                         style={{ background: 'linear-gradient(135deg,#f59e0b,#d97706)', boxShadow: '0 6px 18px rgba(245,158,11,0.4)' }}
                                     >
-                                        🔗 Pay {formatCurrency(totalAmount)}
+                                        🔗 Pay {formatCurrency(paymentMode === 'full' ? totalAmount : (Number(amountReceived) || 0))}
                                     </button>
                                 </div>
                             )}
@@ -2277,7 +2330,7 @@ const MakeInvoice = () => {
                                         className="w-full mt-2 py-3 rounded-2xl font-bold text-white text-sm tracking-wider transition-all hover:scale-[1.02] active:scale-95"
                                         style={{ background: 'linear-gradient(135deg,#8b5cf6,#7c3aed)', boxShadow: '0 6px 18px rgba(139,92,246,0.4)' }}
                                     >
-                                        💰 Pay {formatCurrency(totalAmount)}
+                                        💰 Pay {formatCurrency(paymentMode === 'full' ? totalAmount : (Number(amountReceived) || 0))}
                                     </button>
                                 </div>
                             )}
