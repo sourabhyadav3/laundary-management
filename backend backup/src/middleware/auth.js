@@ -50,6 +50,16 @@ const requirePermission = (permission) => {
       hasPermission = permissionsToCheck.some(p => allowedCounterPermissions.includes(p));
     }
 
+    // Support Delivery Staff / Drivers accessing customer, invoice, payment and order modules
+    if (!hasPermission && (req.user.role.name === 'Delivery Staff' || req.user.role.name === 'Driver')) {
+      const allowedDeliveryPermissions = [
+        'create_orders', 'view_orders', 'manage_orders', 
+        'manage_customers', 'manage_payments', 'view_invoice_status', 
+        'change_invoice_status', 'view_logistics'
+      ];
+      hasPermission = permissionsToCheck.some(p => allowedDeliveryPermissions.includes(p));
+    }
+
     if (!hasPermission) {
       return res.status(403).json({ message: `Access denied. Requires '${permissionsToCheck.join("' or '")}' permission.` });
     }

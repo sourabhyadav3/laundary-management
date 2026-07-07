@@ -95,7 +95,8 @@ const CounterDashboard = () => {
         'manage_payments', 'view_services'
       ],
       'Delivery Staff': [
-        'view_dashboard', 'view_logistics', 'view_invoice_status', 'change_invoice_status'
+        'view_dashboard', 'view_logistics', 'view_invoice_status', 'change_invoice_status',
+        'view_customers', 'manage_customers', 'make_invoice', 'view_orders'
       ],
     };
 

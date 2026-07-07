@@ -8,6 +8,7 @@ const Delivery = require('../models/Delivery');
 const User = require('../models/User');
 const Driver = require('../models/Driver');
 const Role = require('../models/Role');
+const Branch = require('../models/Branch');
 const { authenticate, requirePermission } = require('../middleware/auth');
 
 const router = express.Router();
@@ -462,25 +463,74 @@ router.get('/generate', authenticate, requirePermission('view_reports'), async (
        data = Object.values(groups);
     }
     else if (reportType === 'driver_income') {
-       let drivers = await Driver.find({});
+       let driverQuery = {};
+       const queryBranchId = req.query.branchId || req.headers['x-branch-id'];
+       let targetBranchId = null;
+       if (queryBranchId && queryBranchId !== 'all' && queryBranchId !== 'undefined' && queryBranchId !== 'null') {
+         targetBranchId = queryBranchId;
+       } else if (req.user.role !== 'Super Admin' && req.user.branch) {
+         targetBranchId = req.user.branch;
+       }
+
+       if (targetBranchId) {
+         const branchObj = await Branch.findById(targetBranchId);
+         if (branchObj) {
+           driverQuery.branch = branchObj.name;
+         } else {
+           driverQuery.branch = 'NON_EXISTENT_BRANCH_TO_PREVENT_LEAK';
+         }
+       }
+
+       let drivers = await Driver.find(driverQuery);
        if (parameter && parameter !== 'All') {
          drivers = drivers.filter(d => d.driverName === parameter);
        }
        const activePickups = await Pickup.find({ status: { $ne: 'Completed' } });
        const activeDeliveries = await Delivery.find({ status: { $nin: ['Delivered', 'Failed'] } });
+
+       // Fetch all completed jobs in range to perform sales revenue aggregates
+       const completedDels = await Delivery.find({
+         status: 'Delivered',
+         ...applyDateFilter(start, end, 'deliveryDate')
+       });
+       const completedPups = await Pickup.find({
+         status: 'Completed',
+         ...applyDateFilter(start, end, 'pickupDate')
+       });
+
+       const allOrderNumbers = [
+         ...completedDels.map(cd => cd.orderNumber),
+         ...completedPups.map(cp => cp.orderNumber)
+       ].filter(Boolean);
+       const allOrders = await Order.find({ number: { $in: allOrderNumbers } });
+
        data = drivers.map(d => {
          const rawAreas = d.areas || (d.area ? [d.area] : []);
          const driverAreas = rawAreas.flatMap(a => typeof a === 'string' ? a.split(',').map(s => s.trim()) : a)
                                      .filter(a => a && a !== '...' && a !== '…');
          const pCount = activePickups.filter(p => p.assignedStaff === d.driverName).length;
          const dCount = activeDeliveries.filter(del => del.assignedStaff === d.driverName).length;
+
+         const driverDels = completedDels.filter(cd => cd.assignedStaff === d.driverName);
+         const driverPups = completedPups.filter(cp => cp.assignedStaff === d.driverName);
+         const driverOrderNums = [
+           ...driverDels.map(cd => cd.orderNumber),
+           ...driverPups.map(cp => cp.orderNumber)
+         ].filter(Boolean);
+
+         const driverOrders = allOrders.filter(o => driverOrderNums.includes(o.number));
+         const totalSales = driverOrders.reduce((sum, o) => sum + (o.totalAmount || 0), 0);
+         const jobsCount = driverDels.length + driverPups.length;
+
          return {
            id: d._id,
            name: d.driverName,
            areas: driverAreas.join(', ') || '—',
            status: d.status || 'Available',
            activePickups: pCount,
-           activeDeliveries: dCount
+           activeDeliveries: dCount,
+           count: jobsCount,
+           sales: totalSales
          };
        });
     }

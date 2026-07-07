@@ -44,6 +44,9 @@ const MakeInvoice = () => {
   const { theme } = useTheme();
 
   const storedUser = JSON.parse(localStorage.getItem('user') || '{}');
+  const isDeliveryRole = storedUser.role === 'Delivery Staff' || storedUser.role === 'Driver';
+  const draftFormKey = isDeliveryRole ? 'delivery_draft_invoice_form' : 'counter_draft_invoice_form';
+  const draftItemsKey = isDeliveryRole ? 'delivery_draft_invoice_items' : 'counter_draft_invoice_items';
 
   // Pick card color set based on active theme
   const CARD_COLORS = theme === 'light' ? CARD_COLORS_LIGHT : CARD_COLORS_DARK;
@@ -82,7 +85,7 @@ const MakeInvoice = () => {
 
   // Basic Page State
   const [form, setForm] = useState(() => {
-    const saved = localStorage.getItem('counter_draft_invoice_form');
+    const saved = localStorage.getItem(draftFormKey);
     const defaults = {
       customerId: '',
       phoneSearch: '',
@@ -92,7 +95,7 @@ const MakeInvoice = () => {
       discountChecked: false,
       discountPercent: 0,
       discountValue: 0,
-      deliveryMode: 'branch',
+      deliveryMode: isDeliveryRole ? 'home' : 'branch',
     };
     if (!saved) return defaults;
     const parsed = JSON.parse(saved);
@@ -174,7 +177,7 @@ const MakeInvoice = () => {
   const [carpetWidthM, setCarpetWidthM] = useState('');
 
   const [orderItems, setOrderItems] = useState(() => {
-    const saved = localStorage.getItem('counter_draft_invoice_items');
+    const saved = localStorage.getItem(draftItemsKey);
     return saved ? JSON.parse(saved) : [];
   });
   const [editingLineTotalIdx, setEditingLineTotalIdx] = useState(null);
@@ -189,16 +192,16 @@ const MakeInvoice = () => {
   const customerDropdownRef = useRef(null);
 
   useEffect(() => {
-    localStorage.setItem('counter_draft_invoice_form', JSON.stringify(form));
-  }, [form]);
+    localStorage.setItem(draftFormKey, JSON.stringify(form));
+  }, [form, draftFormKey]);
 
   useEffect(() => {
-    localStorage.setItem('counter_draft_invoice_items', JSON.stringify(orderItems));
-  }, [orderItems]);
+    localStorage.setItem(draftItemsKey, JSON.stringify(orderItems));
+  }, [orderItems, draftItemsKey]);
 
   const clearDraftInvoice = () => {
-    localStorage.removeItem('counter_draft_invoice_form');
-    localStorage.removeItem('counter_draft_invoice_items');
+    localStorage.removeItem(draftFormKey);
+    localStorage.removeItem(draftItemsKey);
   };
 
   useEffect(() => {

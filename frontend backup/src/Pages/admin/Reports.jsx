@@ -110,6 +110,8 @@ const Reports = () => {
   // Custom generated report data
   const [customReport, setCustomReport] = useState(null);
   const [customSearch, setCustomSearch] = useState('');
+  const [commissionPerInvoice, setCommissionPerInvoice] = useState(0.000);
+  const [commissionPercent, setCommissionPercent] = useState(0);
   
   const [dashboardData, setDashboardData] = useState({
     summary: { totalRevenue: 0, totalOrders: 0, completedOrders: 0, pendingOrders: 0, activeCustomers: 0, averageOrderValue: 0 },
@@ -263,6 +265,9 @@ const Reports = () => {
           { header: language === 'ar' ? 'الموظف' : 'Employee Name', accessor: 'name' },
           { header: language === 'ar' ? 'عدد الفواتير' : 'Invoices Count', accessor: 'count' },
           { header: language === 'ar' ? 'إجمالي المبيعات' : 'Sales Generated', accessor: 'sales', format: (val) => formatCurrency(val) },
+          { header: language === 'ar' ? 'عمولة الفواتير' : 'Invoice Commission', accessor: 'invoiceComm', format: (val) => formatCurrency(val) },
+          { header: language === 'ar' ? 'عمولة الدخل' : 'Income Commission', accessor: 'incomeComm', format: (val) => formatCurrency(val) },
+          { header: language === 'ar' ? 'إجمالي العمولة' : 'Total Commission', accessor: 'totalComm', format: (val) => formatCurrency(val) },
         ];
         break;
       case 'driver_income':
@@ -288,6 +293,11 @@ const Reports = () => {
           },
           { header: language === 'ar' ? 'عمليات بيك اب نشطة' : 'Active Pickups', accessor: 'activePickups' },
           { header: language === 'ar' ? 'عمليات توصيل نشطة' : 'Active Deliveries', accessor: 'activeDeliveries' },
+          { header: language === 'ar' ? 'المهام المكتملة' : 'Completed Jobs', accessor: 'count' },
+          { header: language === 'ar' ? 'إجمالي الدخل المولد' : 'Revenue Generated', accessor: 'sales', format: (val) => formatCurrency(val) },
+          { header: language === 'ar' ? 'عمولة الفواتير' : 'Invoice Commission', accessor: 'invoiceComm', format: (val) => formatCurrency(val) },
+          { header: language === 'ar' ? 'عمولة الدخل' : 'Income Commission', accessor: 'incomeComm', format: (val) => formatCurrency(val) },
+          { header: language === 'ar' ? 'إجمالي العمولة' : 'Total Commission', accessor: 'totalComm', format: (val) => formatCurrency(val) },
         ];
         break;
       case 'service_revenue':
@@ -317,7 +327,25 @@ const Reports = () => {
       const res = await api.get('/reports/generate', {
          params: { reportType: stepReportType, category: stepCategory, parameter: stepParameter, start: sStr, end: eStr }
       });
-      setCustomReport({ title, columns, data: res.data.data });
+      
+      let processedData = res.data.data;
+      if (stepReportType === 'user_sales' || stepReportType === 'driver_income') {
+        processedData = processedData.map(row => {
+          const count = row.count || 0;
+          const sales = row.sales || 0;
+          const invoiceComm = count * commissionPerInvoice;
+          const incomeComm = sales * (commissionPercent / 100);
+          const totalComm = invoiceComm + incomeComm;
+          return {
+            ...row,
+            invoiceComm,
+            incomeComm,
+            totalComm
+          };
+        });
+      }
+
+      setCustomReport({ title, columns, data: processedData });
       toast.success(language === 'ar' ? 'تم إنشاء التقرير بنجاح' : 'Report generated successfully');
     } catch (e) {
       console.error(e);
@@ -584,6 +612,40 @@ const Reports = () => {
           </div>
         </div>
 
+        {stepCategory === 'staff' && (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4 border-t border-border/40">
+            <div className="space-y-2">
+              <label className="block text-xs font-bold uppercase tracking-wider text-secondary">
+                {language === 'ar' ? 'العمولة لكل فاتورة (د.ك)' : 'Commission per Invoice (KWD)'}
+              </label>
+              <input
+                type="number"
+                step="0.001"
+                min="0"
+                value={commissionPerInvoice}
+                onChange={(e) => setCommissionPerInvoice(parseFloat(e.target.value) || 0)}
+                className="w-full rounded-2xl border border-border bg-surface py-2.5 px-4 text-primary focus:outline-none focus:ring-2 focus:ring-blue-400/40 text-xs font-medium"
+                placeholder="e.g. 0.500"
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="block text-xs font-bold uppercase tracking-wider text-secondary">
+                {language === 'ar' ? 'العمولة من الدخل (%)' : 'Commission by Income (%)'}
+              </label>
+              <input
+                type="number"
+                step="1"
+                min="0"
+                max="100"
+                value={commissionPercent}
+                onChange={(e) => setCommissionPercent(parseFloat(e.target.value) || 0)}
+                className="w-full rounded-2xl border border-border bg-surface py-2.5 px-4 text-primary focus:outline-none focus:ring-2 focus:ring-blue-400/40 text-xs font-medium"
+                placeholder="e.g. 10"
+              />
+            </div>
+          </div>
+        )}
+
         {/* Wizard Controls */}
         <div className="border-t border-border/80 pt-4 flex gap-3 justify-end">
           <button
@@ -594,6 +656,8 @@ const Reports = () => {
               setStepParameter('All');
               setCustomReport(null);
               setCustomSearch('');
+              setCommissionPerInvoice(0.000);
+              setCommissionPercent(0);
             }}
             className="px-5 py-2.5 rounded-2xl text-xs font-bold border border-border bg-surface hover:bg-surface-alt text-primary transition-all uppercase tracking-wider"
           >
@@ -620,7 +684,11 @@ const Reports = () => {
         });
 
         const handleExportCustomCSV = () => {
-          exportToCSV(filteredData, `${stepReportType}-report.csv`, customReport.columns.map(c => ({ key: c.accessor, label: c.header })));
+          exportToCSV(
+            filteredData,
+            `${stepReportType}-report.csv`,
+            customReport.columns.map(c => ({ key: c.accessor, label: c.header, format: c.format }))
+          );
           toast.success(language === 'ar' ? 'تم التصدير كملف CSV' : 'Exported report as CSV');
         };
 
@@ -628,7 +696,7 @@ const Reports = () => {
           exportToPDF({
             title: customReport.title,
             subtitle: `Generated: ${formatDate(new Date())}`,
-            columns: customReport.columns.map(c => ({ key: c.accessor, label: c.header })),
+            columns: customReport.columns.map(c => ({ key: c.accessor, label: c.header, format: c.format })),
             data: filteredData,
             filename: `${stepReportType}-report.pdf`,
             summaryLines: [

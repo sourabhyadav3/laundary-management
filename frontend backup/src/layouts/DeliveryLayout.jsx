@@ -29,7 +29,8 @@ const DeliveryLayout = () => {
         'manage_payments', 'view_services'
       ],
       'Delivery Staff': [
-        'view_dashboard', 'view_logistics', 'view_invoice_status', 'change_invoice_status'
+        'view_dashboard', 'view_logistics', 'view_invoice_status', 'change_invoice_status',
+        'view_customers', 'manage_customers', 'make_invoice', 'view_orders'
       ],
     };
 
@@ -58,6 +59,8 @@ const DeliveryLayout = () => {
   else if (path.includes('/delivery/completed')) requiredPermission = 'view_logistics';
   else if (path.includes('/delivery/make-invoice')) requiredPermission = 'make_invoice';
   else if (path.includes('/delivery/orders')) requiredPermission = 'view_orders';
+  else if (path.includes('/delivery/customers')) requiredPermission = 'view_customers';
+  else if (path.includes('/delivery/invoices')) requiredPermission = 'view_invoice_status';
   else if (path.includes('/delivery/drivers')) requiredPermission = 'view_logistics';
   else if (path.includes('/delivery/tracking')) requiredPermission = 'view_orders';
   else if (path.includes('/delivery/lcd-display')) requiredPermission = 'view_dashboard';

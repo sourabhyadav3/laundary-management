@@ -65,7 +65,7 @@ const initialRolePermissions = {
     'view_services', 'view_payments'
   ],
   'Delivery Staff': [
-    'view_dashboard', 'view_logistics', 'view_invoice_status'
+    'view_dashboard', 'view_logistics', 'view_invoice_status', 'view_customers', 'make_invoice'
   ],
 };
 const roleAllowedPermissionsWhitelist = {
@@ -79,7 +79,7 @@ const roleAllowedPermissionsWhitelist = {
     'view_services', 'view_payments'
   ],
   'Delivery Staff': [
-    'view_dashboard', 'view_logistics', 'view_invoice_status'
+    'view_dashboard', 'view_logistics', 'view_invoice_status', 'view_customers', 'make_invoice'
   ],
 };
 
