@@ -569,7 +569,7 @@ const Invoices = () => {
                       onClick={() => setPaymentMode('partial')}
                       className={`flex-1 py-2 text-center rounded-xl transition-all duration-200 ${paymentMode === 'partial' ? 'bg-surface text-primary shadow-sm' : 'text-secondary hover:text-primary'}`}
                     >
-                      {language === 'ar' ? 'دفع جزئي / آجل' : 'Partial / Unpaid'}
+                      {language === 'ar' ? 'دفع جزئي' : 'Partial'}
                     </button>
                   </div>
 
@@ -580,21 +580,41 @@ const Invoices = () => {
                         <span>{language === 'ar' ? 'المبلغ المستلم' : 'Amount Received'}:</span>
                         <span className="font-mono">{language === 'ar' ? 'د.ك' : 'KWD'}</span>
                       </div>
-                      <input
-                        type="number"
-                        min="0"
-                        max={settleOrderTarget.totalAmount - (settleOrderTarget.amountPaid || 0)}
-                        step="0.001"
-                        value={amountReceived}
-                        onChange={(e) => setAmountReceived(e.target.value)}
-                        className="w-full text-sm rounded-xl border border-border bg-surface px-3 py-2 text-right font-mono focus:outline-none focus:ring-2 focus:ring-blue-500/30"
-                        placeholder="0.000"
-                      />
+                      <div className="flex gap-2">
+                        <input
+                          type="number"
+                          min="0"
+                          max={settleOrderTarget.totalAmount - (settleOrderTarget.amountPaid || 0)}
+                          step="0.001"
+                          value={amountReceived}
+                          onChange={(e) => setAmountReceived(e.target.value)}
+                          className="flex-1 text-sm rounded-xl border border-border bg-surface px-3 py-2 text-right font-mono focus:outline-none focus:ring-2 focus:ring-blue-500/30"
+                          placeholder="0.000"
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                              e.preventDefault();
+                              e.target.blur();
+                            }
+                          }}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const activeEl = document.activeElement;
+                            if (activeEl && activeEl.tagName === 'INPUT') {
+                              activeEl.blur();
+                            }
+                          }}
+                          className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition-all shadow-md active:scale-95 shrink-0"
+                        >
+                          {language === 'ar' ? 'إدخال' : 'Enter'}
+                        </button>
+                      </div>
                       {(() => {
                         const received = Number(amountReceived) || 0;
                         const remaining = Math.max(0, (settleOrderTarget.totalAmount - (settleOrderTarget.amountPaid || 0)) - received);
                         return (
-                          <div className="flex justify-between items-center text-[10px] font-bold text-rose-500 pt-1 border-t border-border/40">
+                          <div className="flex justify-between items-center text-xs font-bold text-rose-500 pt-1.5 border-t border-border/40">
                             <span>{language === 'ar' ? 'المتبقي في الحساب' : 'Balance Remaining'}:</span>
                             <span className="font-mono">{formatCurrency(remaining)}</span>
                           </div>

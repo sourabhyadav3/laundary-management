@@ -33,14 +33,19 @@ const formatDriver = (driver) => {
 // @desc    Get all drivers
 router.get('/', authenticate, async (req, res) => {
   try {
+    const activeBranches = await Branch.find().select('name');
+    const existingBranchNames = activeBranches.map(b => b.name);
+
     let query = {};
-    if (req.user.branch) {
+    if (req.user.branch && !req.isHomeServiceBranch) {
       const branchObj = await Branch.findById(req.user.branch);
       if (branchObj) {
         query = { branch: branchObj.name };
       } else {
         query = { branch: 'NON_EXISTENT_BRANCH_TO_PREVENT_LEAK' };
       }
+    } else {
+      query = { branch: { $in: existingBranchNames } };
     }
     const drivers = await Driver.find(query).sort({ createdAt: -1 });
     res.json(drivers.map(formatDriver));

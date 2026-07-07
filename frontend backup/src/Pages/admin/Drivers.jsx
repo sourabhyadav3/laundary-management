@@ -126,6 +126,9 @@ const Drivers = () => {
   }, []);
   const isDeliveryStaff = loggedInUser.role === 'Delivery Staff';
   const isSuperAdmin = loggedInUser.role === 'Super Admin';
+  const isHomeServices = useMemo(() => {
+    return loggedInUser.branchName && loggedInUser.branchName.toLowerCase().includes('home service');
+  }, [loggedInUser]);
   const adminBranchObj = useMemo(() => {
     if (!loggedInUser.branchId || !branches) return null;
     return branches.find(b => (b.id || b._id)?.toString() === loggedInUser.branchId.toString());
@@ -644,7 +647,7 @@ const Drivers = () => {
                             {statusLabel}
                           </span>
                         </td>
-                        <td className="p-3 font-semibold text-primary">{drv.driverName}</td>
+                        <td className="p-3 font-semibold text-primary">{isHomeServices ? `${drv.driverName} (${drv.branch || 'No Branch'})` : drv.driverName}</td>
                         <td className="p-3 text-secondary" title={driverAreas.join(', ')}>
                           <div className="flex flex-wrap gap-1.5 max-w-[260px]">
                             {driverAreas.map((area) => (

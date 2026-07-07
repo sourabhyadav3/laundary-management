@@ -117,6 +117,7 @@ const AssignedDeliveries = () => {
           <div class="header">
             <h1>${title}</h1>
             <div class="header-meta">
+              <span><strong>${isAr ? 'الفرع' : 'Branch'}:</strong> ${storedUser.branchName || 'All'}</span>
               <span><strong>${isAr ? 'المندوب' : 'Staff'}:</strong> ${staffName}</span>
               <span><strong>${isAr ? 'الإجمالي' : 'Total'}:</strong> ${filtered.length}</span>
               <span><strong>${isAr ? 'التاريخ' : 'Date'}:</strong> ${new Date().toLocaleDateString(isAr ? 'ar-KW' : 'en-GB')}</span>

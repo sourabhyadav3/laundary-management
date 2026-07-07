@@ -30,7 +30,7 @@ const formatDelivery = (delivery) => {
 router.get('/', authenticate, async (req, res) => {
   try {
     let query = {};
-    if (req.user.branch) {
+    if (req.user.branch && !req.isHomeServiceBranch) {
       const orders = await Order.find({ branchId: req.user.branch }).select('number');
       const orderNumbers = orders.map(o => o.number);
       query = {
@@ -106,27 +106,47 @@ router.post('/', authenticate, requirePermission('manage_deliveries'), async (re
 router.put('/:id/assign', authenticate, requirePermission('manage_deliveries'), async (req, res) => {
   try {
     const { assignedStaff } = req.body;
-    if (!assignedStaff) {
-      return res.status(400).json({ message: 'Driver name is required for assignment.' });
-    }
+    const unassign = !assignedStaff || assignedStaff === 'Unassigned';
 
     const delivery = await Delivery.findById(req.params.id);
     if (!delivery) {
       return res.status(404).json({ message: 'Delivery job not found.' });
     }
 
-    delivery.assignedStaff = assignedStaff;
-    delivery.status = 'Assigned';
+    const previousDriver = delivery.assignedStaff;
+
+    if (unassign) {
+      delivery.assignedStaff = '';
+      delivery.status = 'Scheduled';
+    } else {
+      delivery.assignedStaff = assignedStaff;
+      delivery.status = 'Assigned';
+    }
+
     await delivery.save();
 
-    await notify(
-      'Delivery Assigned',
-      `Delivery ${delivery.deliveryId} has been assigned to driver ${assignedStaff}.`,
-      'delivery',
-      delivery.branchId || req.user.branch
-    );
+    if (unassign) {
+      await notify(
+        'Delivery Unassigned',
+        `Delivery ${delivery.deliveryId} is now unassigned.`,
+        'delivery',
+        delivery.branchId || req.user.branch
+      );
+    } else {
+      await notify(
+        'Delivery Assigned',
+        `Delivery ${delivery.deliveryId} has been assigned to driver ${assignedStaff}.`,
+        'delivery',
+        delivery.branchId || req.user.branch
+      );
+    }
 
-    await updateDriverStatus(delivery.assignedStaff);
+    if (previousDriver) {
+      await updateDriverStatus(previousDriver);
+    }
+    if (delivery.assignedStaff) {
+      await updateDriverStatus(delivery.assignedStaff);
+    }
 
     res.json(formatDelivery(delivery));
   } catch (error) {

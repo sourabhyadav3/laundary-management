@@ -29,7 +29,7 @@ const formatPickup = (pickup) => {
 router.get('/', authenticate, async (req, res) => {
   try {
     let query = {};
-    if (req.user.branch) {
+    if (req.user.branch && !req.isHomeServiceBranch) {
       const orders = await Order.find({ branchId: req.user.branch }).select('number');
       const orderNumbers = orders.map(o => o.number);
       query = {
@@ -106,27 +106,47 @@ router.post('/', authenticate, requirePermission('manage_pickups'), async (req, 
 router.put('/:id/assign', authenticate, requirePermission('manage_pickups'), async (req, res) => {
   try {
     const { assignedStaff } = req.body;
-    if (!assignedStaff) {
-      return res.status(400).json({ message: 'Driver name is required for assignment.' });
-    }
+    const unassign = !assignedStaff || assignedStaff === 'Unassigned';
 
     const pickup = await Pickup.findById(req.params.id);
     if (!pickup) {
       return res.status(404).json({ message: 'Pickup job not found.' });
     }
 
-    pickup.assignedStaff = assignedStaff;
-    pickup.status = 'Assigned';
+    const previousDriver = pickup.assignedStaff;
+
+    if (unassign) {
+      pickup.assignedStaff = '';
+      pickup.status = 'Scheduled';
+    } else {
+      pickup.assignedStaff = assignedStaff;
+      pickup.status = 'Assigned';
+    }
+
     await pickup.save();
 
-    await notify(
-      'Pickup Assigned',
-      `Pickup ${pickup.pickupId} has been assigned to driver ${assignedStaff}.`,
-      'delivery',
-      pickup.branchId || req.user.branch
-    );
+    if (unassign) {
+      await notify(
+        'Pickup Unassigned',
+        `Pickup ${pickup.pickupId} is now unassigned.`,
+        'delivery',
+        pickup.branchId || req.user.branch
+      );
+    } else {
+      await notify(
+        'Pickup Assigned',
+        `Pickup ${pickup.pickupId} has been assigned to driver ${assignedStaff}.`,
+        'delivery',
+        pickup.branchId || req.user.branch
+      );
+    }
 
-    await updateDriverStatus(pickup.assignedStaff);
+    if (previousDriver) {
+      await updateDriverStatus(previousDriver);
+    }
+    if (pickup.assignedStaff) {
+      await updateDriverStatus(pickup.assignedStaff);
+    }
 
     res.json(formatPickup(pickup));
   } catch (error) {

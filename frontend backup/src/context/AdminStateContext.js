@@ -608,9 +608,11 @@ export const AdminStateProvider = ({ children }) => {
       await api.put(`/deliveries/${updatedDelivery.id}/assign`, {
         assignedStaff: updatedDelivery.assignedStaff
       });
-      if (updatedDelivery.status && updatedDelivery.status !== 'Scheduled') {
+      const isUnassign = !updatedDelivery.assignedStaff || updatedDelivery.assignedStaff === 'Unassigned';
+      const targetStatus = isUnassign ? 'Scheduled' : updatedDelivery.status;
+      if (targetStatus && targetStatus !== 'Scheduled') {
         await api.put(`/deliveries/${updatedDelivery.id}/status`, {
-          status: updatedDelivery.status
+          status: targetStatus
         });
       }
       await fetchData();
@@ -625,9 +627,11 @@ export const AdminStateProvider = ({ children }) => {
       await api.put(`/pickups/${updatedPickup.id}/assign`, {
         assignedStaff: updatedPickup.assignedStaff
       });
-      if (updatedPickup.status && updatedPickup.status !== 'Scheduled') {
+      const isUnassign = !updatedPickup.assignedStaff || updatedPickup.assignedStaff === 'Unassigned';
+      const targetStatus = isUnassign ? 'Scheduled' : updatedPickup.status;
+      if (targetStatus && targetStatus !== 'Scheduled') {
         await api.put(`/pickups/${updatedPickup.id}/status`, {
-          status: updatedPickup.status
+          status: targetStatus
         });
       }
       await fetchData();

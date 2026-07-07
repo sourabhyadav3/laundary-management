@@ -84,7 +84,13 @@ const getAssignableDrivers = (driversList, customerArea, currentlyAssigned = '')
 
 const PickupDelivery = () => {
   const { t, language } = useLanguage();
-  const { pickups, deliveries, drivers, customers, orders, assignDriverToJob, updatePickupJob, updateDeliveryJob, addPickup, addDelivery, selectedBranch } = useContext(AdminStateContext);
+  const { pickups, deliveries, drivers, customers, orders, assignDriverToJob, updatePickupJob, updateDeliveryJob, addPickup, addDelivery, selectedBranch, branches } = useContext(AdminStateContext);
+  const isHomeServices = useMemo(() => {
+    try {
+      const user = JSON.parse(localStorage.getItem('user'));
+      return user && user.branchName && user.branchName.toLowerCase().includes('home service');
+    } catch (err) { return false; }
+  }, []);
   const [searchTerm, setSearchTerm] = useState('');
   const [pickupStatusFilter, setPickupStatusFilter] = useState('All');
   const [selectedCustomerId, setSelectedCustomerId] = useState('');
@@ -97,6 +103,9 @@ const PickupDelivery = () => {
   const [showDeliveryModal, setShowDeliveryModal] = useState(false);
 
   const [selectedPickupIds, setSelectedPickupIds] = useState([]);
+  const [selectedDeliveryIds, setSelectedDeliveryIds] = useState([]);
+  const [showBulkAssignModal, setShowBulkAssignModal] = useState(false);
+  const [bulkDriver, setBulkDriver] = useState('');
   
   // Workshop print filters state
   const [showWorkshopModal, setShowWorkshopModal] = useState(false);
@@ -699,28 +708,54 @@ const PickupDelivery = () => {
   // Get filtered and sorted drivers for New Pickup Modal
   const assignableDriversForNewPickup = useMemo(() => {
     const cust = customers.find((c) => c.name === addPickupData.customer);
-    return getAssignableDrivers(drivers, cust?.areaName);
-  }, [drivers, customers, addPickupData.customer]);
+    if (!cust) return [];
+    const custBranchId = cust.branchId || cust.branch;
+    const targetBranch = branches?.find(b => (b.id || b._id)?.toString() === custBranchId?.toString());
+    const targetBranchName = targetBranch ? targetBranch.name : '';
+    const branchDrivers = targetBranchName 
+      ? drivers.filter(d => d.branch === targetBranchName)
+      : drivers;
+    return getAssignableDrivers(branchDrivers, cust?.areaName);
+  }, [drivers, customers, addPickupData.customer, branches]);
 
   // Get filtered and sorted drivers for Edit Pickup Modal
   const assignableDriversForEditPickup = useMemo(() => {
     if (!editPickupData) return [];
     const cust = customers.find((c) => c.name === editPickupData.customer);
-    return getAssignableDrivers(drivers, cust?.areaName, editPickupData.assignedStaff);
-  }, [drivers, customers, editPickupData]);
+    const pickupBranchId = editPickupData.branchId;
+    const targetBranch = branches?.find(b => (b.id || b._id)?.toString() === pickupBranchId?.toString());
+    const targetBranchName = targetBranch ? targetBranch.name : '';
+    const branchDrivers = targetBranchName 
+      ? drivers.filter(d => d.branch === targetBranchName)
+      : drivers;
+    return getAssignableDrivers(branchDrivers, cust?.areaName, editPickupData.assignedStaff);
+  }, [drivers, customers, editPickupData, branches]);
 
   // Get filtered and sorted drivers for New Delivery Modal
   const assignableDriversForNewDelivery = useMemo(() => {
     const cust = customers.find((c) => c.name === addDeliveryData.customer);
-    return getAssignableDrivers(drivers, cust?.areaName);
-  }, [drivers, customers, addDeliveryData.customer]);
+    if (!cust) return [];
+    const custBranchId = cust.branchId || cust.branch;
+    const targetBranch = branches?.find(b => (b.id || b._id)?.toString() === custBranchId?.toString());
+    const targetBranchName = targetBranch ? targetBranch.name : '';
+    const branchDrivers = targetBranchName 
+      ? drivers.filter(d => d.branch === targetBranchName)
+      : drivers;
+    return getAssignableDrivers(branchDrivers, cust?.areaName);
+  }, [drivers, customers, addDeliveryData.customer, branches]);
 
   // Get filtered and sorted drivers for Edit Delivery Modal
   const assignableDriversForEditDelivery = useMemo(() => {
     if (!editDeliveryData) return [];
     const cust = customers.find((c) => c.name === editDeliveryData.customer);
-    return getAssignableDrivers(drivers, cust?.areaName, editDeliveryData.assignedStaff);
-  }, [drivers, customers, editDeliveryData]);
+    const deliveryBranchId = editDeliveryData.branchId;
+    const targetBranch = branches?.find(b => (b.id || b._id)?.toString() === deliveryBranchId?.toString());
+    const targetBranchName = targetBranch ? targetBranch.name : '';
+    const branchDrivers = targetBranchName 
+      ? drivers.filter(d => d.branch === targetBranchName)
+      : drivers;
+    return getAssignableDrivers(branchDrivers, cust?.areaName, editDeliveryData.assignedStaff);
+  }, [drivers, customers, editDeliveryData, branches]);
 
   const getCustomerAddress = (custName) => {
     const cust = customers.find(c => c.name === custName);
@@ -745,6 +780,31 @@ const PickupDelivery = () => {
   const handleEditDelivery = (delivery) => {
     setEditDeliveryData({ ...delivery });
     setShowEditDeliveryModal(true);
+  };
+
+  const handleBulkAssignDeliveries = async (selectedDriverName) => {
+    try {
+      const selectedDeliveries = filteredDeliveries.filter(d => selectedDeliveryIds.includes(d.id));
+      
+      const updatePromises = selectedDeliveries.map(delivery => {
+        const isUnassign = !selectedDriverName || selectedDriverName === 'Unassigned';
+        const newStatus = isUnassign ? 'Scheduled' : 'Assigned';
+        return updateDeliveryJob({
+          ...delivery,
+          assignedStaff: selectedDriverName,
+          status: newStatus
+        });
+      });
+      
+      await Promise.all(updatePromises);
+      toast.success(`Successfully assigned driver to ${selectedDeliveries.length} deliveries`);
+      setSelectedDeliveryIds([]);
+      setShowBulkAssignModal(false);
+      setBulkDriver('');
+    } catch (err) {
+      console.error(err);
+      toast.error('Failed to bulk assign driver');
+    }
   };
 
   const filteredPickups = useMemo(() => {
@@ -833,7 +893,13 @@ const PickupDelivery = () => {
       return;
     }
 
-    const activeBranch = selectedBranch === 'All' ? (selectedCustomerObj?.branchId || selectedCustomerObj?.branch || '') : selectedBranch;
+    const isHomeServices = (() => {
+      try {
+        const user = JSON.parse(localStorage.getItem('user'));
+        return user && user.branchName && user.branchName.toLowerCase().includes('home service');
+      } catch (err) { return false; }
+    })();
+    const activeBranch = (selectedBranch === 'All' || isHomeServices) ? (selectedCustomerObj?.branchId || selectedCustomerObj?.branch || selectedBranch) : selectedBranch;
     const pickupPayload = {
       customer: addPickupData.customer,
       pickupDate: addPickupData.pickupDate,
@@ -867,7 +933,13 @@ const PickupDelivery = () => {
       return;
     }
 
-    const activeBranch = selectedBranch === 'All' ? (selectedCustomerObj?.branchId || selectedCustomerObj?.branch || '') : selectedBranch;
+    const isHomeServices = (() => {
+      try {
+        const user = JSON.parse(localStorage.getItem('user'));
+        return user && user.branchName && user.branchName.toLowerCase().includes('home service');
+      } catch (err) { return false; }
+    })();
+    const activeBranch = (selectedBranch === 'All' || isHomeServices) ? (selectedCustomerObj?.branchId || selectedCustomerObj?.branch || selectedBranch) : selectedBranch;
     const deliveryPayload = {
       customer: addDeliveryData.customer,
       deliveryDate: addDeliveryData.deliveryDate,
@@ -975,6 +1047,39 @@ const PickupDelivery = () => {
   ];
 
   const deliveryColumns = [
+    {
+      header: (
+        <input
+          type="checkbox"
+          checked={filteredDeliveries.length > 0 && selectedDeliveryIds.length === filteredDeliveries.length}
+          onChange={(e) => {
+            if (e.target.checked) {
+              setSelectedDeliveryIds(filteredDeliveries.map((d) => d.id));
+            } else {
+              setSelectedDeliveryIds([]);
+            }
+          }}
+          className="rounded border-border text-blue-500 focus:ring-blue-400/40 h-4 w-4"
+        />
+      ),
+      accessor: 'checkbox',
+      cell: (row) => (
+        <input
+          type="checkbox"
+          checked={selectedDeliveryIds.includes(row.id)}
+          onChange={() => {
+            setSelectedDeliveryIds((prev) => {
+              if (prev.includes(row.id)) {
+                return prev.filter((item) => item !== row.id);
+              } else {
+                return [...prev, row.id];
+              }
+            });
+          }}
+          className="rounded border-border text-blue-500 focus:ring-blue-400/40 h-4 w-4"
+        />
+      ),
+    },
     { header: 'Delivery ID', accessor: 'deliveryId' },
     { header: 'Invoice No.', accessor: 'orderNumber' },
     { header: 'Customer', accessor: 'customer' },
@@ -1245,6 +1350,15 @@ const PickupDelivery = () => {
                   {language === 'ar' ? `الإجمالي: ${filteredDeliveries.length} طلبات توصيل` : `Total: ${filteredDeliveries.length} deliveries`}
                 </p>
               </div>
+              {selectedDeliveryIds.length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => setShowBulkAssignModal(true)}
+                  className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold transition-all shadow-md shadow-blue-500/20"
+                >
+                  {language === 'ar' ? 'تعيين جماعي للسائق' : 'Bulk Assign Driver'} ({selectedDeliveryIds.length})
+                </button>
+              )}
             </div>
 
             <div className="mt-5">
@@ -1313,6 +1427,15 @@ const PickupDelivery = () => {
             <h2 className="text-xl font-semibold text-primary">Deliveries — {selectedCustomerObj.name}</h2>
             <p className="text-sm text-secondary">Total: {filteredDeliveries.length} deliveries for this customer</p>
           </div>
+          {selectedDeliveryIds.length > 0 && (
+            <button
+              type="button"
+              onClick={() => setShowBulkAssignModal(true)}
+              className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold transition-all shadow-md shadow-blue-500/20"
+            >
+              {language === 'ar' ? 'تعيين جماعي للسائق' : 'Bulk Assign Driver'} ({selectedDeliveryIds.length})
+            </button>
+          )}
         </div>
 
         <div className="mt-5">
@@ -1560,7 +1683,7 @@ const PickupDelivery = () => {
                     <option value="">{editPickupData.customer ? 'Unassigned' : 'Select Customer First'}</option>
                     {assignableDriversForEditPickup.map((drv) => (
                       <option key={drv.id} value={drv.driverName}>
-                        {drv.driverName} ({drv.status})
+                        {isHomeServices ? `${drv.driverName} (${drv.status} - ${drv.branch || 'No Branch'})` : `${drv.driverName} (${drv.status})`}
                       </option>
                     ))}
                   </select>
@@ -1695,7 +1818,7 @@ const PickupDelivery = () => {
                     <option value="">{editDeliveryData.customer ? 'Unassigned' : 'Select Customer First'}</option>
                     {assignableDriversForEditDelivery.map((drv) => (
                       <option key={drv.id} value={drv.driverName}>
-                        {drv.driverName} ({drv.status})
+                        {isHomeServices ? `${drv.driverName} (${drv.status} - ${drv.branch || 'No Branch'})` : `${drv.driverName} (${drv.status})`}
                       </option>
                     ))}
                   </select>
@@ -1886,7 +2009,7 @@ const PickupDelivery = () => {
                   <option value="">{addPickupData.customer ? 'Unassigned' : 'Select Customer First'}</option>
                   {assignableDriversForNewPickup.map((drv) => (
                     <option key={drv.id} value={drv.driverName}>
-                      {drv.driverName} ({drv.status})
+                      {isHomeServices ? `${drv.driverName} (${drv.status} - ${drv.branch || 'No Branch'})` : `${drv.driverName} (${drv.status})`}
                     </option>
                   ))}
                 </select>
@@ -1998,7 +2121,7 @@ const PickupDelivery = () => {
                   <option value="">{addDeliveryData.customer ? 'Unassigned' : 'Select Customer First'}</option>
                   {assignableDriversForNewDelivery.map((drv) => (
                     <option key={drv.id} value={drv.driverName}>
-                      {drv.driverName} ({drv.status})
+                      {isHomeServices ? `${drv.driverName} (${drv.status} - ${drv.branch || 'No Branch'})` : `${drv.driverName} (${drv.status})`}
                     </option>
                   ))}
                 </select>
@@ -2052,6 +2175,104 @@ const PickupDelivery = () => {
               </button>
             </div>
           </form>
+        </div>,
+        document.body
+      )}
+      {showBulkAssignModal && createPortal(
+        <div className="fixed inset-0 z-[3000] flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm">
+          <div className="surface-card max-h-[90vh] w-full max-w-md overflow-y-auto rounded-3xl border border-border p-8 shadow-2xl">
+            <div className="flex items-center justify-between gap-4 border-b border-border pb-6">
+              <h2 className="text-2xl font-semibold text-primary">
+                {language === 'ar' ? 'تعيين جماعي للسائق' : 'Bulk Assign Driver'}
+              </h2>
+              <button 
+                type="button" 
+                onClick={() => { setShowBulkAssignModal(false); setBulkDriver(''); }} 
+                className="text-secondary hover:text-primary"
+              >
+                ✕
+              </button>
+            </div>
+
+            {(() => {
+              const selectedDeliveries = filteredDeliveries.filter(d => selectedDeliveryIds.includes(d.id));
+              const selectedBranchNames = selectedDeliveries.map(d => {
+                const targetBranch = branches?.find(b => (b.id || b._id)?.toString() === d.branchId?.toString());
+                return targetBranch ? targetBranch.name : '';
+              }).filter(Boolean);
+              const uniqueBranchNames = [...new Set(selectedBranchNames)];
+
+              if (uniqueBranchNames.length > 1) {
+                return (
+                  <div className="mt-6 space-y-4">
+                    <div className="p-4 rounded-2xl bg-rose-500/10 border border-rose-500/20 text-rose-500 text-sm font-semibold">
+                      {language === 'ar' 
+                        ? 'الطلبات المحددة تنتمي إلى فروع مختلفة. يرجى تحديد الطلبات من فرع واحد فقط لتعيين سائق.' 
+                        : 'Selected deliveries belong to different branches. Please select deliveries from a single branch to assign a driver.'}
+                    </div>
+                    <div className="mt-8 flex gap-4">
+                      <button
+                        type="button"
+                        onClick={() => { setShowBulkAssignModal(false); setBulkDriver(''); }}
+                        className="w-full rounded-3xl border border-border bg-surface-alt py-3 font-semibold text-primary transition hover:bg-surface text-sm"
+                      >
+                        {language === 'ar' ? 'إغلاق' : 'Close'}
+                      </button>
+                    </div>
+                  </div>
+                );
+              }
+
+              const targetBranchName = uniqueBranchNames[0];
+              const bulkAssignableDrivers = targetBranchName
+                ? drivers.filter(d => d.branch === targetBranchName)
+                : drivers;
+
+              return (
+                <div className="mt-6 space-y-4">
+                  <div>
+                    <label className="block text-xs font-semibold uppercase tracking-wider text-secondary">
+                      {language === 'ar' ? 'اختر السائق' : 'Select Driver'}
+                    </label>
+                    <div className="relative mt-2">
+                      <select
+                        value={bulkDriver}
+                        onChange={(e) => setBulkDriver(e.target.value)}
+                        className="w-full appearance-none rounded-2xl border border-border bg-surface py-3 pl-4 pr-10 text-primary focus:outline-none focus:ring-2 focus:ring-blue-400/40 text-sm font-medium"
+                      >
+                        <option value="">{language === 'ar' ? 'اختر سائق...' : 'Select a driver...'}</option>
+                        <option value="Unassigned">{language === 'ar' ? 'غير معين' : 'Unassigned'}</option>
+                        {bulkAssignableDrivers.map((d) => (
+                          <option key={d.id || d._id} value={d.driverName}>
+                            {d.driverName} ({d.status} - {d.branch})
+                          </option>
+                        ))}
+                      </select>
+                      <FiChevronDown className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-secondary" />
+                    </div>
+                  </div>
+
+                  <div className="mt-8 flex gap-4">
+                    <button
+                      type="button"
+                      onClick={() => { setShowBulkAssignModal(false); setBulkDriver(''); }}
+                      className="flex-1 rounded-3xl border border-border bg-surface-alt py-3 font-semibold text-primary transition hover:bg-surface text-sm"
+                    >
+                      {language === 'ar' ? 'إلغاء' : 'Cancel'}
+                    </button>
+                    <button
+                      type="button"
+                      disabled={!bulkDriver}
+                      onClick={() => handleBulkAssignDeliveries(bulkDriver)}
+                      className="flex-1 rounded-3xl text-white bg-blue-600 hover:bg-blue-700 py-3 font-semibold transition shadow-md text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {language === 'ar' ? 'حفظ التغييرات' : 'Save Changes'}
+                    </button>
+                  </div>
+                </div>
+              );
+            })()}
+          </div>
         </div>,
         document.body
       )}

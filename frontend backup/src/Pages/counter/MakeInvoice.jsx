@@ -594,7 +594,138 @@ const MakeInvoice = () => {
     setPaymentStep('select');
     clearDraftInvoice();
     toast.success(`✅ Invoice ${orderNo} settled via ${method}`);
-    navigate('/counter/invoices');
+    const redirectUrl = window.location.pathname.startsWith('/delivery') ? '/delivery/invoices' : '/counter/invoices';
+    navigate(redirectUrl);
+  };
+
+  const handlePrintDirectUnpaid = () => {
+    const customerObj = customers.find((c) => String(c.id) === String(form.customerId));
+    const orderId = Date.now();
+    const branchId = (selectedBranch && selectedBranch !== 'All') ? selectedBranch : (storedUser.assignedBranch || null);
+    const orderNo = getNextBranchOrderNo(orders, branchId, 'INV');
+
+    const newOrder = {
+      id: orderId,
+      number: orderNo,
+      customerId: customerObj.id,
+      customerName: customerObj.name,
+      serviceType: quickServiceMode,
+      status: 'Waiting',
+      deliveryStatus: 'Waiting',
+      isHomeDelivery: form.deliveryMode === 'home',
+      deliveryType: form.deliveryMode === 'home' ? 'Home Delivery' : 'Branch Pickup',
+      paymentStatus: 'Pending',
+      paymentMethod: 'Unpaid',
+      amount: subtotal,
+      tax,
+      taxRate,
+      discount: discountAmount,
+      totalAmount,
+      amountPaid: 0,
+      date: new Date().toISOString().split('T')[0],
+      pickupDate: new Date().toISOString().split('T')[0],
+      deliveryDate: form.expectedDeliveryDate,
+      paperInvoiceNo: form.paperInvNo,
+      itemDetails: orderItems.map((it) => ({
+        name: it.name,
+        nameAr: it.nameAr || '',
+        quantity: it.quantity,
+        unitPrice: it.unitPrice,
+        service: it.service,
+        notes: it.notes,
+      })),
+      notes: form.notes,
+      createdBy: storedUser.name || 'Counter Staff',
+      staffName: storedUser.name || 'Counter Staff',
+      branchId: branchId,
+    };
+
+    addOrder(newOrder);
+
+    // Update customer order count and balance in state
+    setCustomers(
+      customers.map((c) =>
+        c.id === customerObj.id
+          ? {
+              ...c,
+              totalOrders: (c.totalOrders || 0) + 1,
+              balance: (c.balance || 0) + totalAmount,
+            }
+          : c
+      )
+    );
+
+    generateInvoicePDF(newOrder);
+
+    clearDraftInvoice();
+    toast.success(`✅ Invoice ${orderNo} created (Unpaid) and printed`);
+    const redirectUrl = window.location.pathname.startsWith('/delivery') ? '/delivery/invoices' : '/counter/invoices';
+    navigate(redirectUrl);
+  };
+
+  const handleSettleAndPayDirectUnpaidWithoutPrint = () => {
+    const customerObj = customers.find((c) => String(c.id) === String(form.customerId));
+    const orderId = Date.now();
+    const branchId = (selectedBranch && selectedBranch !== 'All') ? selectedBranch : (storedUser.assignedBranch || null);
+    const orderNo = getNextBranchOrderNo(orders, branchId, 'INV');
+
+    const newOrder = {
+      id: orderId,
+      number: orderNo,
+      customerId: customerObj.id,
+      customerName: customerObj.name,
+      serviceType: quickServiceMode,
+      status: 'Waiting',
+      deliveryStatus: 'Waiting',
+      isHomeDelivery: form.deliveryMode === 'home',
+      deliveryType: form.deliveryMode === 'home' ? 'Home Delivery' : 'Branch Pickup',
+      paymentStatus: 'Pending',
+      paymentMethod: 'Unpaid',
+      amount: subtotal,
+      tax,
+      taxRate,
+      discount: discountAmount,
+      totalAmount,
+      amountPaid: 0,
+      date: new Date().toISOString().split('T')[0],
+      pickupDate: new Date().toISOString().split('T')[0],
+      deliveryDate: form.expectedDeliveryDate,
+      paperInvoiceNo: form.paperInvNo,
+      itemDetails: orderItems.map((it) => ({
+        name: it.name,
+        nameAr: it.nameAr || '',
+        quantity: it.quantity,
+        unitPrice: it.unitPrice,
+        service: it.service,
+        notes: it.notes,
+      })),
+      notes: form.notes,
+      createdBy: storedUser.name || 'Counter Staff',
+      staffName: storedUser.name || 'Counter Staff',
+      branchId: branchId,
+    };
+
+    addOrder(newOrder);
+
+    // Update customer order count and balance in state
+    setCustomers(
+      customers.map((c) =>
+        c.id === customerObj.id
+          ? {
+              ...c,
+              totalOrders: (c.totalOrders || 0) + 1,
+              balance: (c.balance || 0) + totalAmount,
+            }
+          : c
+      )
+    );
+
+    setShowSettleModal(false);
+    setPaymentStep('select');
+    clearDraftInvoice();
+    toast.success(`✅ Invoice ${orderNo} created as Unpaid`);
+    const redirectUrl = window.location.pathname.startsWith('/delivery') ? '/delivery/invoices' : '/counter/invoices';
+    navigate(redirectUrl);
   };
 
 
@@ -676,7 +807,8 @@ const MakeInvoice = () => {
 
     handleSendToWhatsApp(customerObj.phone, waText);
     clearDraftInvoice();
-    navigate('/counter/invoices');
+    const redirectUrl = window.location.pathname.startsWith('/delivery') ? '/delivery/invoices' : '/counter/invoices';
+    navigate(redirectUrl);
   };
 
   const locale = language === 'ar' ? 'ar-KW' : 'en-GB';
@@ -1398,7 +1530,7 @@ const MakeInvoice = () => {
               </button>
               <button
                 type="button"
-                onClick={() => { if (validateInvoice()) { setIsPrintFlow(true); setShowSettleModal(true); } }}
+                onClick={() => { if (validateInvoice()) { handlePrintDirectUnpaid(); } }}
                 className="flex-1 min-w-[110px] bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 rounded-xl text-xs uppercase tracking-wider shadow-md hover:shadow-lg transition-all duration-200"
               >
                 {t('counter.makeInvoice.printButton') || "Print Invoice"}
@@ -1484,7 +1616,7 @@ const MakeInvoice = () => {
                     onClick={() => setPaymentMode('partial')}
                     className={`flex-1 py-2 text-center rounded-xl transition-all duration-200 ${paymentMode === 'partial' ? 'bg-surface text-primary shadow-sm' : 'text-secondary hover:text-primary'}`}
                   >
-                    {language === 'ar' ? 'دفع جزئي / آجل' : 'Partial / Unpaid'}
+                    {language === 'ar' ? 'دفع جزئي' : 'Partial'}
                   </button>
                 </div>
 
@@ -1495,21 +1627,41 @@ const MakeInvoice = () => {
                       <span>{language === 'ar' ? 'المبلغ المستلم' : 'Amount Received'}:</span>
                       <span className="font-mono">{language === 'ar' ? 'د.ك' : 'KWD'}</span>
                     </div>
-                    <input
-                      type="number"
-                      min="0"
-                      max={totalAmount}
-                      step="0.001"
-                      value={amountReceived}
-                      onChange={(e) => setAmountReceived(e.target.value)}
-                      className="w-full text-sm rounded-xl border border-border bg-surface px-3 py-2 text-right font-mono focus:outline-none focus:ring-2 focus:ring-blue-500/30"
-                      placeholder="0.000"
-                    />
+                    <div className="flex gap-2">
+                      <input
+                        type="number"
+                        min="0"
+                        max={totalAmount}
+                        step="0.001"
+                        value={amountReceived}
+                        onChange={(e) => setAmountReceived(e.target.value)}
+                        className="flex-1 text-sm rounded-xl border border-border bg-surface px-3 py-2 text-right font-mono focus:outline-none focus:ring-2 focus:ring-blue-500/30"
+                        placeholder="0.000"
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault();
+                            e.target.blur();
+                          }
+                        }}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const activeEl = document.activeElement;
+                          if (activeEl && activeEl.tagName === 'INPUT') {
+                            activeEl.blur();
+                          }
+                        }}
+                        className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition-all shadow-md active:scale-95 shrink-0"
+                      >
+                        {language === 'ar' ? 'إدخال' : 'Enter'}
+                      </button>
+                    </div>
                     {(() => {
                       const received = Number(amountReceived) || 0;
                       const remaining = Math.max(0, totalAmount - received);
                       return (
-                        <div className="flex justify-between items-center text-[10px] font-bold text-rose-500 pt-1 border-t border-border/40">
+                        <div className="flex justify-between items-center text-xs font-bold text-rose-500 pt-1.5 border-t border-border/40">
                           <span>{language === 'ar' ? 'المتبقي في الحساب' : 'Balance Remaining'}:</span>
                           <span className="font-mono">{formatCurrency(remaining)}</span>
                         </div>
@@ -1537,6 +1689,17 @@ const MakeInvoice = () => {
                   </button>
                 ))}
               </div>
+              <button
+                  type="button"
+                  onClick={() => handleSettleAndPayDirectUnpaidWithoutPrint()}
+                  className="w-full relative flex items-center justify-center gap-2 p-3 mt-3 rounded-2xl text-white transition-all hover:-translate-y-1 active:scale-95 group overflow-hidden"
+                  style={{ background: 'linear-gradient(135deg,#64748b,#475569)', boxShadow: '0 8px 20px -5px rgba(100,116,139,0.4)' }}
+                >
+                  <span className="text-xl">📝</span>
+                  <span className="text-[11px] font-bold uppercase tracking-widest">
+                    {language === 'ar' ? 'غير مدفوع بالكامل' : 'Full Unpaid'}
+                  </span>
+                </button>
             </div>
             )}
 
