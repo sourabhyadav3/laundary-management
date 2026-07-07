@@ -4,43 +4,44 @@ const CatalogItem = require('../models/CatalogItem');
 const { authenticate } = require('../middleware/auth');
 
 // Default initial items
+// Default initial items
 const defaultCatalog = [
-  { name: 'Dishdasha', key: 'dishdasha', price: 1.5, icon: '🥋', category: 'traditional', color: '#8b5cf6' },
-  { name: 'Dishdasha (Premium)', key: 'dishdashaPremium', price: 2.5, icon: '🥋', category: 'traditional', color: '#8b5cf6' },
-  { name: 'Small Dishdasha', key: 'smallDishdasha', price: 1.0, icon: '🥋', category: 'traditional', color: '#8b5cf6' },
-  { name: 'Small Dishdasha (Premium)', key: 'smallDishdashaPremium', price: 1.75, icon: '🥋', category: 'traditional', color: '#8b5cf6' },
-  { name: 'Ghotraa', key: 'ghotraa', price: 0.5, icon: '👳', category: 'traditional', color: '#8b5cf6' },
-  { name: 'Shmage', key: 'shmage', price: 0.75, icon: '🧣', category: 'traditional', color: '#8b5cf6' },
-  { name: 'Shmage (Special)', key: 'shmageSpecial', price: 1.25, icon: '🧣', category: 'traditional', color: '#8b5cf6' },
-  { name: 'Gahfiya', key: 'gahfiya', price: 0.25, icon: '🧢', category: 'traditional', color: '#8b5cf6' },
-  { name: 'Shirt', key: 'shirt', price: 0.75, icon: '👔', category: 'casual', color: '#3b82f6' },
-  { name: 'Bisht', key: 'bisht', price: 3.5, icon: '🧥', category: 'traditional', color: '#8b5cf6' },
-  { name: 'Trousers', key: 'trousers', price: 0.75, icon: '👖', category: 'casual', color: '#3b82f6' },
-  { name: 'Jacket', key: 'jacket', price: 1.5, icon: '🧥', category: 'outerwear', color: '#f59e0b' },
-  { name: 'BIG Jacket', key: 'bigJacket', price: 2.5, icon: '🧥', category: 'outerwear', color: '#f59e0b' },
-  { name: 'Carpet', key: 'carpet', price: 5.0, icon: '🧹', category: 'household', color: '#10b981' },
-  { name: 'Military Suit', key: 'militarySuit', price: 3.0, icon: '🎖️', category: 'casual', color: '#3b82f6' },
-  { name: 'Cap', key: 'cap', price: 0.5, icon: '🧢', category: 'casual', color: '#3b82f6' },
-  { name: 'Coat', key: 'coat', price: 2.0, icon: '🧥', category: 'outerwear', color: '#f59e0b' },
-  { name: 'Suit', key: 'suit', price: 2.5, icon: '🤵', category: 'casual', color: '#3b82f6' },
-  { name: 'Small Trousers', key: 'smallTrousers', price: 0.5, icon: '👖', category: 'casual', color: '#3b82f6' },
-  { name: 'Dress', key: 'dress', price: 1.5, icon: '👗', category: 'casual', color: '#3b82f6' },
-  { name: 'School Dress', key: 'schoolDress', price: 1.0, icon: '👗', category: 'casual', color: '#3b82f6' },
-  { name: 'Dressing Gown', key: 'dressingGown', price: 2.0, icon: '👘', category: 'casual', color: '#3b82f6' },
-  { name: 'Evening Dress', key: 'eveningDress', price: 3.0, icon: '👗', category: 'casual', color: '#3b82f6' },
-  { name: 'Wedding Dress', key: 'weddingDress', price: 15.0, icon: '👰', category: 'special', color: '#ec4899' },
-  { name: 'Large Blouse', key: 'largeBlouse', price: 1.25, icon: '👚', category: 'casual', color: '#3b82f6' },
-  { name: 'Skirt', key: 'skirt', price: 1.0, icon: '👗', category: 'casual', color: '#3b82f6' },
-  { name: 'Small Skirt', key: 'smallSkirt', price: 0.75, icon: '👗', category: 'casual', color: '#3b82f6' },
-  { name: 'Abaya', key: 'abaya', price: 2.0, icon: '🧕', category: 'traditional', color: '#8b5cf6' },
-  { name: 'Hegab', key: 'hegab', price: 0.5, icon: '🧕', category: 'traditional', color: '#8b5cf6' },
-  { name: 'Bluse', key: 'bluse', price: 1.0, icon: '👚', category: 'casual', color: '#3b82f6' },
-  { name: 'OVERALL', key: 'overall', price: 2.0, icon: '🥋', category: 'casual', color: '#3b82f6' },
-  { name: 'Curtain', key: 'curtain', price: 3.0, icon: '🪟', category: 'household', color: '#10b981' },
-  { name: 'Sheet', key: 'sheet', price: 1.5, icon: '🛏️', category: 'household', color: '#10b981' },
-  { name: 'Plaid', key: 'plaid', price: 2.5, icon: '🛏️', category: 'household', color: '#10b981' },
-  { name: 'Single quilt', key: 'singleQuilt', price: 3.0, icon: '🛏️', category: 'household', color: '#10b981' },
-  { name: 'Double quilt', key: 'doubleQuilt', price: 4.5, icon: '🛏️', category: 'household', color: '#10b981' },
+  { name: 'Dishdasha', key: 'dishdasha', nameAr: 'دشداشة', price: 1.5, icon: '🥋', category: 'traditional', color: '#8b5cf6' },
+  { name: 'Dishdasha (Premium)', key: 'dishdashaPremium', nameAr: 'دشداشة (ممتاز)', price: 2.5, icon: '🥋', category: 'traditional', color: '#8b5cf6' },
+  { name: 'Small Dishdasha', key: 'smallDishdasha', nameAr: 'دشداشة صغير', price: 1.0, icon: '🥋', category: 'traditional', color: '#8b5cf6' },
+  { name: 'Small Dishdasha (Premium)', key: 'smallDishdashaPremium', nameAr: 'دشداشة صغير (ممتاز)', price: 1.75, icon: '🥋', category: 'traditional', color: '#8b5cf6' },
+  { name: 'Ghotraa', key: 'ghotraa', nameAr: 'غترة', price: 0.5, icon: '👳', category: 'traditional', color: '#8b5cf6' },
+  { name: 'Shmage', key: 'shmage', nameAr: 'شماغ', price: 0.75, icon: '🧣', category: 'traditional', color: '#8b5cf6' },
+  { name: 'Shmage (Special)', key: 'shmageSpecial', nameAr: 'شماغ (خاص)', price: 1.25, icon: '🧣', category: 'traditional', color: '#8b5cf6' },
+  { name: 'Gahfiya', key: 'gahfiya', nameAr: 'قحفية', price: 0.25, icon: '🧢', category: 'traditional', color: '#8b5cf6' },
+  { name: 'Shirt', key: 'shirt', nameAr: 'قميص', price: 0.75, icon: '👔', category: 'casual', color: '#3b82f6' },
+  { name: 'Bisht', key: 'bisht', nameAr: 'بشت', price: 3.5, icon: '🧥', category: 'traditional', color: '#8b5cf6' },
+  { name: 'Trousers', key: 'trousers', nameAr: 'بنطلون', price: 0.75, icon: '👖', category: 'casual', color: '#3b82f6' },
+  { name: 'Jacket', key: 'jacket', nameAr: 'جاكيت', price: 1.5, icon: '🧥', category: 'outerwear', color: '#f59e0b' },
+  { name: 'BIG Jacket', key: 'bigJacket', nameAr: 'جاكيت كبير', price: 2.5, icon: '🧥', category: 'outerwear', color: '#f59e0b' },
+  { name: 'Carpet', key: 'carpet', nameAr: 'سجاد', price: 5.0, icon: '🧹', category: 'household', color: '#10b981' },
+  { name: 'Military Suit', key: 'militarySuit', nameAr: 'بدلة عسكرية', price: 3.0, icon: '🎖️', category: 'casual', color: '#3b82f6' },
+  { name: 'Cap', key: 'cap', nameAr: 'كاب', price: 0.5, icon: '🧢', category: 'casual', color: '#3b82f6' },
+  { name: 'Coat', key: 'coat', nameAr: 'معطف', price: 2.0, icon: '🧥', category: 'outerwear', color: '#f59e0b' },
+  { name: 'Suit', key: 'suit', nameAr: 'بدلة', price: 2.5, icon: '🤵', category: 'casual', color: '#3b82f6' },
+  { name: 'Small Trousers', key: 'smallTrousers', nameAr: 'بنطلون صغير', price: 0.5, icon: '👖', category: 'casual', color: '#3b82f6' },
+  { name: 'Dress', key: 'dress', nameAr: 'فستان', price: 1.5, icon: '👗', category: 'casual', color: '#3b82f6' },
+  { name: 'School Dress', key: 'schoolDress', nameAr: 'فستان مدرسة', price: 1.0, icon: '👗', category: 'casual', color: '#3b82f6' },
+  { name: 'Dressing Gown', key: 'dressingGown', nameAr: 'روب منزلي', price: 2.0, icon: '👘', category: 'casual', color: '#3b82f6' },
+  { name: 'Evening Dress', key: 'eveningDress', nameAr: 'فستان سهرة', price: 3.0, icon: '👗', category: 'casual', color: '#3b82f6' },
+  { name: 'Wedding Dress', key: 'weddingDress', nameAr: 'فستان زفاف', price: 15.0, icon: '👰', category: 'special', color: '#ec4899' },
+  { name: 'Large Blouse', key: 'largeBlouse', nameAr: 'بلوزة كبيرة', price: 1.25, icon: '👚', category: 'casual', color: '#3b82f6' },
+  { name: 'Skirt', key: 'skirt', nameAr: 'تنورة', price: 1.0, icon: '👗', category: 'casual', color: '#3b82f6' },
+  { name: 'Small Skirt', key: 'smallSkirt', nameAr: 'تنورة صغيرة', price: 0.75, icon: '👗', category: 'casual', color: '#3b82f6' },
+  { name: 'Abaya', key: 'abaya', nameAr: 'عباية', price: 2.0, icon: '🧕', category: 'traditional', color: '#8b5cf6' },
+  { name: 'Hegab', key: 'hegab', nameAr: 'حجاب', price: 0.5, icon: '🧕', category: 'traditional', color: '#8b5cf6' },
+  { name: 'Bluse', key: 'bluse', nameAr: 'بلوزة', price: 1.0, icon: '👚', category: 'casual', color: '#3b82f6' },
+  { name: 'OVERALL', key: 'overall', nameAr: 'أوفرول', price: 2.0, icon: '🥋', category: 'casual', color: '#3b82f6' },
+  { name: 'Curtain', key: 'curtain', nameAr: 'ستارة', price: 3.0, icon: '🪟', category: 'household', color: '#10b981' },
+  { name: 'Sheet', key: 'sheet', nameAr: 'شرشف', price: 1.5, icon: '🛏️', category: 'household', color: '#10b981' },
+  { name: 'Plaid', key: 'plaid', nameAr: 'بطانية خفيفة', price: 2.5, icon: '🛏️', category: 'household', color: '#10b981' },
+  { name: 'Single quilt', key: 'singleQuilt', nameAr: 'لحاف مفرد', price: 3.0, icon: '🛏️', category: 'household', color: '#10b981' },
+  { name: 'Double quilt', key: 'doubleQuilt', nameAr: 'لحاف مزدوج', price: 4.5, icon: '🛏️', category: 'household', color: '#10b981' },
 ];
 
 // GET /api/catalog
@@ -50,6 +51,22 @@ router.get('/', authenticate, async (req, res) => {
     if (items.length === 0) {
       await CatalogItem.insertMany(defaultCatalog);
       items = await CatalogItem.find();
+    } else {
+      // One-time database migration: update existing catalog items to include nameAr
+      let updatedAny = false;
+      for (const item of items) {
+        if (!item.nameAr) {
+          const match = defaultCatalog.find(d => d.key === item.key);
+          if (match && match.nameAr) {
+            item.nameAr = match.nameAr;
+            await item.save();
+            updatedAny = true;
+          }
+        }
+      }
+      if (updatedAny) {
+        items = await CatalogItem.find();
+      }
     }
     res.json(items);
   } catch (error) {

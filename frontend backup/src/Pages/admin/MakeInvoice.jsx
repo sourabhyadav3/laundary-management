@@ -7,7 +7,7 @@ import { FiTrash2, FiSearch, FiCheck, FiX } from 'react-icons/fi';
 import { formatCurrency, generateInvoicePDF, getNextBranchOrderNo } from '../../utils/exportUtils';
 import { useLanguage } from '../../context/LanguageContext';
 import { useTheme } from '../../context/ThemeContext';
-import { translateGarmentName } from '../../utils/garmentTranslations';
+import { translateGarmentName, getBilingualGarmentNames } from '../../utils/garmentTranslations';
 import {
     EMPTY_CATALOG_PRICES,
     SERVICE_PRICE_FIELDS,
@@ -70,16 +70,8 @@ const MakeInvoice = () => {
 
     const getGarmentDisplayName = (catalogItemOrName) => {
         const name = typeof catalogItemOrName === 'string' ? catalogItemOrName : catalogItemOrName?.name;
-        const catalogItem = typeof catalogItemOrName === 'string'
-            ? catalog.find((g) => g.name === catalogItemOrName)
-            : catalogItemOrName;
-
         if (language === 'ar') {
-            if (catalogItem?.nameAr) return catalogItem.nameAr;
-            if (catalogItem && catalogItem.category !== 'custom' && !catalogItem.isNameEdited && catalogItem.key) {
-                return t(`counter.makeInvoice.${catalogItem.key}`) || name;
-            }
-            return translateGarmentName(name) || name;
+            return getBilingualGarmentNames(name, catalog).ar;
         }
         return name;
     };
@@ -529,6 +521,7 @@ const MakeInvoice = () => {
             {
                 id: Date.now() + Math.random(),
                 name: g.name,
+                nameAr: g.nameAr || '',
                 service: service,
                 quantity: 1,
                 unitPrice: getGarmentPriceForService(g, service),
@@ -724,8 +717,12 @@ const MakeInvoice = () => {
             deliveryDate: form.expectedDeliveryDate,
             paperInvoiceNo: form.paperInvNo,
             itemDetails: orderItems.map((it) => ({
-                name: it.name, quantity: it.quantity, unitPrice: it.unitPrice,
-                service: it.service, notes: it.notes,
+                name: it.name,
+                nameAr: it.nameAr || '',
+                quantity: it.quantity,
+                unitPrice: it.unitPrice,
+                service: it.service,
+                notes: it.notes,
             })),
             notes: form.notes,
             createdBy: storedUser.name || 'Admin',
@@ -831,6 +828,7 @@ const MakeInvoice = () => {
             paperInvoiceNo: form.paperInvNo,
             itemDetails: orderItems.map((it) => ({
                 name: it.name,
+                nameAr: it.nameAr || '',
                 quantity: it.quantity,
                 unitPrice: it.unitPrice,
                 service: it.service,

@@ -81,6 +81,7 @@ const AssignedDeliveries = () => {
         <tr>
           <td>${idx + 1}</td>
           <td>${d.deliveryId || 'N/A'}</td>
+          <td>${d.orderNumber || 'N/A'}</td>
           <td>${d.customer || 'N/A'}</td>
           <td class="address">${formatDeliveryAddress(d, isAr)}</td>
           <td>${d.contactNumber || 'N/A'}</td>
@@ -126,6 +127,7 @@ const AssignedDeliveries = () => {
               <tr>
                 <th>#</th>
                 <th>${isAr ? 'رقم التوصيل' : 'Delivery ID'}</th>
+                <th>${isAr ? 'رقم الفاتورة' : 'Invoice No.'}</th>
                 <th>${isAr ? 'اسم العميل' : 'Customer Name'}</th>
                 <th>${isAr ? 'العنوان' : 'Address'}</th>
                 <th>${isAr ? 'رقم الاتصال' : 'Contact Number'}</th>

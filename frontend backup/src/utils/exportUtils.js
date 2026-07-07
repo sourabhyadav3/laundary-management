@@ -1,6 +1,6 @@
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import { translations } from '../context/translations';
+import { getBilingualGarmentNames, translateGarmentName } from './garmentTranslations';
 
 export const formatCurrency = (value) => {
   const num = Number(value) || 0;
@@ -114,11 +114,7 @@ const downloadBlob = (blob, filename) => {
   URL.revokeObjectURL(url);
 };
 
-const escapeCsvCell = (value) => {
-  const str = value == null ? '' : String(value);
-  if (/[",\n\r]/.test(str)) return `"${str.replace(/"/g, '""')}"`;
-  return str;
-};
+
 
 const getCellValue = (row, col) => {
   const raw = row[col.key];
@@ -126,7 +122,22 @@ const getCellValue = (row, col) => {
   return raw ?? '';
 };
 
-/** @returns {boolean} success */
+/** @returns {boolean} success */const extractTextFromReact = (val) => {
+  if (val && typeof val === 'object') {
+    if (val.props && val.props.children !== undefined) {
+      return extractTextFromReact(val.props.children);
+    }
+    if (Array.isArray(val)) {
+      return val.map(extractTextFromReact).join(' ');
+    }
+    if (val.en !== undefined || val.ar !== undefined) {
+      const lang = localStorage.getItem('language') || 'en';
+      return lang === 'ar' ? (val.ar || val.en) : (val.en || val.ar);
+    }
+  }
+  return val == null ? '' : String(val);
+};
+
 export const exportToCSV = (data, filename, columns) => {
   if (!data?.length) return false;
 
@@ -134,13 +145,69 @@ export const exportToCSV = (data, filename, columns) => {
     columns ||
     Object.keys(data[0]).map((key) => ({ key, label: key }));
 
-  const headerLine = cols.map((c) => escapeCsvCell(c.label)).join(',');
-  const bodyLines = data.map((row) =>
-    cols.map((c) => escapeCsvCell(getCellValue(row, c))).join(',')
-  );
-  const csv = [headerLine, ...bodyLines].join('\r\n');
-  const blob = new Blob(['\ufeff', csv], { type: 'text/csv;charset=utf-8;' });
-  downloadBlob(blob, filename.endsWith('.csv') ? filename : `${filename}.csv`);
+  const branchName = getActiveBranchName();
+  const formattedDate = formatDateTime(new Date());
+
+  let html = `
+    <html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">
+    <head>
+      <!--[if gte mso 9]>
+      <xml>
+        <x:ExcelWorkbook>
+          <x:ExcelWorksheets>
+            <x:ExcelWorksheet>
+              <x:Name>Sheet1</x:Name>
+              <x:WorksheetOptions>
+                <x:FitToPage/>
+              </x:WorksheetOptions>
+            </x:ExcelWorksheet>
+          </x:ExcelWorksheets>
+        </x:ExcelWorkbook>
+      </xml>
+      <![endif]-->
+      <meta charset="utf-8">
+      <style>
+        body { font-family: Arial, sans-serif; }
+        .heading { font-size: 16px; font-weight: bold; color: #1e3a8a; }
+        .meta { font-size: 11px; color: #4b5563; }
+        table { border-collapse: collapse; margin-top: 15px; }
+        th { font-weight: bold; background-color: #2563eb; color: #ffffff; padding: 8px 12px; border: 1px solid #d1d5db; text-align: left; }
+        td { padding: 8px 12px; border: 1px solid #e5e7eb; text-align: left; }
+      </style>
+    </head>
+    <body>
+      <div class="heading">Branch: ${branchName}</div>
+      <div class="meta">Generated: ${formattedDate}</div>
+      <div class="meta">Records: ${data.length}</div>
+      <br/>
+      <table border="1" cellpadding="8">
+        <thead>
+          <tr>
+            ${cols.map(c => `<th>${c.label}</th>`).join('')}
+          </tr>
+        </thead>
+        <tbody>
+          ${data.map(row => `
+            <tr>
+              ${cols.map(c => {
+                const val = getCellValue(row, c);
+                return `<td>${extractTextFromReact(val)}</td>`;
+              }).join('')}
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
+    </body>
+    </html>
+  `;
+
+  const blob = new Blob(['\ufeff', html], { type: 'application/vnd.ms-excel;charset=utf-8;' });
+  
+  const cleanBranch = branchName.toLowerCase().replace(/[^a-z0-9]/g, '_');
+  const baseName = filename.endsWith('.csv') ? filename.slice(0, -4) : filename.endsWith('.xls') ? filename.slice(0, -4) : filename;
+  const safeName = `${baseName}_${cleanBranch}.xls`;
+
+  downloadBlob(blob, safeName);
   return true;
 };
 
@@ -166,9 +233,11 @@ export const exportToPDF = ({ title, subtitle, columns, data, filename, summaryL
   const pageWidth = doc.internal.pageSize.getWidth();
   let y = 14;
 
+  const branchName = getActiveBranchName();
+
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(16);
-  doc.text(title, 14, y);
+  doc.text(`${title} (${branchName})`, 14, y);
   y += 8;
 
   doc.setFont('helvetica', 'normal');
@@ -180,6 +249,8 @@ export const exportToPDF = ({ title, subtitle, columns, data, filename, summaryL
     y += 6;
   }
 
+  doc.text(`Branch: ${branchName}`, 14, y);
+  y += 6;
   doc.text(`Generated: ${formatDateTime(new Date())}`, 14, y);
   y += 6;
   doc.text(`Records: ${data.length}`, 14, y);
@@ -205,7 +276,7 @@ export const exportToPDF = ({ title, subtitle, columns, data, filename, summaryL
   const body = data.map((row) =>
     columns.map((c) => {
       const val = getCellValue(row, c);
-      return typeof val === 'string' ? val : String(val);
+      return extractTextFromReact(val);
     })
   );
 
@@ -230,7 +301,10 @@ export const exportToPDF = ({ title, subtitle, columns, data, filename, summaryL
     },
   });
 
-  const safeName = filename.endsWith('.pdf') ? filename : `${filename}.pdf`;
+  const cleanBranch = branchName.toLowerCase().replace(/[^a-z0-9]/g, '_');
+  const baseName = filename.endsWith('.pdf') ? filename.slice(0, -4) : filename;
+  const safeName = `${baseName}_${cleanBranch}.pdf`;
+
   doc.save(safeName);
   return true;
 };
@@ -251,7 +325,7 @@ const translateService = (service) => {
 const translateBranch = (branchIdOrName) => {
   if (!branchIdOrName) return { en: 'Main Branch', ar: 'الفرع الرئيسي' };
   const rawId = String(branchIdOrName).trim();
-  const name = rawId.toLowerCase();
+  const branchName = rawId.toLowerCase();
 
   // 1. Try to find in localStorage cached branches
   try {
@@ -260,8 +334,8 @@ const translateBranch = (branchIdOrName) => {
       const list = JSON.parse(cached);
       if (Array.isArray(list)) {
         const found = list.find(b => 
-          String(b.id || b._id || '').toLowerCase() === name ||
-          String(b.name || '').toLowerCase() === name
+          String(b.id || b._id || '').toLowerCase() === branchName ||
+          String(b.name || '').toLowerCase() === branchName
         );
         if (found) {
           const nameLower = String(found.name).toLowerCase();
@@ -295,14 +369,14 @@ const translateBranch = (branchIdOrName) => {
   }
 
   // 2. Direct database seeded ObjectId mapping or code mapping
-  if (name === '6a3cf82764fc882a198272c5' || name.includes('ragheey') || name === '1') return { en: 'Ragheey', ar: 'الرقعي' };
-  if (name === '6a3cf82764fc882a198272c6' || name.includes('mishrif') || name === '2') return { en: 'Mishrif', ar: 'مشرف' };
-  if (name === '6a3cf82764fc882a198272c7' || name.includes('andalus') || name === '3') return { en: 'Andalus', ar: 'الأندلس' };
-  if (name.includes('ardiya') || name === '4') return { en: 'Ardiya', ar: 'العارضية' };
-  if (name.includes('khaitan') || name === '5') return { en: 'Khaitan', ar: 'خيطان' };
-  if (name.includes('qurain') || name === '6') return { en: 'Qurain', ar: 'القرين' };
-  if (name.includes('jahra') || name === '7') return { en: 'Jahra', ar: 'الجهراء' };
-  if (name === '6a3d01028b85970b21c6dc45' || name.includes('rigai') || name === '8') return { en: 'Rigai', ar: 'الرقعي' };
+  if (branchName === '6a3cf82764fc882a198272c5' || branchName.includes('ragheey') || branchName === '1') return { en: 'Ragheey', ar: 'الرقعي' };
+  if (branchName === '6a3cf82764fc882a198272c6' || branchName.includes('mishrif') || branchName === '2') return { en: 'Mishrif', ar: 'مشرف' };
+  if (branchName === '6a3cf82764fc882a198272c7' || branchName.includes('andalus') || branchName === '3') return { en: 'Andalus', ar: 'الأندلس' };
+  if (branchName.includes('ardiya') || branchName === '4') return { en: 'Ardiya', ar: 'العارضية' };
+  if (branchName.includes('khaitan') || branchName === '5') return { en: 'Khaitan', ar: 'خيطان' };
+  if (branchName.includes('qurain') || branchName === '6') return { en: 'Qurain', ar: 'القرين' };
+  if (branchName.includes('jahra') || branchName === '7') return { en: 'Jahra', ar: 'الجهراء' };
+  if (branchName === '6a3d01028b85970b21c6dc45' || branchName.includes('rigai') || branchName === '8') return { en: 'Rigai', ar: 'الرقعي' };
 
   const capitalized = rawId.charAt(0).toUpperCase() + rawId.slice(1);
   return { en: capitalized, ar: capitalized };
@@ -344,25 +418,17 @@ const translateDeliveryStatus = (status) => {
   return { en: status, ar: status };
 };
 
-const translateGarment = (name) => {
-  if (!name) return { en: 'N/A', ar: 'N/A' };
-  const catalogSection = translations?.en?.counter?.makeInvoice || {};
-  const keys = Object.keys(catalogSection);
-  for (const key of keys) {
-    const enVal = catalogSection[key];
-    if (typeof enVal === 'string' && enVal.toLowerCase() === name.toLowerCase()) {
-      const arVal = translations?.ar?.counter?.makeInvoice?.[key] || enVal;
-      return { en: enVal, ar: arVal };
-    }
+const translateGarment = (garmentName) => {
+  let catalogList = window.__cachedCatalog;
+  if (!catalogList) {
+    try {
+      const stored = localStorage.getItem('catalog_list');
+      if (stored) {
+        catalogList = JSON.parse(stored);
+      }
+    } catch (e) {}
   }
-
-  // Fallback for some common names
-  const lowerName = name.toLowerCase();
-  if (lowerName === 'ghotraa') return { en: 'Ghotraa', ar: 'غترة' };
-  if (lowerName === 'shmage') return { en: 'Shmage', ar: 'شماغ' };
-  if (lowerName === 'shmage (special)') return { en: 'Shmage (Special)', ar: 'شماغ (خاص)' };
-  
-  return { en: name, ar: name };
+  return getBilingualGarmentNames(garmentName, catalogList);
 };
 
 export const getDisplayTotal = (order) =>
@@ -534,22 +600,41 @@ export const generateInvoicePDF = (order, { showPaidTotal = false } = {}) => {
   // Parse items
   const itemsHtml = (order?.itemDetails || []).map((it) => {
     const translatedItem = translateGarment(it.name);
-    const noteHtml = it.notes ? `<div class="item-notes" style="color: #000 !important; font-weight: bold; font-size: 10px;">Note: ${it.notes}</div>` : '';
+    
+    const itemEn = it.name || translatedItem.en || '';
+    let itemAr = it.nameAr || '';
+    
+    // Overwrite with translation if stored Arabic name is missing or contains non-Arabic text (bad/historic data)
+    if (!itemAr || !/[\u0600-\u06FF]/.test(itemAr)) {
+      itemAr = translatedItem.ar || '';
+    }
+    
+    // Ultimate fallback if still no Arabic characters
+    if (!itemAr || !/[\u0600-\u06FF]/.test(itemAr)) {
+      itemAr = translateGarmentName(itemEn) || '';
+    }
+    
+    // De-duplicate if the Arabic translation matches the English name, or if no Arabic text exists
+    if (itemEn.toLowerCase() === itemAr.toLowerCase() || !/[\u0600-\u06FF]/.test(itemAr)) {
+      itemAr = '';
+    }
+
+    const noteHtml = it.notes ? `<div class="item-notes" style="color: #000 !important; font-weight: bold; font-size: 10px; margin-top: 1px;">Note: ${it.notes}</div>` : '';
     
     return `
       <tr>
-        <td style="padding: 5px 2px; border-bottom: 1.5px dashed #000; text-align: left;">
-          <div class="item-name-en">${translatedItem.en}</div>
-          <div class="item-name-ar">${translatedItem.ar}</div>
+        <td style="padding: 5px 2px; border-bottom: 1.5px dashed #000; text-align: left; vertical-align: middle;">
+          ${itemEn ? `<div class="item-name-en" style="font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; font-weight: 700; font-size: 11px; color: #000; display: block; text-align: left; direction: ltr;">${itemEn}</div>` : ''}
+          ${itemAr ? `<div class="item-name-ar" lang="ar" dir="rtl" style="font-family: 'Noto Sans Arabic', 'Cairo', 'Tajawal', Tahoma, sans-serif; font-weight: 700; font-size: 11px; color: #000; display: block; text-align: right; direction: rtl; margin-top: 2px;">${itemAr}</div>` : ''}
           ${noteHtml}
         </td>
-        <td style="padding: 5px 2px; border-bottom: 1.5px dashed #000; text-align: center;" class="item-qty">
+        <td style="padding: 5px 2px; border-bottom: 1.5px dashed #000; text-align: center; vertical-align: middle;" class="item-qty">
           ${it.quantity}
         </td>
-        <td style="padding: 5px 2px; border-bottom: 1.5px dashed #000; text-align: right;" class="item-price">
+        <td style="padding: 5px 2px; border-bottom: 1.5px dashed #000; text-align: right; vertical-align: middle;" class="item-price">
           ${formatCurrency(it.unitPrice)}
         </td>
-        <td style="padding: 5px 2px; border-bottom: 1.5px dashed #000; text-align: right;" class="item-total">
+        <td style="padding: 5px 2px; border-bottom: 1.5px dashed #000; text-align: right; vertical-align: middle;" class="item-total">
           ${formatCurrency(it.quantity * it.unitPrice)}
         </td>
       </tr>
@@ -688,16 +773,23 @@ export const generateInvoicePDF = (order, { showPaidTotal = false } = {}) => {
             color: #000 !important;
           }
           .item-name-en {
+            font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
             font-weight: 700 !important;
             font-size: 11px;
             color: #000 !important;
+            display: block;
+            text-align: left;
+            direction: ltr;
           }
           .item-name-ar {
+            font-family: 'Noto Sans Arabic', 'Cairo', 'Tajawal', Tahoma, sans-serif;
             font-size: 11px;
             color: #000 !important;
+            display: block;
             direction: rtl;
             text-align: right;
             font-weight: 700 !important;
+            margin-top: 2px;
           }
           .item-qty {
             font-size: 11px;
@@ -1012,6 +1104,19 @@ export const resolveBranchName = (branchIdOrName) => {
 
   if (!/^\d+$/.test(raw)) return raw;
   return '';
+};
+
+export const getActiveBranchName = () => {
+  try {
+    const selectedBranchId = localStorage.getItem('selected_branch') || 'All';
+    if (selectedBranchId === 'All' || selectedBranchId === 'all') {
+      return 'All Branches';
+    }
+    const resolved = resolveBranchName(selectedBranchId);
+    return resolved || selectedBranchId;
+  } catch (e) {
+    return 'All Branches';
+  }
 };
 
 export const getBranchPrefix3 = (branchIdOrName) => {

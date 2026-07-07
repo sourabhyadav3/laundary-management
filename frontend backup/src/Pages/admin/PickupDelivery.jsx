@@ -121,9 +121,9 @@ const PickupDelivery = () => {
     const q = customerSearchQuery.toLowerCase();
     return customers.filter(
       (c) =>
-        c.name.toLowerCase().includes(q) ||
-        c.phone.includes(customerSearchQuery) ||
-        (c.phones && c.phones.some((p) => p.includes(customerSearchQuery)))
+        (c.name || '').toLowerCase().includes(q) ||
+        (c.phone || '').includes(customerSearchQuery) ||
+        (c.phones && c.phones.some((p) => p && String(p).includes(customerSearchQuery)))
     );
   }, [customers, customerSearchQuery]);
 
@@ -205,7 +205,7 @@ const PickupDelivery = () => {
       const cust = customers.find(c => c.name === p.customer);
       itemsHtml += `
         <div class="pickup-entry" style="border: 1px solid #ddd; border-radius: 8px; padding: 15px; margin-bottom: 20px; page-break-inside: avoid;">
-          <div class="entry-header" style="font-size: 16px; font-weight: bold; color: #2563eb; border-bottom: 1px solid #eee; padding-bottom: 5px; margin-bottom: 10px;">Pickup #${idx + 1} (${p.requestId})</div>
+          <div class="entry-header" style="font-size: 16px; font-weight: bold; color: #2563eb; border-bottom: 1px solid #eee; padding-bottom: 5px; margin-bottom: 10px;">Pickup #${idx + 1} (${p.pickupId || p.requestId || ''})</div>
           <div class="grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; font-size: 13px; margin-bottom: 10px;">
             <div><strong>Customer:</strong> ${p.customer || 'N/A'}</div>
             <div><strong>Phone:</strong> ${p.contactNumber || 'N/A'}</div>
@@ -749,9 +749,13 @@ const PickupDelivery = () => {
 
   const filteredPickups = useMemo(() => {
     return pickups.filter((pickup) => {
+      const pickupCustomer = pickup.customer || '';
       const matchesCustomer =
-        !selectedCustomerObj || pickup.customer.toLowerCase() === selectedCustomerObj.name.toLowerCase();
-      const matchesSearch = pickup.customer.toLowerCase().includes(searchTerm.toLowerCase()) || pickup.requestId.includes(searchTerm);
+        !selectedCustomerObj || pickupCustomer.toLowerCase() === selectedCustomerObj.name.toLowerCase();
+      const matchesSearch =
+        pickupCustomer.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (pickup.pickupId || '').includes(searchTerm) ||
+        (pickup.requestId || '').includes(searchTerm);
       const matchesStatus = pickupStatusFilter === 'All' || pickup.status === pickupStatusFilter;
       return matchesCustomer && matchesSearch && matchesStatus;
     }).sort((a, b) => {
@@ -764,14 +768,15 @@ const PickupDelivery = () => {
 
   const filteredDeliveries = useMemo(() => {
     return deliveries.filter((delivery) => {
+      const deliveryCustomer = delivery.customer || '';
       const matchesCustomer =
         selectedCustomerObj
-          ? delivery.customer.toLowerCase() === selectedCustomerObj.name.toLowerCase()
+          ? deliveryCustomer.toLowerCase() === selectedCustomerObj.name.toLowerCase()
           : delivery.createdFromInvoice === true;
       return (
         matchesCustomer &&
-        (delivery.customer.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        delivery.deliveryId.includes(searchTerm))
+        (deliveryCustomer.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (delivery.deliveryId || '').includes(searchTerm))
       );
     }).sort((a, b) => {
       if (a.createdAt && b.createdAt) {
@@ -906,7 +911,11 @@ const PickupDelivery = () => {
         />
       ),
     },
-    { header: 'Request ID', accessor: 'requestId' },
+    {
+      header: 'Request ID',
+      accessor: 'pickupId',
+      cell: (row) => row.pickupId || row.requestId || 'N/A'
+    },
     { header: 'Customer', accessor: 'customer' },
     {
       header: language === 'ar' ? 'العنوان' : 'Address',
@@ -1121,6 +1130,24 @@ const PickupDelivery = () => {
             )}
           </div>
 
+          {!selectedCustomerObj ? (
+            <div className="relative">
+              <label className="block text-[11px] font-semibold text-secondary uppercase tracking-wider mb-1">
+                {language === 'ar' ? 'البحث بواسطة رقم الطلب أو العنوان' : 'Search by Request ID or Address'}
+              </label>
+              <div className="relative">
+                <input
+                  type="text"
+                  placeholder={language === 'ar' ? 'البحث بواسطة رقم الطلب أو العنوان...' : 'Search by request ID or address...'}
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="w-full text-sm rounded-xl border border-border bg-surface pl-10 pr-3 py-2.5 text-primary placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-blue-400/40"
+                />
+                <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-secondary pointer-events-none" />
+              </div>
+            </div>
+          ) : null}
+
           {selectedCustomerObj ? (
             <div className="rounded-2xl border border-emerald-400/30 bg-emerald-500/5 p-4 lg:col-span-1">
               <div className="flex items-center gap-2 mb-3">
@@ -1207,20 +1234,6 @@ const PickupDelivery = () => {
 
       {!selectedCustomerObj ? (
         <>
-          {/* Search and Filter */}
-          <div className="grid gap-4 md:grid-cols-2">
-            <div className="relative">
-              <FiSearch className="absolute left-4 top-1/2 -translate-y-1/2 text-secondary" />
-              <input
-                type="text"
-                placeholder={language === 'ar' ? 'البحث بواسطة رقم الطلب أو العنوان...' : 'Search by request ID or address...'}
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full rounded-3xl border border-border bg-surface py-3 pl-12 pr-4 text-primary placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-blue-400/40"
-              />
-            </div>
-          </div>
-
           {/* Deliveries Section */}
           <section className="mt-6">
             <div className="flex items-center justify-between gap-4">

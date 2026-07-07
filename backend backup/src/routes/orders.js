@@ -32,6 +32,7 @@ const formatOrder = (order) => {
     branchId: order.branchId ? order.branchId.toString() : '',
     itemDetails: order.itemDetails.map(item => ({
       name: item.name,
+      nameAr: item.nameAr || '',
       quantity: item.quantity,
       unitPrice: item.unitPrice,
       modifiers: item.modifiers || ''

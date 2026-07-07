@@ -217,6 +217,8 @@ export const AdminStateProvider = ({ children }) => {
     fetchResource('/catalog', (data) => {
       if (data && data.length > 0) {
         setCatalog(data);
+        window.__cachedCatalog = data;
+        localStorage.setItem('catalog_list', JSON.stringify(data));
       }
     });
     
@@ -283,11 +285,21 @@ export const AdminStateProvider = ({ children }) => {
   const addCatalogItem = async (item) => {
     try {
       const res = await api.post('/catalog', item);
-      setCatalog(prev => [...prev, res.data]);
+      setCatalog(prev => {
+        const next = [...prev, res.data];
+        window.__cachedCatalog = next;
+        localStorage.setItem('catalog_list', JSON.stringify(next));
+        return next;
+      });
       return res.data;
     } catch (e) {
       console.error(e);
-      setCatalog(prev => [...prev, item]);
+      setCatalog(prev => {
+        const next = [...prev, item];
+        window.__cachedCatalog = next;
+        localStorage.setItem('catalog_list', JSON.stringify(next));
+        return next;
+      });
       toast.error(e.response?.data?.message || 'Failed to add catalog item (using local fallback)');
       return item;
     }
@@ -296,11 +308,21 @@ export const AdminStateProvider = ({ children }) => {
   const updateCatalogItem = async (key, updatedItem) => {
     try {
       const res = await api.put(`/catalog/${key}`, updatedItem);
-      setCatalog(prev => prev.map(c => c.key === key ? res.data : c));
+      setCatalog(prev => {
+        const next = prev.map(c => c.key === key ? res.data : c);
+        window.__cachedCatalog = next;
+        localStorage.setItem('catalog_list', JSON.stringify(next));
+        return next;
+      });
       return res.data;
     } catch (e) {
       console.error(e);
-      setCatalog(prev => prev.map(c => c.key === key ? updatedItem : c));
+      setCatalog(prev => {
+        const next = prev.map(c => c.key === key ? updatedItem : c);
+        window.__cachedCatalog = next;
+        localStorage.setItem('catalog_list', JSON.stringify(next));
+        return next;
+      });
       toast.error(e.response?.data?.message || 'Failed to update catalog item (using local fallback)');
       return updatedItem;
     }
@@ -309,11 +331,21 @@ export const AdminStateProvider = ({ children }) => {
   const deleteCatalogItem = async (key) => {
     try {
       await api.delete(`/catalog/${key}`);
-      setCatalog(prev => prev.filter(c => c.key !== key));
+      setCatalog(prev => {
+        const next = prev.filter(c => c.key !== key);
+        window.__cachedCatalog = next;
+        localStorage.setItem('catalog_list', JSON.stringify(next));
+        return next;
+      });
       return true;
     } catch (e) {
       console.error(e);
-      setCatalog(prev => prev.filter(c => c.key !== key));
+      setCatalog(prev => {
+        const next = prev.filter(c => c.key !== key);
+        window.__cachedCatalog = next;
+        localStorage.setItem('catalog_list', JSON.stringify(next));
+        return next;
+      });
       toast.error(e.response?.data?.message || 'Failed to delete catalog item (using local fallback)');
       return true;
     }

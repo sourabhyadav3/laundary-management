@@ -5,6 +5,9 @@ const orderItemSchema = new mongoose.Schema({
     type: String,
     required: true
   },
+  nameAr: {
+    type: String
+  },
   quantity: {
     type: Number,
     required: true

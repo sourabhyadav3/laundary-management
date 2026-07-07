@@ -408,6 +408,7 @@ export const pageStrings = {
   'Invoice Management': 'إدارة الفواتير',
   'All Invoices': 'كل الفواتير',
   'Invoice No': 'رقم الفاتورة',
+  'Invoice No.': 'رقم الفاتورة',
   'Invoice Date': 'تاريخ الفاتورة',
   'Due Date': 'تاريخ الاستحقاق',
 

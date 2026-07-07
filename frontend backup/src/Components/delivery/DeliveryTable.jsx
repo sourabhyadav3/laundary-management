@@ -10,6 +10,11 @@ const DeliveryTable = ({ deliveries, onView, onUpdateStatus }) => {
 
   const columns = [
     { header: 'Delivery ID', accessor: 'deliveryId' },
+    {
+      header: 'Invoice No.',
+      accessor: 'orderNumber',
+      cell: (row) => row.orderNumber || 'N/A'
+    },
     { header: 'Customer Name', accessor: 'customer' },
     {
       header: language === 'ar' ? 'العنوان' : 'Address',

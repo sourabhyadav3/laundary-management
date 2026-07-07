@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, Link, useLocation } from 'react-router-dom';
 import { formatCurrency, getDisplayTotal, getReceiptUrl, findReceiptOrder, decodeReceiptData } from '../../utils/exportUtils';
-import { translations } from '../../context/translations';
+import { getBilingualGarmentNames } from '../../utils/garmentTranslations';
 
 const translateService = (service) => {
   const s = String(service || 'Iron & Wash').trim();
@@ -86,22 +86,16 @@ const translatePaymentStatus = (status) => {
 };
 
 const translateGarment = (name) => {
-  if (!name) return { en: 'N/A', ar: 'N/A' };
-  const catalogSection = translations?.en?.counter?.makeInvoice || {};
-  const keys = Object.keys(catalogSection);
-  for (const key of keys) {
-    const enVal = catalogSection[key];
-    if (typeof enVal === 'string' && enVal.toLowerCase() === name.toLowerCase()) {
-      const arVal = translations?.ar?.counter?.makeInvoice?.[key] || enVal;
-      return { en: enVal, ar: arVal };
-    }
+  let catalogList = window.__cachedCatalog;
+  if (!catalogList) {
+    try {
+      const stored = localStorage.getItem('catalog_list');
+      if (stored) {
+        catalogList = JSON.parse(stored);
+      }
+    } catch (e) {}
   }
-  const lowerName = name.toLowerCase();
-  if (lowerName === 'ghotraa') return { en: 'Ghotraa', ar: 'غترة' };
-  if (lowerName === 'shmage') return { en: 'Shmage', ar: 'شماغ' };
-  if (lowerName === 'shmage (special)') return { en: 'Shmage (Special)', ar: 'شماغ (خاص)' };
-  
-  return { en: name, ar: name };
+  return getBilingualGarmentNames(name, catalogList);
 };
 
 const PublicReceipt = () => {
@@ -214,11 +208,19 @@ const PublicReceipt = () => {
             <tbody className="divide-y divide-gray-100">
               {(order.itemDetails || []).map((it, idx) => {
                 const translatedItem = translateGarment(it.name);
+                const itemEn = it.name || translatedItem.en || '';
+                let itemAr = it.nameAr || '';
+                if (!itemAr || !/[\u0600-\u06FF]/.test(itemAr)) {
+                  itemAr = translatedItem.ar || '';
+                }
+                if (itemEn.toLowerCase() === itemAr.toLowerCase() || !/[\u0600-\u06FF]/.test(itemAr)) {
+                  itemAr = '';
+                }
                 return (
                   <tr key={idx} className="text-sm">
                     <td className="py-3">
-                      <div className="font-bold text-gray-900">{translatedItem.en}</div>
-                      <div className="text-xs text-gray-500 text-right pr-2" dir="rtl">{translatedItem.ar}</div>
+                      {itemEn && <div className="font-bold text-gray-900">{itemEn}</div>}
+                      {itemAr && <div className="text-xs text-gray-500 text-right pr-2" dir="rtl">{itemAr}</div>}
                       {it.notes && (
                         <div className="text-[10px] text-gray-500 italic mt-0.5">Note: {it.notes}</div>
                       )}
