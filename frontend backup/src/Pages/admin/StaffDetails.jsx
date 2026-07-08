@@ -1,8 +1,8 @@
 import React, { useContext, useState } from 'react';
-import { FiArrowLeft, FiEdit2, FiMail, FiPhone, FiMapPin, FiCalendar, FiBriefcase, FiTrendingUp } from 'react-icons/fi';
+import { FiArrowLeft, FiEdit2, FiMail, FiPhone, FiMapPin, FiCalendar, FiBriefcase } from 'react-icons/fi';
 import { useNavigate, useParams } from 'react-router-dom';
 import { AdminStateContext } from '../../context/AdminStateContext';
-import { formatCurrency, formatDate } from '../../utils/exportUtils';
+import { formatDate } from '../../utils/exportUtils';
 
 const roleColors = {
   Admin: 'bg-purple-500/10 text-purple-600 border-purple-500/15',
@@ -116,6 +116,7 @@ const StaffDetails = () => {
         >
           Employment Details
         </button>
+        {/*
         <button
           onClick={() => setActiveTab('statistics')}
           className={`px-4 py-3 font-semibold transition ${
@@ -126,6 +127,7 @@ const StaffDetails = () => {
         >
           Statistics
         </button>
+        */}
       </div>
 
       {/* Personal Details Tab */}
@@ -208,6 +210,7 @@ const StaffDetails = () => {
       )}
 
       {/* Statistics Tab */}
+      {/*
       {activeTab === 'statistics' && (
         <div className="grid gap-6 md:grid-cols-3">
           <section className="surface-card rounded-3xl border border-border p-8 shadow-xl">
@@ -247,6 +250,7 @@ const StaffDetails = () => {
           </section>
         </div>
       )}
+      */}
 
       {/* Recent Activity */}
       <section className="surface-card rounded-3xl border border-border p-8 shadow-xl">

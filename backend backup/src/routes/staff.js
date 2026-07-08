@@ -164,10 +164,13 @@ router.post('/', authenticate, requirePermission('manage_staff'), async (req, re
     let branch = null;
     let finalBranchId = branchId;
     if (req.user.role.name !== 'Super Admin') {
-      finalBranchId = req.user.branch ? req.user.branch.toString() : null;
+      finalBranchId = req.user.branch ? (req.user.branch._id ? req.user.branch._id.toString() : req.user.branch.toString()) : null;
     }
 
     if (finalBranchId) {
+      if (!mongoose.Types.ObjectId.isValid(finalBranchId)) {
+        return res.status(400).json({ message: 'Invalid branch selection.' });
+      }
       branch = await Branch.findById(finalBranchId);
       if (!branch) {
         return res.status(400).json({ message: 'Invalid branch selection.' });
@@ -228,14 +231,16 @@ router.put('/:id', authenticate, requirePermission('manage_staff'), async (req, 
     if (branchId !== undefined) {
       let finalBranchId = branchId;
       if (req.user.role.name !== 'Super Admin') {
-        finalBranchId = req.user.branch ? req.user.branch.toString() : null;
+        finalBranchId = req.user.branch ? (req.user.branch._id ? req.user.branch._id.toString() : req.user.branch.toString()) : null;
       }
-      if (finalBranchId === '' || finalBranchId === null) {
+      if (finalBranchId === '' || finalBranchId === null || !mongoose.Types.ObjectId.isValid(finalBranchId)) {
         user.branch = null;
       } else {
         const branch = await Branch.findById(finalBranchId);
         if (branch) {
           user.branch = branch._id;
+        } else {
+          user.branch = null;
         }
       }
     }

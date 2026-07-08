@@ -212,7 +212,7 @@ const Payments = () => {
       header: 'Status',
       accessor: 'status',
       cell: (row) => {
-        const displayStatus = row.orderPaymentStatus || row.status || 'Paid';
+        const displayStatus = row.status || 'Paid';
         const statusClass = `status-pill ${paymentStatusColors[displayStatus] || paymentStatusColors.Pending}`;
         return <span className={statusClass}>{displayStatus}</span>;
       },

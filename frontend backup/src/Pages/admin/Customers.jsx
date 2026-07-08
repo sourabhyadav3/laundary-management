@@ -8,7 +8,7 @@ import { toast } from 'react-toastify';
 import { exportToCSV, formatCurrency, formatDate } from '../../utils/exportUtils';
 
 const Customers = () => {
-  const { customers, addCustomer, updateCustomer, deleteCustomer, selectedBranch, areas } = useContext(AdminStateContext);
+  const { customers, addCustomer, updateCustomer, deleteCustomer, selectedBranch, areas, branches = [] } = useContext(AdminStateContext);
   const { tr } = useLanguage();
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('All');
@@ -203,7 +203,7 @@ const Customers = () => {
         // Find the original customer being edited
         const originalCustomer = customers.find(c => String(c.id || c._id) === String(formData.id));
         const originalNo = originalCustomer ? String(originalCustomer.customerNo || '') : '';
-        
+
         if (String(customerNo) !== originalNo) {
           // Check if another customer already has this ID
           const exists = customers.some(c => String(c.id || c._id) !== String(formData.id) && (String(c.id || c._id) === String(customerNo) || String(c.customerNo) === String(customerNo)));
@@ -257,8 +257,40 @@ const Customers = () => {
     }
   };
 
+  const exportColumns = useMemo(() => [
+    { key: 'customerNo', label: 'id' },
+    { key: 'name', label: 'name' },
+    { key: 'email', label: 'email', format: (val) => val || '' },
+    { key: 'phone', label: 'phone' },
+    { key: 'areaName', label: 'areaname', format: (val) => val || '' },
+    { key: 'partNo', label: 'partNo', format: (val) => val || '' },
+    { key: 'street', label: 'street', format: (val) => val || '' },
+    { key: 'jadda', label: 'jadda', format: (val) => val || '' },
+    { key: 'houseNo', label: 'houseNo', format: (val) => val || '' },
+    { key: 'levelNo', label: 'levelNo', format: (val) => val || '' },
+    { key: 'flatNo', label: 'flatNo', format: (val) => val || '' },
+    { key: 'status', label: 'status', format: (val) => val || 'Active' },
+    { key: 'totalSpent', label: 'totalSpent', format: (val) => val || 0 },
+    { key: 'loyaltyPoints', label: 'loyaltyPoints', format: (val) => val || 0 },
+    { key: 'branchId', label: 'branchId', format: (val) => {
+        const bId = val;
+        if (!bId) return '';
+        const branchObj = branches.find(b => String(b.id || b._id) === String(bId));
+        return branchObj ? branchObj.name : bId;
+      }
+    },
+    { key: 'branch', label: 'branch', format: (val) => {
+        const bId = val;
+        if (!bId) return '';
+        const branchObj = branches.find(b => String(b.id || b._id) === String(bId));
+        return branchObj ? branchObj.name : bId;
+      }
+    },
+    { key: 'customerNo', label: 'customerNo' }
+  ], [branches]);
+
   const tableColumns = [
-    { header: 'Customer ID', accessor: 'displayId' },
+    { header: 'Customer ID', accessor: 'customerNo', cell: (row) => row.customerNo || row.displayId || row.id },
     { header: 'Name', accessor: 'name' },
     { header: 'Phone', accessor: 'phone' },
     { header: 'Email', accessor: 'email', format: (val) => val || tr('N/A') },
@@ -365,7 +397,7 @@ const Customers = () => {
         </div>
         <div className="flex flex-wrap gap-2">
           <button
-            onClick={() => exportToCSV(filteredCustomers, 'customers.csv')}
+            onClick={() => exportToCSV(filteredCustomers, 'customers.csv', exportColumns)}
             className="action-button flex items-center justify-center gap-2 !w-auto !py-2 !px-4 text-center"
             title={tr('Export to CSV')}
           >
@@ -391,7 +423,7 @@ const Customers = () => {
             if (val === undefined || val === null) return null;
             const sVal = String(val).trim();
             if (sVal === '' || sVal === 'N/A' || sVal === '0' || sVal === '0.000') return null;
-            
+
             let display = sVal;
             if (formatFn) {
               display = formatFn(val);
@@ -510,26 +542,26 @@ const Customers = () => {
             <div className="border-b border-border pb-4">
               <h4 className="text-sm font-semibold uppercase tracking-wider text-secondary mb-3">Customer Identity</h4>
               <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-4">
-                  <div>
-                    <label className="block text-xs font-semibold text-secondary uppercase">Discount Value (%)</label>
-                    <input
-                      type="number"
-                      name="customDiscountRate"
-                      value={formData.customDiscountRate || ''}
-                      onChange={(e) => {
-                        const val = e.target.value;
-                        setFormData(prev => ({
-                          ...prev,
-                          customDiscountRate: val,
-                          customerLevel: val ? 'Custom Discount' : ''
-                        }));
-                      }}
-                      placeholder="e.g. 25"
-                      min="0"
-                      max="100"
-                      className="mt-1 w-full rounded-lg border border-border bg-surface px-3 py-1.5 text-primary focus:outline-none focus:ring-2 focus:ring-blue-400/40 text-sm"
-                    />
-                  </div>
+                <div>
+                  <label className="block text-xs font-semibold text-secondary uppercase">Discount Value (%)</label>
+                  <input
+                    type="number"
+                    name="customDiscountRate"
+                    value={formData.customDiscountRate || ''}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setFormData(prev => ({
+                        ...prev,
+                        customDiscountRate: val,
+                        customerLevel: val ? 'Custom Discount' : ''
+                      }));
+                    }}
+                    placeholder="e.g. 25"
+                    min="0"
+                    max="100"
+                    className="mt-1 w-full rounded-lg border border-border bg-surface px-3 py-1.5 text-primary focus:outline-none focus:ring-2 focus:ring-blue-400/40 text-sm"
+                  />
+                </div>
                 <div>
                   <label className="block text-xs font-semibold text-secondary uppercase">Customer ID</label>
                   <input

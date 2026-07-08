@@ -524,7 +524,7 @@ const MakeInvoice = () => {
                 nameAr: g.nameAr || '',
                 service: service,
                 quantity: 1,
-                unitPrice: getGarmentPriceForService(g, service),
+                unitPrice: g.customPrice !== undefined ? g.customPrice : getGarmentPriceForService(g, service),
                 notes: modifierNotes,
             },
         ]);
@@ -2629,6 +2629,7 @@ const MakeInvoice = () => {
                                                 ...selectedGarmentForCarpet,
                                                 name: `${selectedGarmentForCarpet.name} - ${height}×${width}m`,
                                                 price: totalPrice,
+                                                customPrice: totalPrice,
                                             },
                                             quickServiceMode,
                                             note

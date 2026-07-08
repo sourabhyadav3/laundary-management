@@ -6,6 +6,40 @@ import { FiLogOut } from 'react-icons/fi';
 import { toast } from 'react-toastify';
 import { useLanguage } from '../context/LanguageContext';
 
+
+
+const runPermissionsMigration = () => {
+  const migratedFlag = localStorage.getItem('spinclean_permissions_migrated_v5');
+  if (migratedFlag) return;
+  const saved = localStorage.getItem('spinclean_role_permissions_v3');
+  if (saved) {
+    try {
+      const parsed = JSON.parse(saved);
+      Object.keys(parsed).forEach(role => {
+        const rolePerms = parsed[role] || [];
+        if (rolePerms.includes('view_logistics')) {
+          if (!rolePerms.includes('view_pickups')) rolePerms.push('view_pickups');
+          if (!rolePerms.includes('view_deliveries')) rolePerms.push('view_deliveries');
+          if (!rolePerms.includes('view_completed_jobs')) rolePerms.push('view_completed_jobs');
+          if (!rolePerms.includes('view_drivers')) rolePerms.push('view_drivers');
+        }
+        if (rolePerms.includes('view_orders')) {
+          if (!rolePerms.includes('view_order_tracking')) rolePerms.push('view_order_tracking');
+        }
+        if (rolePerms.includes('manage_settings')) {
+          if (!rolePerms.includes('manage_branches')) rolePerms.push('manage_branches');
+        }
+        if ((role === 'Counter Staff' || role === 'Delivery Staff') && !rolePerms.includes('manage_settings')) {
+          rolePerms.push('manage_settings');
+        }
+      });
+      localStorage.setItem('spinclean_role_permissions_v3', JSON.stringify(parsed));
+    } catch (e) {}
+  }
+  localStorage.setItem('spinclean_permissions_migrated_v5', 'true');
+};
+runPermissionsMigration();
+
 const RoleSidebar = ({ menuItems, roleLabel, footerText }) => {
   const [open, setOpen] = useState(false);
   const toggle = () => setOpen(!open);
@@ -42,8 +76,7 @@ const RoleSidebar = ({ menuItems, roleLabel, footerText }) => {
       try {
         const parsed = JSON.parse(saved);
         if (parsed && parsed[role]) {
-          const allowed = defaultPermissions[role] || [];
-          return [...new Set([...allowed, ...parsed[role]])];
+          return parsed[role];
         }
       } catch (e) {
         console.error("Failed to parse role permissions", e);

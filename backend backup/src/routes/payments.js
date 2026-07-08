@@ -181,7 +181,19 @@ router.put('/:id', authenticate, requirePermission('manage_payments'), async (re
     const newStatus = status || 'Paid';
     const oldAmount = payment.amount;
     const newAmount = amount !== undefined ? Number(amount) : oldAmount;
-    const diff = newAmount - oldAmount;
+
+    const wasPaid = oldStatus === 'Paid';
+    const isPaid = newStatus === 'Paid';
+    let diff = 0;
+    if (wasPaid && isPaid) {
+      diff = newAmount - oldAmount;
+    } else if (wasPaid && !isPaid) {
+      diff = -oldAmount;
+    } else if (!wasPaid && isPaid) {
+      diff = newAmount;
+    } else {
+      diff = 0;
+    }
 
     payment.method = method;
     payment.status = newStatus;

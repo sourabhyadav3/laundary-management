@@ -4,7 +4,7 @@ import { formatCurrency } from '../utils/exportUtils';
 const getTrendData = (orders, range, valueExtractor) => {
   const { start, end } = range || {};
   if (!start || !end || !orders || !orders.length) {
-    return { bars: [15, 15, 15, 15, 15, 15, 15], labels: ['-', '-', '-', '-', '-', '-', '-'], values: [0, 0, 0, 0, 0, 0, 0] };
+    return { bars: [0, 0, 0, 0, 0, 0, 0], labels: ['-', '-', '-', '-', '-', '-', '-'], values: [0, 0, 0, 0, 0, 0, 0] };
   }
 
   const startTime = start.getTime();
@@ -45,8 +45,8 @@ const getTrendData = (orders, range, valueExtractor) => {
 
   const maxVal = Math.max(...buckets);
   const bars = buckets.map((v) => {
-    if (maxVal === 0) return 15;
-    return Math.max(15, Math.round((v / maxVal) * 80));
+    if (maxVal === 0) return 0;
+    return Math.round((v / maxVal) * 80);
   });
 
   return { bars, labels, values: buckets };

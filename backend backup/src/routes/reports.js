@@ -71,7 +71,7 @@ router.get('/dashboard', authenticate, requirePermission('view_reports'), async 
     
     const orders = await Order.find(orderFilter);
     const payments = await Payment.find(paymentFilter);
-    const customers = await Customer.find({});
+    const customers = await Customer.find(applyBranchFilter(req, {}, true));
     const pickups = await Pickup.find(pickupFilter);
     const deliveries = await Delivery.find(deliveryFilter);
     const users = await User.find(applyBranchFilter(req, {}, true)).populate('role');
@@ -381,7 +381,7 @@ router.get('/generate', authenticate, requirePermission('view_reports'), async (
        data = Object.values(groups);
     }
     else if (reportType === 'customer_list') {
-       let customers = await Customer.find({});
+       let customers = await Customer.find(applyBranchFilter(req, {}, true));
        if (parameter && parameter !== 'All') {
          customers = customers.filter(c => c._id.toString() === parameter);
        }
@@ -414,7 +414,7 @@ router.get('/generate', authenticate, requirePermission('view_reports'), async (
        data = arr.map((c, i) => ({ id: i+1, ...c }));
     }
     else if (reportType === 'customer_debts') {
-       let customers = await Customer.find({ balance: { $gt: 0 } }).sort({ balance: -1 });
+       let customers = await Customer.find(applyBranchFilter(req, { balance: { $gt: 0 } }, true)).sort({ balance: -1 });
        if (parameter && parameter !== 'All') {
          customers = customers.filter(c => c._id.toString() === parameter);
        }

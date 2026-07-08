@@ -72,9 +72,7 @@ const CATEGORIES = [
 const REPORT_TYPES = {
   sales: [
     { id: 'total_sales', label: 'Total Sales Revenue', labelAr: 'إجمالي المبيعات' },
-    { id: 'sales_detail', label: 'Sales Detail (Item-wise)', labelAr: 'تفاصيل المبيعات' },
-    { id: 'branch_sales', label: 'Sales by Branch', labelAr: 'المبيعات حسب الفرع' },
-    { id: 'payment_methods', label: 'Payment Methods Distribution', labelAr: 'توزيع طرق الدفع' }
+    { id: 'sales_detail', label: 'Sales Detail (Item-wise)', labelAr: 'تفاصيل المبيعات' }
   ],
   customers: [
     { id: 'customer_list', label: 'Customer Directory', labelAr: 'قائمة العملاء' },
