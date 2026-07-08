@@ -97,7 +97,7 @@ const AuditLogs = () => {
       };
     });
 
-    exportToCSV(dataToExport, columns, 'system_audit_logs');
+    exportToCSV(dataToExport, 'system_audit_logs', columns);
     toast.success(language === 'ar' ? 'تم التصدير بنجاح' : 'Export completed successfully');
   };
 
