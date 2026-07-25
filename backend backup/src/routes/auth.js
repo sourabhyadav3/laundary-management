@@ -30,10 +30,29 @@ router.post('/login', async (req, res) => {
       return res.status(400).json({ message: 'Email and password are required.' });
     }
 
-    // Find user
-    const user = await User.findOne({ email }).populate('role').populate('branch');
+    const selectedBranch = req.body.branchId ? req.body.branchId.toString() : '';
+
+    // 1. Try to find user matching email/username AND selected branch
+    let user = null;
+    if (selectedBranch) {
+      user = await User.findOne({
+        $or: [{ email }, { username: email }],
+        branch: selectedBranch
+      }).populate('role').populate('branch');
+    }
+
+    // 2. If no user found for specific branch, check if any user exists for this email/username
     if (!user) {
-      return res.status(401).json({ message: 'Invalid credentials' });
+      const anyUser = await User.findOne({ $or: [{ email }, { username: email }] }).populate('role').populate('branch');
+      if (!anyUser) {
+        return res.status(401).json({ message: 'Invalid credentials' });
+      }
+
+      if (anyUser.role && anyUser.role.name === 'Super Admin') {
+        user = anyUser;
+      } else {
+        return res.status(400).json({ message: 'Access Denied: You are not assigned to the selected branch.' });
+      }
     }
 
     // Check account status
@@ -65,10 +84,9 @@ router.post('/login', async (req, res) => {
 
     // Verify branch selection matches assigned branch for non-Super Admin users
     if (user.role && user.role.name !== 'Super Admin') {
-      const selectedBranch = req.body.branchId ? req.body.branchId.toString() : '';
       const userBranchId = user.branch ? user.branch._id.toString() : '';
       if (!selectedBranch || userBranchId !== selectedBranch) {
-        return res.status(400).json({ message: 'Select a correct branch' });
+        return res.status(400).json({ message: 'Access Denied: You are not assigned to the selected branch.' });
       }
     }
 

@@ -151,11 +151,6 @@ router.post('/', authenticate, requirePermission('manage_staff'), async (req, re
       return res.status(400).json({ message: 'Name, email, username, password, and role are required.' });
     }
 
-    const existingUser = await User.findOne({ $or: [{ email }, { username: finalUsername }] });
-    if (existingUser) {
-      return res.status(400).json({ message: 'A user with this email or username already exists.' });
-    }
-
     const role = await Role.findOne({ name: roleName });
     if (!role) {
       return res.status(400).json({ message: `Role '${roleName}' not found.` });
@@ -175,6 +170,16 @@ router.post('/', authenticate, requirePermission('manage_staff'), async (req, re
       if (!branch) {
         return res.status(400).json({ message: 'Invalid branch selection.' });
       }
+    }
+
+    // Check duplicate user scoped per branch
+    const duplicateQuery = { $or: [{ email }, { username: finalUsername }] };
+    if (finalBranchId) {
+      duplicateQuery.branch = finalBranchId;
+    }
+    const existingUser = await User.findOne(duplicateQuery);
+    if (existingUser) {
+      return res.status(400).json({ message: 'A user with this email or username is already assigned to this branch.' });
     }
 
 
@@ -198,6 +203,9 @@ router.post('/', authenticate, requirePermission('manage_staff'), async (req, re
     res.status(201).json(formatUser(populated));
   } catch (error) {
     console.error('Create staff error:', error);
+    if (error.code === 11000) {
+      return res.status(400).json({ message: 'A user with this email or username is already assigned to this branch.' });
+    }
     res.status(500).json({ message: 'Internal server error' });
   }
 });
