@@ -104,6 +104,13 @@ export const AdminStateProvider = ({ children }) => {
     window.__cachedCustomers = customers;
   }, [customers]);
   const [services, setServices] = useState([]);
+
+  useEffect(() => {
+    if (services && services.length > 0) {
+      window.__cachedServices = services;
+      localStorage.setItem('services_list', JSON.stringify(services));
+    }
+  }, [services]);
   const [staff, setStaff] = useState([]);
   const [payments, setPayments] = useState([]);
   const [pickups, setPickups] = useState([]);
@@ -505,8 +512,16 @@ export const AdminStateProvider = ({ children }) => {
         roleName: member.role,
         password: member.password || 'staff123'
       });
-      setStaff(prev => [res.data, ...prev]);
-      toast.success('Staff profile created successfully');
+      setStaff(prev => {
+        const existingIdx = prev.findIndex(s => s.id === res.data.id || (s.email && res.data.email && s.email.toLowerCase() === res.data.email.toLowerCase()));
+        if (existingIdx !== -1) {
+          const updated = [...prev];
+          updated[existingIdx] = res.data;
+          return updated;
+        }
+        return [res.data, ...prev];
+      });
+      toast.success('Staff profile saved successfully');
     } catch (e) {
       toast.error(e.response?.data?.message || 'Failed to add staff member');
     }

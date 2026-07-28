@@ -70,14 +70,20 @@ const Users = () => {
       });
   }, [staff, searchTerm, statusFilter, roleFilter]);
 
+  const [branchDropdownOpen, setBranchDropdownOpen] = useState(false);
+  const [selectedBranchIds, setSelectedBranchIds] = useState([]);
+
   const handleOpenAdd = () => {
     setIsEditing(false);
+    const initialBranchId = branches[0]?.id || branches[0]?._id || '';
+    setSelectedBranchIds(initialBranchId ? [initialBranchId] : []);
+    setBranchDropdownOpen(false);
     setCurrentUser({
       name: '',
       email: '',
       phone: '',
       branch: branches[0]?.name || 'All Branches',
-      branchId: branches[0]?.id || branches[0]?._id || '',
+      branchId: initialBranchId,
       status: 'Active',
       password: '',
       role: 'Admin',
@@ -88,6 +94,23 @@ const Users = () => {
 
   const handleOpenEdit = (user) => {
     setIsEditing(true);
+    let initialBranchIds = [];
+    if (Array.isArray(user.branchIds) && user.branchIds.length > 0) {
+      initialBranchIds = user.branchIds.map(String);
+    } else if (Array.isArray(user.branches) && user.branches.length > 0) {
+      initialBranchIds = branches
+        .filter(b => user.branches.includes(b.name) || user.branches.map(String).includes(String(b.id || b._id)))
+        .map(b => String(b.id || b._id));
+    } else if (user.branchId) {
+      initialBranchIds = [String(user.branchId)];
+    } else if (user.branch) {
+      const branchNames = String(user.branch).split(',').map(s => s.trim());
+      initialBranchIds = branches
+        .filter(b => branchNames.includes(b.name))
+        .map(b => String(b.id || b._id));
+    }
+    setSelectedBranchIds(initialBranchIds);
+    setBranchDropdownOpen(false);
     setCurrentUser({
       ...user,
       password: ''
@@ -128,13 +151,23 @@ const Users = () => {
       return;
     }
 
+    if (!selectedBranchIds || selectedBranchIds.length === 0) {
+      toast.error('Please select at least one branch.');
+      return;
+    }
+
+    const primaryBranchId = selectedBranchIds[0];
+    const foundPrimary = branches.find(b => String(b.id || b._id) === String(primaryBranchId));
+
     if (isEditing) {
       const updatedFields = {
         name: currentUser.name,
         email: currentUser.email,
         phone: currentUser.phone,
         role: currentUser.role,
-        branchId: currentUser.branchId,
+        branchId: primaryBranchId,
+        branchIds: selectedBranchIds,
+        branch: foundPrimary ? foundPrimary.name : currentUser.branch,
         status: currentUser.status
       };
       if (currentUser.password) {
@@ -142,7 +175,12 @@ const Users = () => {
       }
       updateStaff(currentUser.id || currentUser._id, updatedFields);
     } else {
-      addStaff(currentUser);
+      addStaff({
+        ...currentUser,
+        branchId: primaryBranchId,
+        branchIds: selectedBranchIds,
+        branch: foundPrimary ? foundPrimary.name : ''
+      });
     }
     setShowModal(false);
   };
@@ -176,12 +214,33 @@ const Users = () => {
     {
       header: 'Branch',
       accessor: 'branch',
-      cell: (row) => (
-        <span className="inline-flex items-center gap-1.5 rounded-xl border border-blue-400/20 bg-blue-500/10 px-3 py-1 text-xs font-semibold text-blue-600">
-          <span className="h-1.5 w-1.5 rounded-full bg-blue-500"></span>
-          {row.branch || 'Unassigned'}
-        </span>
-      ),
+      cell: (row) => {
+        let branchList = [];
+        if (Array.isArray(row.branches) && row.branches.length > 0) {
+          branchList = row.branches.map(b => typeof b === 'object' ? b.name : b).filter(Boolean);
+        } else if (row.branch) {
+          branchList = [row.branch];
+        }
+        const uniqueBranches = Array.from(new Set(branchList));
+        if (uniqueBranches.length === 0) {
+          return (
+            <span className="inline-flex items-center gap-1.5 rounded-xl border border-blue-400/20 bg-blue-500/10 px-3 py-1 text-xs font-semibold text-blue-600">
+              <span className="h-1.5 w-1.5 rounded-full bg-blue-500"></span>
+              Unassigned
+            </span>
+          );
+        }
+        return (
+          <div className="flex flex-wrap gap-1.5">
+            {uniqueBranches.map((bName, idx) => (
+              <span key={idx} className="inline-flex items-center gap-1.5 rounded-xl border border-blue-400/20 bg-blue-500/10 px-2.5 py-1 text-xs font-semibold text-blue-600">
+                <span className="h-1.5 w-1.5 rounded-full bg-blue-500"></span>
+                {bName}
+              </span>
+            ))}
+          </div>
+        );
+      },
     },
     {
       header: 'Status',
@@ -388,29 +447,70 @@ const Users = () => {
                   <option value="Delivery Staff">Delivery Staff</option>
                 </select>
               </div>
-              <div>
-                <label className="block text-sm font-semibold text-secondary mb-1">Branch *</label>
-                <select
-                  required
-                  value={currentUser.branchId || ''}
-                  onChange={(e) => {
-                    const selectedBranch = branches.find(b => (b.id || b._id) === e.target.value);
-                    setCurrentUser({
-                      ...currentUser,
-                      branchId: selectedBranch ? (selectedBranch.id || selectedBranch._id) : null,
-                      branch: selectedBranch ? selectedBranch.name : ''
-                    });
-                  }}
-                  className="w-full rounded-2xl border border-border bg-surface px-4 py-2 text-primary focus:outline-none focus:ring-2 focus:ring-purple-400/40"
+              <div className="relative">
+                <label className="block text-sm font-semibold text-secondary mb-1">
+                  Branch (Select Multiple) *
+                </label>
+                <button
+                  type="button"
+                  onClick={() => setBranchDropdownOpen(!branchDropdownOpen)}
+                  className="w-full flex items-center justify-between rounded-2xl border border-border bg-surface px-4 py-2.5 text-primary focus:outline-none focus:ring-2 focus:ring-purple-400/40 text-left font-medium text-sm"
                 >
-                  <option value="">Select a branch...</option>
-                  {branches.map(b => {
-                    const bId = b.id || b._id;
-                    return (
-                      <option key={bId} value={bId}>{b.name}</option>
-                    );
-                  })}
-                </select>
+                  <span className="truncate">
+                    {selectedBranchIds.length === 0
+                      ? 'Select branch(es)...'
+                      : selectedBranchIds.length === 1
+                      ? branches.find(b => String(b.id || b._id) === String(selectedBranchIds[0]))?.name || '1 Branch Selected'
+                      : `${selectedBranchIds.length} Branches Selected`}
+                  </span>
+                  <FiChevronDown className={`transition-transform text-secondary ${branchDropdownOpen ? 'rotate-180' : ''}`} />
+                </button>
+
+                {branchDropdownOpen && (
+                  <div className="absolute left-0 right-0 top-full mt-1.5 z-30 max-h-56 overflow-y-auto rounded-2xl border border-border bg-surface shadow-2xl p-2 space-y-1">
+                    <div className="flex items-center justify-between px-2 py-1 border-b border-border/40 text-xs font-semibold text-secondary mb-1">
+                      <button
+                        type="button"
+                        onClick={() => setSelectedBranchIds(branches.map(b => String(b.id || b._id)))}
+                        className="text-purple-400 hover:underline"
+                      >
+                        Select All
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setSelectedBranchIds([])}
+                        className="text-rose-400 hover:underline"
+                      >
+                        Clear All
+                      </button>
+                    </div>
+                    {branches.map((b) => {
+                      const bIdStr = String(b.id || b._id);
+                      const isChecked = selectedBranchIds.map(String).includes(bIdStr);
+                      return (
+                        <label
+                          key={bIdStr}
+                          className="flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-surface-alt cursor-pointer transition text-sm text-primary font-medium"
+                        >
+                          <input
+                            type="checkbox"
+                            name="branch_selection"
+                            checked={isChecked}
+                            onChange={(e) => {
+                              if (e.target.checked) {
+                                setSelectedBranchIds(prev => Array.from(new Set([...prev.map(String), bIdStr])));
+                              } else {
+                                setSelectedBranchIds(prev => prev.map(String).filter(id => id !== bIdStr));
+                              }
+                            }}
+                            className="h-4 w-4 rounded border-border text-purple-600 focus:ring-purple-400/40"
+                          />
+                          <span>{b.name}</span>
+                        </label>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
               <div>
                 <label className="block text-sm font-semibold text-secondary mb-1">Status</label>
@@ -509,8 +609,24 @@ const Users = () => {
                 <div className="flex items-center gap-2.5 mt-2">
                   <FiMapPin className="text-purple-500" />
                   <div>
-                    <p className="text-xs text-secondary font-medium">Branch Location</p>
-                    <p className="text-primary font-semibold">{viewedUser.branch || 'Unassigned'}</p>
+                    <p className="text-xs text-secondary font-medium">Assigned Branch(es)</p>
+                    <div className="mt-1 flex flex-wrap gap-1.5">
+                      {(() => {
+                        let bList = [];
+                        if (Array.isArray(viewedUser.branches) && viewedUser.branches.length > 0) {
+                          bList = viewedUser.branches.map(b => typeof b === 'object' ? b.name : b).filter(Boolean);
+                        } else if (viewedUser.branch) {
+                          bList = String(viewedUser.branch).split(',').map(s => s.trim()).filter(Boolean);
+                        }
+                        const uniqueBs = Array.from(new Set(bList));
+                        if (uniqueBs.length === 0) return <span className="text-primary font-semibold">Unassigned</span>;
+                        return uniqueBs.map((bName, idx) => (
+                          <span key={idx} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-semibold bg-purple-500/10 text-purple-600 border border-purple-500/20">
+                            {bName}
+                          </span>
+                        ));
+                      })()}
+                    </div>
                   </div>
                 </div>
 

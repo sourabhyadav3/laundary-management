@@ -64,6 +64,12 @@ api.interceptors.request.use(
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
+
+    const selectedBranch = localStorage.getItem('selected_branch');
+    if (selectedBranch) {
+      config.headers['x-selected-branch'] = selectedBranch;
+    }
+
     return config;
   },
   (error) => {

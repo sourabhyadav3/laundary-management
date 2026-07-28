@@ -19,7 +19,12 @@ const AssignedPickups = () => {
   const filtered = useMemo(
     () =>
       pickups
-        .filter((p) => p.assignedStaff === staffName)
+        .filter((p) => {
+          if (!staffName) return true;
+          const assigned = (p.assignedStaff || '').toLowerCase();
+          const target = (staffName || '').toLowerCase();
+          return !assigned || assigned === target || assigned.includes(target) || target.includes(assigned);
+        })
         .filter(
           (p) =>
             p.customer.toLowerCase().includes(searchTerm.toLowerCase()) ||

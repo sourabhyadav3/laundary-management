@@ -48,9 +48,18 @@ const DeliveryTable = ({ deliveries, onView, onUpdateStatus }) => {
     },
     { header: 'Contact Number', accessor: 'contactNumber' },
     {
-      header: 'Delivery Date',
+      header: language === 'ar' ? 'التسليم المتوقع' : 'Expected Delivery',
       accessor: 'deliveryDate',
-      format: (val) => formatDate(val),
+      cell: (row) => {
+        const dateFormatted = formatDate(row.deliveryDate || row.expectedDeliveryDate);
+        const timeVal = row.expectedDeliveryTime || row.deliveryTime;
+        return (
+          <div className="text-xs font-semibold text-primary">
+            <div>{dateFormatted || 'N/A'}</div>
+            {timeVal && <div className="text-[10px] text-emerald-600 font-medium">{timeVal}</div>}
+          </div>
+        );
+      },
     },
     {
       header: 'Status',

@@ -88,7 +88,10 @@ const PickupDelivery = () => {
   const isHomeServices = useMemo(() => {
     try {
       const user = JSON.parse(localStorage.getItem('user'));
-      return user && user.branchName && user.branchName.toLowerCase().includes('home service');
+      if (!user) return false;
+      const bName = user.branchName || '';
+      const bNames = Array.isArray(user.branches) ? user.branches : [];
+      return bName.toLowerCase().includes('home service') || bNames.some(n => String(n).toLowerCase().includes('home service'));
     } catch (err) { return false; }
   }, []);
   const [searchTerm, setSearchTerm] = useState('');
@@ -106,7 +109,7 @@ const PickupDelivery = () => {
   const [selectedDeliveryIds, setSelectedDeliveryIds] = useState([]);
   const [showBulkAssignModal, setShowBulkAssignModal] = useState(false);
   const [bulkDriver, setBulkDriver] = useState('');
-  
+
   // Workshop print filters state
   const [showWorkshopModal, setShowWorkshopModal] = useState(false);
   const [workshopStartDate, setWorkshopStartDate] = useState(
@@ -330,13 +333,13 @@ const PickupDelivery = () => {
         o.customerName === selectedCustomerObj.name;
       const isWorkshop = o.status === 'Preparing in workshop' || o.status === 'In Workshop';
       const orderDate = o.date;
-      const inRange = (!workshopStartDate || orderDate >= workshopStartDate) && 
-                      (!workshopEndDate || orderDate <= workshopEndDate);
-      
-      const hasHeavyItems = o.itemDetails?.some(it => 
+      const inRange = (!workshopStartDate || orderDate >= workshopStartDate) &&
+        (!workshopEndDate || orderDate <= workshopEndDate);
+
+      const hasHeavyItems = o.itemDetails?.some(it =>
         /carpet|sajjad|سجاد|blanket|sheet|bedsheet|بطانية|شراشف/i.test(it.name)
       );
-      
+
       return matchesCustomer && isWorkshop && inRange && hasHeavyItems;
     });
 
@@ -712,7 +715,7 @@ const PickupDelivery = () => {
     const custBranchId = cust.branchId || cust.branch;
     const targetBranch = branches?.find(b => (b.id || b._id)?.toString() === custBranchId?.toString());
     const targetBranchName = targetBranch ? targetBranch.name : '';
-    const branchDrivers = targetBranchName 
+    const branchDrivers = targetBranchName
       ? drivers.filter(d => d.branch === targetBranchName)
       : drivers;
     return getAssignableDrivers(branchDrivers, cust?.areaName);
@@ -725,7 +728,7 @@ const PickupDelivery = () => {
     const pickupBranchId = editPickupData.branchId;
     const targetBranch = branches?.find(b => (b.id || b._id)?.toString() === pickupBranchId?.toString());
     const targetBranchName = targetBranch ? targetBranch.name : '';
-    const branchDrivers = targetBranchName 
+    const branchDrivers = targetBranchName
       ? drivers.filter(d => d.branch === targetBranchName)
       : drivers;
     return getAssignableDrivers(branchDrivers, cust?.areaName, editPickupData.assignedStaff);
@@ -738,7 +741,7 @@ const PickupDelivery = () => {
     const custBranchId = cust.branchId || cust.branch;
     const targetBranch = branches?.find(b => (b.id || b._id)?.toString() === custBranchId?.toString());
     const targetBranchName = targetBranch ? targetBranch.name : '';
-    const branchDrivers = targetBranchName 
+    const branchDrivers = targetBranchName
       ? drivers.filter(d => d.branch === targetBranchName)
       : drivers;
     return getAssignableDrivers(branchDrivers, cust?.areaName);
@@ -751,7 +754,7 @@ const PickupDelivery = () => {
     const deliveryBranchId = editDeliveryData.branchId;
     const targetBranch = branches?.find(b => (b.id || b._id)?.toString() === deliveryBranchId?.toString());
     const targetBranchName = targetBranch ? targetBranch.name : '';
-    const branchDrivers = targetBranchName 
+    const branchDrivers = targetBranchName
       ? drivers.filter(d => d.branch === targetBranchName)
       : drivers;
     return getAssignableDrivers(branchDrivers, cust?.areaName, editDeliveryData.assignedStaff);
@@ -785,7 +788,7 @@ const PickupDelivery = () => {
   const handleBulkAssignDeliveries = async (selectedDriverName) => {
     try {
       const selectedDeliveries = filteredDeliveries.filter(d => selectedDeliveryIds.includes(d.id));
-      
+
       const updatePromises = selectedDeliveries.map(delivery => {
         const isUnassign = !selectedDriverName || selectedDriverName === 'Unassigned';
         const newStatus = isUnassign ? 'Scheduled' : 'Assigned';
@@ -795,7 +798,7 @@ const PickupDelivery = () => {
           status: newStatus
         });
       });
-      
+
       await Promise.all(updatePromises);
       toast.success(`Successfully assigned driver to ${selectedDeliveries.length} deliveries`);
       setSelectedDeliveryIds([]);
@@ -836,7 +839,7 @@ const PickupDelivery = () => {
       return (
         matchesCustomer &&
         (deliveryCustomer.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (delivery.deliveryId || '').includes(searchTerm))
+          (delivery.deliveryId || '').includes(searchTerm))
       );
     }).sort((a, b) => {
       if (a.createdAt && b.createdAt) {
@@ -1128,325 +1131,324 @@ const PickupDelivery = () => {
     <>
       <div className="space-y-8">
         {/* Page Header */}
-      <section className="surface-card overflow-hidden border border-border shadow-xl">
-        <div className="dashboard-hero p-8 md:p-10">
-          <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-            <div>
-              <p className="text-sm uppercase tracking-[0.3em] text-secondary">{t('sidebar.pickups') || "Home Service"}</p>
-              <h1 className="mt-3 text-3xl font-semibold text-primary">{t('sidebar.pickups') || "Home Service"}</h1>
-              <p className="mt-2 max-w-2xl text-sm text-secondary">Schedule and track home service requests.</p>
-            </div>
-            <div className="flex w-full flex-col gap-2 md:w-auto md:flex-row">
-              <button
-                type="button"
-                onClick={() => {
-                  if (!ensureCustomerSelected()) return;
-                  setShowWorkshopModal(true);
-                }}
-                disabled={!selectedCustomerObj}
-                className={`dashboard-hero-pill flex items-center justify-center gap-2 ${!selectedCustomerObj ? 'opacity-50 cursor-not-allowed' : ''}`}
-              >
-                <FiFileText size={18} className="text-blue-500" />
-                <span className="font-semibold">{language === 'ar' ? 'قائمة الورشة' : 'Print Workshop List'}</span>
-              </button>
-              <button
-                type="button"
-                onClick={handleSchedulePickup}
-                disabled={!selectedCustomerObj}
-                className={`dashboard-hero-pill flex items-center justify-center gap-2 ${!selectedCustomerObj ? 'opacity-50 cursor-not-allowed' : ''}`}
-              >
-                <FiPlus size={18} />
-                <span className="font-semibold">Schedule Pickup</span>
-              </button>
-              <button
-                type="button"
-                onClick={handleScheduleDelivery}
-                disabled={!selectedCustomerObj}
-                className={`dashboard-hero-pill flex items-center justify-center gap-2 ${!selectedCustomerObj ? 'opacity-50 cursor-not-allowed' : ''}`}
-              >
-                <FiTruck size={18} />
-                <span className="font-semibold">Schedule Delivery</span>
-              </button>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Select Customer */}
-      <section className="surface-card border border-border rounded-2xl p-4 shadow-md">
-        <div className="grid gap-4 lg:grid-cols-[minmax(0,320px)_1fr] lg:items-start">
-          <div className="relative" ref={customerDropdownRef}>
-            <label className="block text-[11px] font-semibold text-secondary uppercase tracking-wider mb-1">
-              Select Customer *
-            </label>
-            <div className="relative">
-              <input
-                type="text"
-                placeholder="Type Name or Phone..."
-                value={customerInputDisplay}
-                onChange={(e) => {
-                  setCustomerSearchQuery(e.target.value);
-                  setShowCustomerResults(true);
-                  if (selectedCustomerId) setSelectedCustomerId('');
-                }}
-                onFocus={() => {
-                  setShowCustomerResults(true);
-                  if (selectedCustomerObj && customerSearchQuery === '') {
-                    setCustomerSearchQuery('');
-                  }
-                }}
-                className={`w-full text-sm rounded-xl border bg-surface pl-10 pr-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-400/40 ${
-                  selectedCustomerObj && !showCustomerResults && customerSearchQuery === ''
-                    ? 'border-emerald-400/60 text-primary font-medium'
-                    : 'border-border'
-                }`}
-              />
-              <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-secondary pointer-events-none" />
-            </div>
-
-            {showCustomerResults && (
-              <div className="absolute left-0 right-0 mt-1 max-h-48 overflow-y-auto bg-surface border border-border rounded-xl shadow-xl z-50">
-                {filteredCustomersList.length > 0 ? (
-                  filteredCustomersList.map((c) => (
-                    <button
-                      key={c.id}
-                      type="button"
-                      onClick={() => handleSelectCustomer(c)}
-                      className="w-full text-left px-3 py-2.5 text-sm hover:bg-surface-alt border-b border-border/40 flex justify-between items-center gap-2"
-                    >
-                      <span className="font-semibold text-primary truncate">{c.name}</span>
-                      <span className="text-secondary font-mono text-xs shrink-0">{c.phone}</span>
-                    </button>
-                  ))
-                ) : (
-                  <div className="p-3 text-center text-sm text-secondary">No customer matches query.</div>
-                )}
+        <section className="surface-card overflow-hidden border border-border shadow-xl">
+          <div className="dashboard-hero p-8 md:p-10">
+            <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+              <div>
+                <p className="text-sm uppercase tracking-[0.3em] text-secondary">{t('sidebar.pickups') || "Home Service"}</p>
+                <h1 className="mt-3 text-3xl font-semibold text-primary">{t('sidebar.pickups') || "Home Service"}</h1>
+                <p className="mt-2 max-w-2xl text-sm text-secondary">Schedule and track home service requests.</p>
               </div>
-            )}
-
-            {selectedCustomerObj && (
-              <button
-                type="button"
-                onClick={handleClearCustomer}
-                className="mt-2 text-xs font-semibold text-rose-500 hover:text-rose-600"
-              >
-                Clear selection
-              </button>
-            )}
+              <div className="flex w-full flex-col gap-2 md:w-auto md:flex-row">
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (!ensureCustomerSelected()) return;
+                    setShowWorkshopModal(true);
+                  }}
+                  disabled={!selectedCustomerObj}
+                  className={`dashboard-hero-pill flex items-center justify-center gap-2 ${!selectedCustomerObj ? 'opacity-50 cursor-not-allowed' : ''}`}
+                >
+                  <FiFileText size={18} className="text-blue-500" />
+                  <span className="font-semibold">{language === 'ar' ? 'قائمة الورشة' : 'Print Workshop List'}</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSchedulePickup}
+                  disabled={!selectedCustomerObj}
+                  className={`dashboard-hero-pill flex items-center justify-center gap-2 ${!selectedCustomerObj ? 'opacity-50 cursor-not-allowed' : ''}`}
+                >
+                  <FiPlus size={18} />
+                  <span className="font-semibold">Schedule Pickup</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={handleScheduleDelivery}
+                  disabled={!selectedCustomerObj}
+                  className={`dashboard-hero-pill flex items-center justify-center gap-2 ${!selectedCustomerObj ? 'opacity-50 cursor-not-allowed' : ''}`}
+                >
+                  <FiTruck size={18} />
+                  <span className="font-semibold">Schedule Delivery</span>
+                </button>
+              </div>
+            </div>
           </div>
+        </section>
 
-          {!selectedCustomerObj ? (
-            <div className="relative">
+        {/* Select Customer */}
+        <section className="surface-card border border-border rounded-2xl p-4 shadow-md">
+          <div className="grid gap-4 lg:grid-cols-[minmax(0,320px)_1fr] lg:items-start">
+            <div className="relative" ref={customerDropdownRef}>
               <label className="block text-[11px] font-semibold text-secondary uppercase tracking-wider mb-1">
-                {language === 'ar' ? 'البحث بواسطة رقم الطلب أو العنوان' : 'Search by Request ID or Address'}
+                Select Customer *
               </label>
               <div className="relative">
                 <input
                   type="text"
-                  placeholder={language === 'ar' ? 'البحث بواسطة رقم الطلب أو العنوان...' : 'Search by request ID or address...'}
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full text-sm rounded-xl border border-border bg-surface pl-10 pr-3 py-2.5 text-primary placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-blue-400/40"
+                  placeholder="Type Name or Phone..."
+                  value={customerInputDisplay}
+                  onChange={(e) => {
+                    setCustomerSearchQuery(e.target.value);
+                    setShowCustomerResults(true);
+                    if (selectedCustomerId) setSelectedCustomerId('');
+                  }}
+                  onFocus={() => {
+                    setShowCustomerResults(true);
+                    if (selectedCustomerObj && customerSearchQuery === '') {
+                      setCustomerSearchQuery('');
+                    }
+                  }}
+                  className={`w-full text-sm rounded-xl border bg-surface pl-10 pr-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-400/40 ${selectedCustomerObj && !showCustomerResults && customerSearchQuery === ''
+                      ? 'border-emerald-400/60 text-primary font-medium'
+                      : 'border-border'
+                    }`}
                 />
                 <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-secondary pointer-events-none" />
               </div>
-            </div>
-          ) : null}
 
-          {selectedCustomerObj ? (
-            <div className="rounded-2xl border border-emerald-400/30 bg-emerald-500/5 p-4 lg:col-span-1">
-              <div className="flex items-center gap-2 mb-3">
-                <FiCheck className="text-emerald-500" />
-                <p className="text-sm font-bold text-emerald-600">
-                  Selected: {selectedCustomerObj.name}
-                </p>
-              </div>
+              {showCustomerResults && (
+                <div className="absolute left-0 right-0 mt-1 max-h-48 overflow-y-auto bg-surface border border-border rounded-xl shadow-xl z-50">
+                  {filteredCustomersList.length > 0 ? (
+                    filteredCustomersList.map((c) => (
+                      <button
+                        key={c.id}
+                        type="button"
+                        onClick={() => handleSelectCustomer(c)}
+                        className="w-full text-left px-3 py-2.5 text-sm hover:bg-surface-alt border-b border-border/40 flex justify-between items-center gap-2"
+                      >
+                        <span className="font-semibold text-primary truncate">{c.name}</span>
+                        <span className="text-secondary font-mono text-xs shrink-0">{c.phone}</span>
+                      </button>
+                    ))
+                  ) : (
+                    <div className="p-3 text-center text-sm text-secondary">No customer matches query.</div>
+                  )}
+                </div>
+              )}
 
-              <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3 text-sm">
-                <div>
-                  <p className="text-[10px] uppercase tracking-wider text-secondary">Customer ID</p>
-                  <p className="font-semibold text-primary">CUS-{String(selectedCustomerObj.id).padStart(4, '0')}</p>
-                </div>
-                <div>
-                  <p className="text-[10px] uppercase tracking-wider text-secondary">Phone</p>
-                  <p className="font-semibold text-primary">{selectedCustomerObj.phone || 'N/A'}</p>
-                </div>
-                <div>
-                  <p className="text-[10px] uppercase tracking-wider text-secondary">Email</p>
-                  <p className="font-semibold text-primary truncate">{selectedCustomerObj.email || 'N/A'}</p>
-                </div>
-                <div>
-                  <p className="text-[10px] uppercase tracking-wider text-secondary">Status</p>
-                  <p className="font-semibold text-primary">{selectedCustomerObj.status || 'Active'}</p>
-                </div>
-                <div>
-                  <p className="text-[10px] uppercase tracking-wider text-secondary">Discount</p>
-                  <p className="font-semibold text-rose-500">{getCustomerDiscountLabel(selectedCustomerObj)}</p>
-                </div>
-                <div>
-                  <p className="text-[10px] uppercase tracking-wider text-secondary">Due Balance</p>
-                  <p className={`font-semibold ${Number(selectedCustomerObj.balance || 0) > 0 ? 'text-rose-600' : 'text-primary'}`}>
-                    {formatCurrency(selectedCustomerObj.balance || 0)}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-[10px] uppercase tracking-wider text-secondary">Total Orders</p>
-                  <p className="font-semibold text-primary">{selectedCustomerObj.totalOrders || 0}</p>
-                </div>
-                <div>
-                  <p className="text-[10px] uppercase tracking-wider text-secondary">Registration</p>
-                  <p className="font-semibold text-primary">
-                    {selectedCustomerObj.registrationDate ? formatDate(selectedCustomerObj.registrationDate) : 'N/A'}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-[10px] uppercase tracking-wider text-secondary">Arabic Name</p>
-                  <p className="font-semibold text-primary">{selectedCustomerObj.arabicName || 'N/A'}</p>
-                </div>
-              </div>
-
-              <div className="mt-4 pt-3 border-t border-emerald-400/20">
-                <p className="text-[10px] uppercase tracking-wider text-secondary mb-2">Address & Location</p>
-                <div className="grid gap-3 sm:grid-cols-2 md:grid-cols-4 text-sm">
-                  <div><span className="text-secondary">Area:</span> <span className="font-semibold text-primary">{selectedCustomerObj.areaName || 'N/A'}</span></div>
-                  <div><span className="text-secondary">Block:</span> <span className="font-semibold text-primary">{selectedCustomerObj.partNo || 'N/A'}</span></div>
-                  <div><span className="text-secondary">Street:</span> <span className="font-semibold text-primary">{selectedCustomerObj.street || 'N/A'}</span></div>
-                  <div><span className="text-secondary">Jadda:</span> <span className="font-semibold text-primary">{selectedCustomerObj.jadda || 'N/A'}</span></div>
-                  <div><span className="text-secondary">House:</span> <span className="font-semibold text-primary">{selectedCustomerObj.houseNo || 'N/A'}</span></div>
-                  <div><span className="text-secondary">Floor:</span> <span className="font-semibold text-primary">{selectedCustomerObj.levelNo || 'N/A'}</span></div>
-                  <div><span className="text-secondary">Flat:</span> <span className="font-semibold text-primary">{selectedCustomerObj.flatNo || 'N/A'}</span></div>
-                  <div><span className="text-secondary">Paci No:</span> <span className="font-semibold text-primary">{selectedCustomerObj.paciNo || 'N/A'}</span></div>
-                </div>
-                {(selectedCustomerObj.address || selectedCustomerObj.addressNotes) && (
-                  <div className="mt-3 text-sm">
-                    <span className="text-secondary">Address:</span>{' '}
-                    <span className="font-semibold text-primary">
-                      {selectedCustomerObj.addressNotes || selectedCustomerObj.address}
-                    </span>
-                  </div>
-                )}
-                {selectedCustomerObj.notes && (
-                  <div className="mt-2 text-sm">
-                    <span className="text-secondary">Notes:</span>{' '}
-                    <span className="font-semibold text-primary">{selectedCustomerObj.notes}</span>
-                  </div>
-                )}
-              </div>
-            </div>
-          ) : null}
-        </div>
-      </section>
-
-      {!selectedCustomerObj ? (
-        <>
-          {/* Deliveries Section */}
-          <section className="mt-6">
-            <div className="flex items-center justify-between gap-4">
-              <div>
-                <h2 className="text-xl font-semibold text-primary">
-                  {language === 'ar' ? 'فواتير التوصيل المنزلي' : 'Home Delivery Invoices'}
-                </h2>
-                <p className="text-sm text-secondary">
-                  {language === 'ar' ? `الإجمالي: ${filteredDeliveries.length} طلبات توصيل` : `Total: ${filteredDeliveries.length} deliveries`}
-                </p>
-              </div>
-              {selectedDeliveryIds.length > 0 && (
+              {selectedCustomerObj && (
                 <button
                   type="button"
-                  onClick={() => setShowBulkAssignModal(true)}
-                  className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold transition-all shadow-md shadow-blue-500/20"
+                  onClick={handleClearCustomer}
+                  className="mt-2 text-xs font-semibold text-rose-500 hover:text-rose-600"
                 >
-                  {language === 'ar' ? 'تعيين جماعي للسائق' : 'Bulk Assign Driver'} ({selectedDeliveryIds.length})
+                  Clear selection
                 </button>
               )}
             </div>
 
-            <div className="mt-5">
-              <ReusableTable columns={deliveryColumns} data={filteredDeliveries} />
-            </div>
-          </section>
-        </>
-      ) : (
-        <>
-      {/* Search and Filter */}
-      <div className="grid gap-4 md:grid-cols-2">
-        <div className="relative">
-          <FiSearch className="absolute left-4 top-1/2 -translate-y-1/2 text-secondary" />
-          <input
-            type="text"
-            placeholder="Search by request ID or address..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full rounded-3xl border border-border bg-surface py-3 pl-12 pr-4 text-primary placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-blue-400/40"
-          />
-        </div>
+            {!selectedCustomerObj ? (
+              <div className="relative">
+                <label className="block text-[11px] font-semibold text-secondary uppercase tracking-wider mb-1">
+                  {language === 'ar' ? 'البحث بواسطة رقم الطلب أو العنوان' : 'Search by Request ID or Address'}
+                </label>
+                <div className="relative">
+                  <input
+                    type="text"
+                    placeholder={language === 'ar' ? 'البحث بواسطة رقم الطلب أو العنوان...' : 'Search by request ID or address...'}
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="w-full text-sm rounded-xl border border-border bg-surface pl-10 pr-3 py-2.5 text-primary placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-blue-400/40"
+                  />
+                  <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-secondary pointer-events-none" />
+                </div>
+              </div>
+            ) : null}
 
-        <div className="relative">
-          <select
-            value={pickupStatusFilter}
-            onChange={(e) => setPickupStatusFilter(e.target.value)}
-            className="w-full appearance-none rounded-3xl border border-border bg-surface py-3 px-4 text-primary focus:outline-none focus:ring-2 focus:ring-blue-400/40"
-          >
-            <option value="All">All Pickup Status</option>
-            {pickupStatuses.map((status) => (
-              <option key={status} value={status}>
-                {status}
-              </option>
-            ))}
-          </select>
-          <FiChevronDown className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-secondary" />
-        </div>
+            {selectedCustomerObj ? (
+              <div className="rounded-2xl border border-emerald-400/30 bg-emerald-500/5 p-4 lg:col-span-1">
+                <div className="flex items-center gap-2 mb-3">
+                  <FiCheck className="text-emerald-500" />
+                  <p className="text-sm font-bold text-emerald-600">
+                    Selected: {selectedCustomerObj.name}
+                  </p>
+                </div>
+
+                <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3 text-sm">
+                  <div>
+                    <p className="text-[10px] uppercase tracking-wider text-secondary">Customer ID</p>
+                    <p className="font-semibold text-primary">CUS-{String(selectedCustomerObj.id).padStart(4, '0')}</p>
+                  </div>
+                  <div>
+                    <p className="text-[10px] uppercase tracking-wider text-secondary">Phone</p>
+                    <p className="font-semibold text-primary">{selectedCustomerObj.phone || 'N/A'}</p>
+                  </div>
+                  <div>
+                    <p className="text-[10px] uppercase tracking-wider text-secondary">Email</p>
+                    <p className="font-semibold text-primary truncate">{selectedCustomerObj.email || 'N/A'}</p>
+                  </div>
+                  <div>
+                    <p className="text-[10px] uppercase tracking-wider text-secondary">Status</p>
+                    <p className="font-semibold text-primary">{selectedCustomerObj.status || 'Active'}</p>
+                  </div>
+                  <div>
+                    <p className="text-[10px] uppercase tracking-wider text-secondary">Discount</p>
+                    <p className="font-semibold text-rose-500">{getCustomerDiscountLabel(selectedCustomerObj)}</p>
+                  </div>
+                  <div>
+                    <p className="text-[10px] uppercase tracking-wider text-secondary">Due Balance</p>
+                    <p className={`font-semibold ${Number(selectedCustomerObj.balance || 0) > 0 ? 'text-rose-600' : 'text-primary'}`}>
+                      {formatCurrency(selectedCustomerObj.balance || 0)}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-[10px] uppercase tracking-wider text-secondary">Total Orders</p>
+                    <p className="font-semibold text-primary">{selectedCustomerObj.totalOrders || 0}</p>
+                  </div>
+                  <div>
+                    <p className="text-[10px] uppercase tracking-wider text-secondary">Registration</p>
+                    <p className="font-semibold text-primary">
+                      {selectedCustomerObj.registrationDate ? formatDate(selectedCustomerObj.registrationDate) : 'N/A'}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-[10px] uppercase tracking-wider text-secondary">Arabic Name</p>
+                    <p className="font-semibold text-primary">{selectedCustomerObj.arabicName || 'N/A'}</p>
+                  </div>
+                </div>
+
+                <div className="mt-4 pt-3 border-t border-emerald-400/20">
+                  <p className="text-[10px] uppercase tracking-wider text-secondary mb-2">Address & Location</p>
+                  <div className="grid gap-3 sm:grid-cols-2 md:grid-cols-4 text-sm">
+                    <div><span className="text-secondary">Area:</span> <span className="font-semibold text-primary">{selectedCustomerObj.areaName || 'N/A'}</span></div>
+                    <div><span className="text-secondary">Block:</span> <span className="font-semibold text-primary">{selectedCustomerObj.partNo || 'N/A'}</span></div>
+                    <div><span className="text-secondary">Street:</span> <span className="font-semibold text-primary">{selectedCustomerObj.street || 'N/A'}</span></div>
+                    <div><span className="text-secondary">Jadda:</span> <span className="font-semibold text-primary">{selectedCustomerObj.jadda || 'N/A'}</span></div>
+                    <div><span className="text-secondary">House:</span> <span className="font-semibold text-primary">{selectedCustomerObj.houseNo || 'N/A'}</span></div>
+                    <div><span className="text-secondary">Floor:</span> <span className="font-semibold text-primary">{selectedCustomerObj.levelNo || 'N/A'}</span></div>
+                    <div><span className="text-secondary">Flat:</span> <span className="font-semibold text-primary">{selectedCustomerObj.flatNo || 'N/A'}</span></div>
+                    <div><span className="text-secondary">Paci No:</span> <span className="font-semibold text-primary">{selectedCustomerObj.paciNo || 'N/A'}</span></div>
+                  </div>
+                  {(selectedCustomerObj.address || selectedCustomerObj.addressNotes) && (
+                    <div className="mt-3 text-sm">
+                      <span className="text-secondary">Address:</span>{' '}
+                      <span className="font-semibold text-primary">
+                        {selectedCustomerObj.addressNotes || selectedCustomerObj.address}
+                      </span>
+                    </div>
+                  )}
+                  {selectedCustomerObj.notes && (
+                    <div className="mt-2 text-sm">
+                      <span className="text-secondary">Notes:</span>{' '}
+                      <span className="font-semibold text-primary">{selectedCustomerObj.notes}</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            ) : null}
+          </div>
+        </section>
+
+        {!selectedCustomerObj ? (
+          <>
+            {/* Deliveries Section */}
+            <section className="mt-6">
+              <div className="flex items-center justify-between gap-4">
+                <div>
+                  <h2 className="text-xl font-semibold text-primary">
+                    {language === 'ar' ? 'فواتير التوصيل المنزلي' : 'Home Delivery Invoices'}
+                  </h2>
+                  <p className="text-sm text-secondary">
+                    {language === 'ar' ? `الإجمالي: ${filteredDeliveries.length} طلبات توصيل` : `Total: ${filteredDeliveries.length} deliveries`}
+                  </p>
+                </div>
+                {selectedDeliveryIds.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => setShowBulkAssignModal(true)}
+                    className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold transition-all shadow-md shadow-blue-500/20"
+                  >
+                    {language === 'ar' ? 'تعيين جماعي للسائق' : 'Bulk Assign Driver'} ({selectedDeliveryIds.length})
+                  </button>
+                )}
+              </div>
+
+              <div className="mt-5">
+                <ReusableTable columns={deliveryColumns} data={filteredDeliveries} />
+              </div>
+            </section>
+          </>
+        ) : (
+          <>
+            {/* Search and Filter */}
+            <div className="grid gap-4 md:grid-cols-2">
+              <div className="relative">
+                <FiSearch className="absolute left-4 top-1/2 -translate-y-1/2 text-secondary" />
+                <input
+                  type="text"
+                  placeholder="Search by request ID or address..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="w-full rounded-3xl border border-border bg-surface py-3 pl-12 pr-4 text-primary placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-blue-400/40"
+                />
+              </div>
+
+              <div className="relative">
+                <select
+                  value={pickupStatusFilter}
+                  onChange={(e) => setPickupStatusFilter(e.target.value)}
+                  className="w-full appearance-none rounded-3xl border border-border bg-surface py-3 px-4 text-primary focus:outline-none focus:ring-2 focus:ring-blue-400/40"
+                >
+                  <option value="All">All Pickup Status</option>
+                  {pickupStatuses.map((status) => (
+                    <option key={status} value={status}>
+                      {status}
+                    </option>
+                  ))}
+                </select>
+                <FiChevronDown className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-secondary" />
+              </div>
+            </div>
+
+            {/* Pickups Section */}
+            <section>
+              <div className="flex items-center justify-between gap-4">
+                <div>
+                  <h2 className="text-xl font-semibold text-primary">Pickup Requests — {selectedCustomerObj.name}</h2>
+                  <p className="text-sm text-secondary">Total: {filteredPickups.length} pickups for this customer</p>
+                </div>
+                <button
+                  onClick={handlePrintManifest}
+                  disabled={selectedPickupIds.length === 0}
+                  className="action-button flex items-center justify-center gap-2 !w-auto !py-2 !px-4 text-center disabled:opacity-50 disabled:cursor-not-allowed"
+                  title="Print Driver Manifest"
+                >
+                  <span>Print Driver Manifest {selectedPickupIds.length > 0 ? `(${selectedPickupIds.length})` : ''}</span>
+                </button>
+              </div>
+
+              <div className="mt-5">
+                <ReusableTable columns={pickupColumns} data={filteredPickups} />
+              </div>
+            </section>
+
+            {/* Deliveries Section */}
+            <section>
+              <div className="flex items-center justify-between gap-4">
+                <div>
+                  <h2 className="text-xl font-semibold text-primary">Deliveries — {selectedCustomerObj.name}</h2>
+                  <p className="text-sm text-secondary">Total: {filteredDeliveries.length} deliveries for this customer</p>
+                </div>
+                {selectedDeliveryIds.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => setShowBulkAssignModal(true)}
+                    className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold transition-all shadow-md shadow-blue-500/20"
+                  >
+                    {language === 'ar' ? 'تعيين جماعي للسائق' : 'Bulk Assign Driver'} ({selectedDeliveryIds.length})
+                  </button>
+                )}
+              </div>
+
+              <div className="mt-5">
+                <ReusableTable columns={deliveryColumns} data={filteredDeliveries} />
+              </div>
+            </section>
+          </>
+        )}
       </div>
 
-      {/* Pickups Section */}
-      <section>
-        <div className="flex items-center justify-between gap-4">
-          <div>
-            <h2 className="text-xl font-semibold text-primary">Pickup Requests — {selectedCustomerObj.name}</h2>
-            <p className="text-sm text-secondary">Total: {filteredPickups.length} pickups for this customer</p>
-          </div>
-          <button
-            onClick={handlePrintManifest}
-            disabled={selectedPickupIds.length === 0}
-            className="action-button flex items-center justify-center gap-2 !w-auto !py-2 !px-4 text-center disabled:opacity-50 disabled:cursor-not-allowed"
-            title="Print Driver Manifest"
-          >
-            <span>Print Driver Manifest {selectedPickupIds.length > 0 ? `(${selectedPickupIds.length})` : ''}</span>
-          </button>
-        </div>
-
-        <div className="mt-5">
-          <ReusableTable columns={pickupColumns} data={filteredPickups} />
-        </div>
-      </section>
-
-      {/* Deliveries Section */}
-      <section>
-        <div className="flex items-center justify-between gap-4">
-          <div>
-            <h2 className="text-xl font-semibold text-primary">Deliveries — {selectedCustomerObj.name}</h2>
-            <p className="text-sm text-secondary">Total: {filteredDeliveries.length} deliveries for this customer</p>
-          </div>
-          {selectedDeliveryIds.length > 0 && (
-            <button
-              type="button"
-              onClick={() => setShowBulkAssignModal(true)}
-              className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold transition-all shadow-md shadow-blue-500/20"
-            >
-              {language === 'ar' ? 'تعيين جماعي للسائق' : 'Bulk Assign Driver'} ({selectedDeliveryIds.length})
-            </button>
-          )}
-        </div>
-
-        <div className="mt-5">
-          <ReusableTable columns={deliveryColumns} data={filteredDeliveries} />
-        </div>
-      </section>
-        </>
-      )}
-    </div>
-
-    {/* Pickup Details Modal */}
+      {/* Pickup Details Modal */}
       {showPickupModal && selectedPickup && createPortal(
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm">
           <div className="surface-card max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-3xl border border-border p-8 shadow-2xl">
@@ -1623,7 +1625,7 @@ const PickupDelivery = () => {
       {/* Edit Pickup Modal */}
       {showEditPickupModal && editPickupData && createPortal(
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm">
-          <form 
+          <form
             onSubmit={(e) => {
               e.preventDefault();
               updatePickupJob(editPickupData);
@@ -1758,7 +1760,7 @@ const PickupDelivery = () => {
       {/* Edit Delivery Modal */}
       {showEditDeliveryModal && editDeliveryData && createPortal(
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm">
-          <form 
+          <form
             onSubmit={(e) => {
               e.preventDefault();
               updateDeliveryJob(editDeliveryData);
@@ -1955,7 +1957,7 @@ const PickupDelivery = () => {
       {/* Schedule Pickup Modal */}
       {showAddPickupModal && createPortal(
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm">
-          <form 
+          <form
             onSubmit={handleSaveNewPickup}
             className="surface-card max-h-[90vh] w-full max-w-xl overflow-y-auto rounded-3xl border border-border p-8 shadow-2xl"
           >
@@ -2067,7 +2069,7 @@ const PickupDelivery = () => {
       {/* Schedule Delivery Modal */}
       {showAddDeliveryModal && createPortal(
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm">
-          <form 
+          <form
             onSubmit={handleSaveNewDelivery}
             className="surface-card max-h-[90vh] w-full max-w-xl overflow-y-auto rounded-3xl border border-border p-8 shadow-2xl"
           >
@@ -2185,9 +2187,9 @@ const PickupDelivery = () => {
               <h2 className="text-2xl font-semibold text-primary">
                 {language === 'ar' ? 'تعيين جماعي للسائق' : 'Bulk Assign Driver'}
               </h2>
-              <button 
-                type="button" 
-                onClick={() => { setShowBulkAssignModal(false); setBulkDriver(''); }} 
+              <button
+                type="button"
+                onClick={() => { setShowBulkAssignModal(false); setBulkDriver(''); }}
                 className="text-secondary hover:text-primary"
               >
                 ✕
@@ -2206,8 +2208,8 @@ const PickupDelivery = () => {
                 return (
                   <div className="mt-6 space-y-4">
                     <div className="p-4 rounded-2xl bg-rose-500/10 border border-rose-500/20 text-rose-500 text-sm font-semibold">
-                      {language === 'ar' 
-                        ? 'الطلبات المحددة تنتمي إلى فروع مختلفة. يرجى تحديد الطلبات من فرع واحد فقط لتعيين سائق.' 
+                      {language === 'ar'
+                        ? 'الطلبات المحددة تنتمي إلى فروع مختلفة. يرجى تحديد الطلبات من فرع واحد فقط لتعيين سائق.'
                         : 'Selected deliveries belong to different branches. Please select deliveries from a single branch to assign a driver.'}
                     </div>
                     <div className="mt-8 flex gap-4">

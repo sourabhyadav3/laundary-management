@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, Link, useLocation } from 'react-router-dom';
-import { formatCurrency, getDisplayTotal, getReceiptUrl, findReceiptOrder, decodeReceiptData } from '../../utils/exportUtils';
+import { formatCurrency, getDisplayTotal, getReceiptUrl, findReceiptOrder, decodeReceiptData, getExpectedDeliveryInfo } from '../../utils/exportUtils';
 import { getBilingualGarmentNames } from '../../utils/garmentTranslations';
 
 const translateService = (service) => {
@@ -21,7 +21,6 @@ const translateBranch = (branchIdOrName) => {
   const rawId = String(branchIdOrName).trim();
   const name = rawId.toLowerCase();
 
-  // 1. Try to find in localStorage cached branches
   try {
     const cached = localStorage.getItem('branches_list');
     if (cached) {
@@ -33,6 +32,12 @@ const translateBranch = (branchIdOrName) => {
         );
         if (found) {
           const nameLower = String(found.name).toLowerCase();
+          if (found.nameAr && /[\u0600-\u06FF]/.test(found.nameAr)) {
+            return { en: found.name, ar: found.nameAr };
+          }
+          if (nameLower.includes('home') || nameLower.includes('service')) {
+            return { en: 'Home Services', ar: 'خدمة المنازل' };
+          }
           if (nameLower.includes('ragheey') || nameLower.includes('rigai')) {
             return { en: found.name, ar: 'الرقعي' };
           }
@@ -54,7 +59,16 @@ const translateBranch = (branchIdOrName) => {
           if (nameLower.includes('jahra')) {
             return { en: found.name, ar: 'الجهراء' };
           }
-          return { en: found.name, ar: found.name };
+          if (nameLower.includes('main') || nameLower.includes('head')) {
+            return { en: found.name, ar: 'الفرع الرئيسي' };
+          }
+          if (nameLower.includes('salmiya')) return { en: found.name, ar: 'السالمية' };
+          if (nameLower.includes('hawally')) return { en: found.name, ar: 'حولي' };
+          if (nameLower.includes('farwaniya')) return { en: found.name, ar: 'الفروانية' };
+          if (nameLower.includes('mahboula')) return { en: found.name, ar: 'المهبولة' };
+          if (nameLower.includes('fahaheel')) return { en: found.name, ar: 'الفحيحيل' };
+          if (nameLower.includes('mangaf')) return { en: found.name, ar: 'المنقف' };
+          return { en: found.name, ar: '' };
         }
       }
     }
@@ -62,7 +76,8 @@ const translateBranch = (branchIdOrName) => {
     console.error('Error looking up branch from localStorage:', e);
   }
 
-  // 2. Direct database seeded ObjectId mapping or code mapping
+  if (name.includes('home') || name.includes('service')) return { en: 'Home Services', ar: 'خدمة المنازل' };
+  if (name.includes('main') || name.includes('head')) return { en: 'Main Branch', ar: 'الفرع الرئيسي' };
   if (name === '6a3cf82764fc882a198272c5' || name.includes('ragheey') || name === '1') return { en: 'Ragheey', ar: 'الرقعي' };
   if (name === '6a3cf82764fc882a198272c6' || name.includes('mishrif') || name === '2') return { en: 'Mishrif', ar: 'مشرف' };
   if (name === '6a3cf82764fc882a198272c7' || name.includes('andalus') || name === '3') return { en: 'Andalus', ar: 'الأندلس' };
@@ -71,11 +86,13 @@ const translateBranch = (branchIdOrName) => {
   if (name.includes('qurain') || name === '6') return { en: 'Qurain', ar: 'القرين' };
   if (name.includes('jahra') || name === '7') return { en: 'Jahra', ar: 'الجهراء' };
   if (name === '6a3d01028b85970b21c6dc45' || name.includes('rigai') || name === '8') return { en: 'Rigai', ar: 'الرقعي' };
+  if (name.includes('salmiya')) return { en: 'Salmiya', ar: 'السالمية' };
+  if (name.includes('hawally')) return { en: 'Hawally', ar: 'حولي' };
+  if (name.includes('farwaniya')) return { en: 'Farwaniya', ar: 'الفروانية' };
 
   const capitalized = rawId.charAt(0).toUpperCase() + rawId.slice(1);
-  return { en: capitalized, ar: capitalized };
+  return { en: capitalized, ar: '' };
 };
-
 
 const translatePaymentStatus = (status) => {
   const s = String(status || 'Pending').trim().toLowerCase();
@@ -105,14 +122,12 @@ const PublicReceipt = () => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // 1. Try to decode real order data embedded in the URL query/hash (from QR code)
     const urlData = decodeReceiptData(location.search, location.hash);
     if (urlData && urlData.number) {
       setOrder(urlData);
       setLoading(false);
       return;
     }
-    // 2. Fall back to localStorage snapshots / orders_list
     const foundOrder = findReceiptOrder(id, []);
     setOrder(foundOrder);
     setLoading(false);
@@ -141,18 +156,19 @@ const PublicReceipt = () => {
   const translatedPayment = translatePaymentStatus(order.paymentStatus);
   const translatedBranch = translateBranch(order.branchId || order.branch);
   const translatedService = translateService(order.serviceType);
+  const expectedDeliveryInfo = getExpectedDeliveryInfo(order);
   const displayTotal = getDisplayTotal(order);
 
   return (
     <div className="min-h-screen bg-gray-100 py-6 px-4 flex justify-center font-sans text-gray-900">
-      <div className="bg-white w-full max-w-md shadow-lg rounded-xl overflow-hidden print:shadow-none print:w-full print:max-w-none">
+      <div className="bg-white w-full max-w-md border-2 border-black shadow-lg rounded-xl overflow-hidden print:shadow-none print:w-full print:max-w-none">
         {/* Header */}
         <div className="p-6 border-b-2 border-blue-600 text-center bg-blue-50/30 flex flex-col items-center">
           <img src="/logo.png" alt="Tuhama Logo" className="w-16 h-16 object-contain rounded-2xl mb-3 shadow-md" />
           <h1 className="text-2xl font-black text-blue-600 tracking-wide uppercase m-0">Tuhama laundry co.</h1>
           <h2 className="text-xl font-bold text-blue-600 mt-1 mb-2">تهامة برو</h2>
           <div className="text-xs font-bold text-gray-800 uppercase tracking-widest">
-            Receipt / Invoice - إيصال / فاتورة
+            Invoice - فاتورة
           </div>
         </div>
 
@@ -169,7 +185,10 @@ const PublicReceipt = () => {
           <div className="flex justify-between text-sm">
             <span className="font-bold text-gray-700">Branch / الفرع:</span>
             <span className="font-semibold text-gray-900 text-right">
-              {translatedBranch.en} <br/> <span dir="rtl" className="text-gray-600 text-xs">{translatedBranch.ar}</span>
+              {translatedBranch.en}
+              {translatedBranch.ar && translatedBranch.ar.toLowerCase() !== translatedBranch.en.toLowerCase() && (
+                <> <br/> <span dir="rtl" className="text-gray-600 text-xs">{translatedBranch.ar}</span></>
+              )}
             </span>
           </div>
           <div className="flex justify-between text-sm">
@@ -184,6 +203,12 @@ const PublicReceipt = () => {
             <span className="font-bold text-gray-700">Service Type / نوع الخدمة:</span>
             <span className="font-semibold text-gray-900 text-right">
               {translatedService.en} <br/> <span dir="rtl" className="text-gray-600 text-xs">{translatedService.ar}</span>
+            </span>
+          </div>
+          <div className="flex justify-between text-sm">
+            <span className="font-bold text-gray-700">Expected Delivery / التسليم المتوقع:</span>
+            <span className="font-semibold text-gray-900 text-right">
+              {expectedDeliveryInfo.date} <br/> <span dir="rtl" className="text-gray-600 text-xs">({expectedDeliveryInfo.timeEn} / {expectedDeliveryInfo.timeAr})</span>
             </span>
           </div>
           <div className="flex justify-between text-sm">

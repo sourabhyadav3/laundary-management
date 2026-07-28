@@ -156,18 +156,18 @@ const OrderList = () => {
 
       {/* Bulk Status Update Area */}
       {selectedOrderIds.length > 0 && (
-        <div className="flex flex-wrap items-center justify-between gap-4 p-5 bg-blue-500/10 border border-blue-500/20 rounded-2xl animate-fade-in">
-          <div className="flex items-center gap-2">
+        <div className="flex flex-col sm:flex-row sm:flex-wrap items-start sm:items-center justify-between gap-4 p-5 bg-purple-500/10 border border-purple-500/20 rounded-2xl animate-fade-in">
+          <div className="flex items-center gap-2 w-full sm:w-auto">
             <span className="text-sm font-bold text-primary">
               Selected {selectedOrderIds.length} orders
             </span>
           </div>
-          <div className="flex items-center gap-3">
-            <div className="relative">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full sm:w-auto">
+            <div className="relative w-full sm:w-auto">
               <select
                 value={bulkStatus}
                 onChange={(e) => setBulkStatus(e.target.value)}
-                className="appearance-none rounded-xl border border-border bg-surface py-2.5 px-4 pr-10 text-sm font-semibold text-primary focus:outline-none focus:ring-2 focus:ring-blue-400/40"
+                className="w-full appearance-none rounded-xl border border-border bg-surface py-2.5 px-4 pr-10 text-sm font-semibold text-primary focus:outline-none focus:ring-2 focus:ring-purple-400/40"
               >
                 <option value="">-- Select Status --</option>
                 {ORDER_STATUSES.map((status) => (
@@ -181,13 +181,13 @@ const OrderList = () => {
             <button
               onClick={handleBulkStatusUpdate}
               disabled={!bulkStatus}
-              className="action-button bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2.5 px-5 rounded-xl text-xs uppercase tracking-wider disabled:opacity-50 disabled:cursor-not-allowed shadow-md hover:shadow-lg transition-all duration-200"
+              className="w-full sm:w-auto bg-purple-600 hover:bg-purple-700 text-white font-bold py-2.5 px-6 rounded-xl text-xs uppercase tracking-wider disabled:opacity-50 disabled:cursor-not-allowed shadow-md hover:shadow-lg transition-all duration-200"
             >
               Update Status
             </button>
             <button
               onClick={() => setSelectedOrderIds([])}
-              className="px-4 py-2.5 text-xs font-bold text-secondary hover:text-primary transition uppercase tracking-wider"
+              className="w-full sm:w-auto px-4 py-2.5 text-xs font-bold text-purple-600 hover:text-purple-800 hover:bg-purple-500/10 rounded-xl transition uppercase tracking-wider text-center"
             >
               Cancel
             </button>

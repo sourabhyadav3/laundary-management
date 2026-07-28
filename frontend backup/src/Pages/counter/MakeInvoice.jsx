@@ -538,6 +538,8 @@ const MakeInvoice = () => {
       date: new Date().toISOString().split('T')[0],
       pickupDate: new Date().toISOString().split('T')[0],
       deliveryDate: form.expectedDeliveryDate,
+      expectedDeliveryDate: form.expectedDeliveryDate,
+      expectedDeliveryTime: form.expectedDeliveryTime || '',
       paperInvoiceNo: form.paperInvNo,
       itemDetails: orderItems.map((it) => ({
         name: it.name,
@@ -625,6 +627,8 @@ const MakeInvoice = () => {
       date: new Date().toISOString().split('T')[0],
       pickupDate: new Date().toISOString().split('T')[0],
       deliveryDate: form.expectedDeliveryDate,
+      expectedDeliveryDate: form.expectedDeliveryDate,
+      expectedDeliveryTime: form.expectedDeliveryTime || '',
       paperInvoiceNo: form.paperInvNo,
       itemDetails: orderItems.map((it) => ({
         name: it.name,
@@ -690,6 +694,8 @@ const MakeInvoice = () => {
       date: new Date().toISOString().split('T')[0],
       pickupDate: new Date().toISOString().split('T')[0],
       deliveryDate: form.expectedDeliveryDate,
+      expectedDeliveryDate: form.expectedDeliveryDate,
+      expectedDeliveryTime: form.expectedDeliveryTime || '',
       paperInvoiceNo: form.paperInvNo,
       itemDetails: orderItems.map((it) => ({
         name: it.name,
@@ -779,6 +785,8 @@ const MakeInvoice = () => {
       date: new Date().toISOString().split('T')[0],
       pickupDate: new Date().toISOString().split('T')[0],
       deliveryDate: form.expectedDeliveryDate,
+      expectedDeliveryDate: form.expectedDeliveryDate,
+      expectedDeliveryTime: form.expectedDeliveryTime || '',
       paperInvoiceNo: form.paperInvNo,
       itemDetails: orderItems.map((it) => ({
         name: it.name,
@@ -1282,16 +1290,30 @@ const MakeInvoice = () => {
               </div>
 
               {form.deliveryMode === 'home' && (
-                <div className="flex items-center justify-between pt-1.5 border-t border-border/35">
-                  <label className="text-[10px] font-bold text-secondary uppercase tracking-wider">
-                    {language === 'ar' ? 'تاريخ التوصيل المتوقع' : 'Expected Delivery Date'}
-                  </label>
-                  <input
-                    type="date"
-                    value={form.expectedDeliveryDate || ''}
-                    onChange={(e) => setForm((prev) => ({ ...prev, expectedDeliveryDate: e.target.value }))}
-                    className="text-[11px] font-semibold px-1.5 py-1 rounded-lg border border-border bg-surface text-primary focus:outline-none focus:ring-2 focus:ring-blue-500 h-7"
-                  />
+                <div className="flex flex-col gap-1.5 pt-1.5 border-t border-border/35">
+                  <div className="flex items-center justify-between">
+                    <label className="text-[10px] font-bold text-secondary uppercase tracking-wider">
+                      {language === 'ar' ? 'تاريخ التوصيل المتوقع' : 'Expected Delivery Date'}
+                    </label>
+                    <input
+                      type="date"
+                      value={form.expectedDeliveryDate || ''}
+                      onChange={(e) => setForm((prev) => ({ ...prev, expectedDeliveryDate: e.target.value }))}
+                      className="text-[11px] font-semibold px-1.5 py-1 rounded-lg border border-border bg-surface text-primary focus:outline-none focus:ring-2 focus:ring-blue-500 h-7"
+                    />
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <label className="text-[10px] font-bold text-secondary uppercase tracking-wider">
+                      {language === 'ar' ? 'وقت التوصيل المتوقع' : 'Expected Delivery Time'}
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="e.g. 06:00 PM / 2 hours"
+                      value={form.expectedDeliveryTime || ''}
+                      onChange={(e) => setForm((prev) => ({ ...prev, expectedDeliveryTime: e.target.value }))}
+                      className="text-[11px] font-semibold px-2 py-1 rounded-lg border border-border bg-surface text-primary focus:outline-none focus:ring-2 focus:ring-blue-500 h-7 w-[140px] text-right"
+                    />
+                  </div>
                 </div>
               )}
             </div>
@@ -1661,9 +1683,20 @@ const MakeInvoice = () => {
                       const received = Number(amountReceived) || 0;
                       const remaining = Math.max(0, totalAmount - received);
                       return (
-                        <div className="flex justify-between items-center text-xs font-bold text-rose-500 pt-1.5 border-t border-border/40">
-                          <span>{language === 'ar' ? 'المتبقي في الحساب' : 'Balance Remaining'}:</span>
-                          <span className="font-mono">{formatCurrency(remaining)}</span>
+                        <div className="space-y-1.5 pt-2 border-t border-border/40">
+                          <div className="flex justify-between items-center text-xs font-bold text-emerald-500">
+                            <span>{language === 'ar' ? 'المبلغ المدفوع' : 'Paid Amount'}:</span>
+                            <span className="font-mono">{formatCurrency(received)}</span>
+                          </div>
+                          <div className="flex justify-between items-center text-xs font-bold text-rose-500">
+                            <span>{language === 'ar' ? 'المتبقي في الحساب' : 'Balance Remaining'}:</span>
+                            <span className="font-mono">{formatCurrency(remaining)}</span>
+                          </div>
+                          <div className="text-[11px] font-semibold text-center text-blue-400 pt-1 border-t border-border/20">
+                            {language === 'ar' 
+                              ? 'الآن اختر طريقة دفع المبلغ الجزئي' 
+                              : 'Now you select the partial amount pay option'}
+                          </div>
                         </div>
                       );
                     })()}

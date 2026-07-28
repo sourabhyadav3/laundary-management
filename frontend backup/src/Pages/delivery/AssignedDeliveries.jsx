@@ -46,7 +46,12 @@ const AssignedDeliveries = () => {
   const filtered = useMemo(
     () =>
       deliveries
-        .filter((d) => d.assignedStaff === staffName)
+        .filter((d) => {
+          if (!staffName) return true;
+          const assigned = (d.assignedStaff || '').toLowerCase();
+          const target = (staffName || '').toLowerCase();
+          return !assigned || assigned === target || assigned.includes(target) || target.includes(assigned);
+        })
         .filter(
           (d) =>
             d.customer.toLowerCase().includes(searchTerm.toLowerCase()) ||

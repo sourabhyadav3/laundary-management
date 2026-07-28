@@ -339,6 +339,12 @@ const translateBranch = (branchIdOrName) => {
         );
         if (found) {
           const nameLower = String(found.name).toLowerCase();
+          if (found.nameAr && /[\u0600-\u06FF]/.test(found.nameAr)) {
+            return { en: found.name, ar: found.nameAr };
+          }
+          if (nameLower.includes('home') || nameLower.includes('service')) {
+            return { en: 'Home Services', ar: 'خدمة المنازل' };
+          }
           if (nameLower.includes('ragheey') || nameLower.includes('rigai')) {
             return { en: found.name, ar: 'الرقعي' };
           }
@@ -360,7 +366,16 @@ const translateBranch = (branchIdOrName) => {
           if (nameLower.includes('jahra')) {
             return { en: found.name, ar: 'الجهراء' };
           }
-          return { en: found.name, ar: found.name };
+          if (nameLower.includes('main') || nameLower.includes('head')) {
+            return { en: found.name, ar: 'الفرع الرئيسي' };
+          }
+          if (nameLower.includes('salmiya')) return { en: found.name, ar: 'السالمية' };
+          if (nameLower.includes('hawally')) return { en: found.name, ar: 'حولي' };
+          if (nameLower.includes('farwaniya')) return { en: found.name, ar: 'الفروانية' };
+          if (nameLower.includes('mahboula')) return { en: found.name, ar: 'المهبولة' };
+          if (nameLower.includes('fahaheel')) return { en: found.name, ar: 'الفحيحيل' };
+          if (nameLower.includes('mangaf')) return { en: found.name, ar: 'المنقف' };
+          return { en: found.name, ar: '' };
         }
       }
     }
@@ -369,6 +384,8 @@ const translateBranch = (branchIdOrName) => {
   }
 
   // 2. Direct database seeded ObjectId mapping or code mapping
+  if (branchName.includes('home') || branchName.includes('service')) return { en: 'Home Services', ar: 'خدمة المنازل' };
+  if (branchName.includes('main') || branchName.includes('head')) return { en: 'Main Branch', ar: 'الفرع الرئيسي' };
   if (branchName === '6a3cf82764fc882a198272c5' || branchName.includes('ragheey') || branchName === '1') return { en: 'Ragheey', ar: 'الرقعي' };
   if (branchName === '6a3cf82764fc882a198272c6' || branchName.includes('mishrif') || branchName === '2') return { en: 'Mishrif', ar: 'مشرف' };
   if (branchName === '6a3cf82764fc882a198272c7' || branchName.includes('andalus') || branchName === '3') return { en: 'Andalus', ar: 'الأندلس' };
@@ -377,9 +394,12 @@ const translateBranch = (branchIdOrName) => {
   if (branchName.includes('qurain') || branchName === '6') return { en: 'Qurain', ar: 'القرين' };
   if (branchName.includes('jahra') || branchName === '7') return { en: 'Jahra', ar: 'الجهراء' };
   if (branchName === '6a3d01028b85970b21c6dc45' || branchName.includes('rigai') || branchName === '8') return { en: 'Rigai', ar: 'الرقعي' };
+  if (branchName.includes('salmiya')) return { en: 'Salmiya', ar: 'السالمية' };
+  if (branchName.includes('hawally')) return { en: 'Hawally', ar: 'حولي' };
+  if (branchName.includes('farwaniya')) return { en: 'Farwaniya', ar: 'الفروانية' };
 
   const capitalized = rawId.charAt(0).toUpperCase() + rawId.slice(1);
-  return { en: capitalized, ar: capitalized };
+  return { en: capitalized, ar: '' };
 };
 
 const translatePaymentStatus = (status) => {
@@ -401,7 +421,7 @@ const getDeliveryTypeLabel = (order) => {
   return { en: 'Branch Pickup', ar: 'استلام من الفرع' };
 };
 
-const translateDeliveryStatus = (status) => {
+export const translateDeliveryStatus = (status) => {
   const s = String(status || 'Waiting').trim().toLowerCase();
   if (s === 'waiting' || s === 'received') return { en: 'Waiting', ar: 'قيد الانتظار' };
   if (s === 'preparing in shop' || s === 'in shop' || s === 'washing') return { en: 'Preparing in shop', ar: 'قيد التحضير في المحل' };
@@ -557,6 +577,72 @@ export const findReceiptOrder = (id, mockOrders = []) => {
   return found || null;
 };
 
+export const getExpectedDeliveryInfo = (order) => {
+  const serviceName = String(order?.serviceType || '').trim();
+  const lowerService = serviceName.toLowerCase();
+  const isExpress = lowerService.includes('express') || lowerService.includes('urgent') || lowerService.includes('مستعجل') || lowerService.includes('سريع');
+
+  // Try to find matching service in window.__cachedServices or localStorage
+  let matchedService = null;
+  try {
+    const cached = window.__cachedServices || JSON.parse(localStorage.getItem('services_list') || '[]');
+    if (Array.isArray(cached) && cached.length > 0) {
+      matchedService = cached.find(s => 
+        String(s.name || '').toLowerCase().trim() === lowerService ||
+        lowerService.includes(String(s.name || '').toLowerCase().trim())
+      );
+      if (!matchedService) {
+        matchedService = cached.find(s => {
+          const sName = String(s.name || '').toLowerCase();
+          return isExpress ? (sName.includes('express') || sName.includes('urgent')) : (sName.includes('normal') || !sName.includes('express'));
+        });
+      }
+    }
+  } catch (e) {}
+
+  let estimatedTime = order?.expectedDeliveryTime || order?.deliveryTime || matchedService?.estimatedTime || (isExpress ? '2 hours' : '24 hours');
+
+  let estTimeEn = estimatedTime;
+  let estTimeAr = estimatedTime;
+  
+  if (estimatedTime.toLowerCase().includes('hour')) {
+    const num = estimatedTime.replace(/[^0-9]/g, '');
+    estTimeEn = `${num || estimatedTime} Hours`;
+    estTimeAr = `${num || estimatedTime} ساعة`;
+  } else if (estimatedTime.toLowerCase().includes('day')) {
+    const num = estimatedTime.replace(/[^0-9]/g, '');
+    estTimeEn = `${num || estimatedTime} Days`;
+    estTimeAr = `${num || estimatedTime} أيام`;
+  } else {
+    estTimeEn = estimatedTime;
+    estTimeAr = estimatedTime;
+  }
+
+  let dateStr = order?.deliveryDate || order?.expectedDeliveryDate;
+  if (!dateStr) {
+    const baseDate = order?.date ? new Date(order.date) : new Date();
+    let hoursToAdd = 24;
+    if (estimatedTime.toLowerCase().includes('hour')) {
+      const parsedHours = parseInt(estimatedTime, 10);
+      if (!isNaN(parsedHours)) hoursToAdd = parsedHours;
+    } else if (estimatedTime.toLowerCase().includes('day')) {
+      const parsedDays = parseInt(estimatedTime, 10);
+      if (!isNaN(parsedDays)) hoursToAdd = parsedDays * 24;
+    } else {
+      hoursToAdd = isExpress ? 2 : 24;
+    }
+    const computedDate = new Date(baseDate.getTime() + hoursToAdd * 60 * 60 * 1000);
+    dateStr = computedDate.toISOString().split('T')[0];
+  }
+
+  return {
+    date: formatDate(dateStr),
+    timeEn: estTimeEn,
+    timeAr: estTimeAr,
+    rawEstimatedTime: estimatedTime
+  };
+};
+
 export const generateInvoicePDF = (order, { showPaidTotal = false } = {}) => {
   cacheReceiptSnapshot(order);
 
@@ -578,10 +664,10 @@ export const generateInvoicePDF = (order, { showPaidTotal = false } = {}) => {
   const totalQuantity = (order?.itemDetails || []).reduce((acc, it) => acc + (Number(it.quantity) || 0), 0);
 
   const translatedPayment = translatePaymentStatus(order?.paymentStatus);
-  const translatedDelivery = translateDeliveryStatus(order?.deliveryStatus || order?.status);
   const translatedDeliveryType = getDeliveryTypeLabel(order);
   const translatedBranch = translateBranch(order?.branchId || order?.branch);
   const translatedService = translateService(order?.serviceType);
+  const expectedDeliveryInfo = getExpectedDeliveryInfo(order);
   const displayTotal = showPaidTotal
     ? Number(order?.totalAmount) || 0
     : getDisplayTotal(order);
@@ -679,35 +765,33 @@ export const generateInvoicePDF = (order, { showPaidTotal = false } = {}) => {
             body {
               margin: 0;
               padding: 0;
-              background-color: #fff;
+              background: #fff !important;
             }
             .receipt-container {
               width: 78mm !important;
-              max-width: 78mm !important;
-              border: 2px solid #000 !important;
-              padding: 4px !important;
-              box-shadow: none !important;
               margin: 0 auto !important;
+              padding: 6px !important;
+              box-shadow: none !important;
+              border: 2px solid #000 !important;
             }
           }
           body {
-            font-family: 'Helvetica Neue', Helvetica, Arial, 'Noto Sans Arabic', Tahoma, sans-serif;
-            color: #000 !important;
+            font-family: 'Helvetica Neue', Helvetica, Arial, 'Noto Sans Arabic', sans-serif;
             margin: 0;
-            padding: 5px;
-            font-size: 11px;
-            line-height: 1.35;
-            background-color: #fff;
-            -webkit-print-color-adjust: exact;
-            print-color-adjust: exact;
+            padding: 10px;
+            background-color: #f3f4f6;
+            color: #000 !important;
+            font-weight: 700 !important;
+            -webkit-font-smoothing: antialiased;
           }
           .receipt-container {
-            width: 78mm;
+            max-width: 340px;
             margin: 0 auto;
-            box-sizing: border-box;
-            border: 2px solid #000;
-            padding: 8px;
-            background-color: #fff;
+            background: #fff;
+            padding: 12px;
+            border: 2px solid #000 !important;
+            border-radius: 4px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15);
           }
           .brand-header {
             text-align: center;
@@ -723,40 +807,34 @@ export const generateInvoicePDF = (order, { showPaidTotal = false } = {}) => {
             text-transform: uppercase;
             letter-spacing: 0.5px;
           }
-          .brand-name-ar {
-            font-size: 18px;
-            font-weight: 800;
-            color: #000 !important;
-            margin: 2px 0 0 0;
-          }
           .receipt-title {
-            font-size: 14px;
-            color: #000 !important;
-            margin: 6px 0 0 0;
-            font-weight: 800;
-            text-transform: uppercase;
-            letter-spacing: 1px;
             text-align: center;
+            font-size: 13px;
+            font-weight: 800 !important;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-top: 4px;
+            margin-bottom: 8px;
+            border-bottom: 2px solid #000;
+            padding-bottom: 4px;
+            color: #000 !important;
           }
           .info-section {
             border-bottom: 2px dashed #000;
-            padding-bottom: 6px;
+            padding-bottom: 8px;
             margin-bottom: 8px;
           }
           .info-row {
             display: flex;
             justify-content: space-between;
-            margin-bottom: 5px;
             font-size: 11px;
+            margin-bottom: 3px;
             color: #000 !important;
-            gap: 6px;
+            font-weight: 700 !important;
           }
           .info-label {
             color: #000 !important;
-            font-weight: 700 !important;
-            font-size: 11px;
-            white-space: nowrap;
-            flex-shrink: 0;
+            font-weight: 800 !important;
           }
           .info-value {
             font-weight: 700 !important;
@@ -862,9 +940,8 @@ export const generateInvoicePDF = (order, { showPaidTotal = false } = {}) => {
             <!-- Phone numbers row -->
             <div style="display: flex; justify-content: center; gap: 12px; margin-top: 4px; margin-bottom: 4px;">
               <span style="font-size: 10px; font-weight: 800; color: #000 !important;">Tel: 222 03 222</span>
-              <span style="font-size: 10px; font-weight: 800; color: #000 !important;">222 03 222</span>
             </div>
-            <div class="receipt-title">Receipt / Invoice - إيصال / فاتورة</div>
+            <div class="receipt-title">Invoice - فاتورة</div>
           </div>
           
           <div class="info-section">
@@ -877,7 +954,7 @@ export const generateInvoicePDF = (order, { showPaidTotal = false } = {}) => {
             </div>
             <div class="info-row">
               <span class="info-label">Branch / الفرع:</span>
-              <span class="info-value">${translatedBranch.en} / <span style="direction: rtl;">${translatedBranch.ar}</span></span>
+              <span class="info-value">${!translatedBranch.ar || translatedBranch.en.toLowerCase() === translatedBranch.ar.toLowerCase() ? translatedBranch.en : `${translatedBranch.en} / <span style="direction: rtl;">${translatedBranch.ar}</span>`}</span>
             </div>
             <div class="info-row">
               <span class="info-label">Customer / العميل:</span>
@@ -907,16 +984,15 @@ export const generateInvoicePDF = (order, { showPaidTotal = false } = {}) => {
               <span class="info-label">Delivery Type / نوع التوصيل:</span>
               <span class="info-value">${translatedDeliveryType.en} / <span style="direction: rtl;">${translatedDeliveryType.ar}</span></span>
             </div>
-            <div class="info-row">
-              <span class="info-label">Delivery Status / Delivery:</span>
-              <span class="info-value">${translatedDelivery.en} / <span style="direction: rtl;">${translatedDelivery.ar}</span></span>
+            <div class="info-row" style="display: flex; justify-content: space-between; align-items: flex-start;">
+              <span class="info-label" style="white-space: nowrap; font-weight: 800;">Exp. Delivery / التسليم المتوقع:</span>
+              <span class="info-value" style="text-align: right;">
+                ${expectedDeliveryInfo.date} <br/>
+                <span style="font-size: 10px; font-weight: 700; color: #111;">
+                  ${expectedDeliveryInfo.timeEn === expectedDeliveryInfo.timeAr ? expectedDeliveryInfo.timeEn : `${expectedDeliveryInfo.timeEn} / <span style="direction: rtl;">${expectedDeliveryInfo.timeAr}</span>`}
+                </span>
+              </span>
             </div>
-            ${(order?.isHomeDelivery || String(order?.deliveryType || '').toLowerCase() === 'home delivery') ? `
-            <div class="info-row">
-              <span class="info-label">Delivery Date / تاريخ التوصيل:</span>
-              <span class="info-value">${formatDate(order?.deliveryDate) || 'N/A'}</span>
-            </div>
-            ` : ''}
           </div>
           
           <table style="width: 100%; border-collapse: collapse; margin-bottom: 8px;">

@@ -197,6 +197,33 @@ const StaffDetails = () => {
             </div>
 
             <div className="flex gap-4 md:col-span-2">
+              <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full bg-blue-500/10">
+                <FiMapPin className="text-blue-600" />
+              </div>
+              <div>
+                <p className="text-xs uppercase tracking-[0.3em] text-secondary">Assigned Branch(es)</p>
+                <div className="mt-2 flex flex-wrap gap-1.5">
+                  {(() => {
+                    let bList = [];
+                    if (Array.isArray(staffMember.branches) && staffMember.branches.length > 0) {
+                      bList = staffMember.branches.map(b => typeof b === 'object' ? b.name : b).filter(Boolean);
+                    } else if (staffMember.branch) {
+                      bList = String(staffMember.branch).split(',').map(s => s.trim()).filter(Boolean);
+                    }
+                    const uniqueBs = Array.from(new Set(bList));
+                    if (uniqueBs.length === 0) return <span className="text-primary font-semibold">Unassigned</span>;
+                    return uniqueBs.map((bName, idx) => (
+                      <span key={idx} className="inline-flex items-center gap-1.5 rounded-xl border border-blue-400/20 bg-blue-500/10 px-3 py-1 text-xs font-semibold text-blue-600">
+                        <span className="h-1.5 w-1.5 rounded-full bg-blue-500"></span>
+                        {bName}
+                      </span>
+                    ));
+                  })()}
+                </div>
+              </div>
+            </div>
+
+            <div className="flex gap-4 md:col-span-2">
               <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full bg-sky-500/10">
                 <div className="text-sm font-bold text-sky-600">✓</div>
               </div>

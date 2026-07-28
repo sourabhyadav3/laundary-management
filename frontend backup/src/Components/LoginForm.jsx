@@ -76,7 +76,7 @@ const LoginForm = () => {
   // Helper autofills for testing
   const testingAccounts = [
     { label: 'Super Admin', email: 'superadmin@tuhama.com', pass: 'admin123' },
-    { label: 'Admin', email: 'patricia@tuhama.com', pass: '12345678' },
+    { label: 'Admin', email: 'patricia@tuhama.com', pass: 'admin123' },
     { label: 'Counter Staff', email: 'kevin@tuhama.com', pass: 'staff123' },
     { label: 'Delivery Staff', email: 'robert@tuhama.com', pass: 'rider123' }
   ];
@@ -85,6 +85,15 @@ const LoginForm = () => {
     setEmail(acc.email);
     setPassword(acc.pass);
     setErrors({});
+
+    if (acc.email === 'patricia@tuhama.com') {
+      const match = branchesList.find(b => b.name === 'Andalus');
+      if (match) setSelectedBranchId(match.id || match._id);
+    } else if (acc.email === 'kevin@tuhama.com' || acc.email === 'robert@tuhama.com') {
+      const match = branchesList.find(b => b.name === 'Mishrif');
+      if (match) setSelectedBranchId(match.id || match._id);
+    }
+
     toast.info(`Autofilled credentials for ${acc.label}`, {
       position: "top-right",
       autoClose: 1500,
@@ -137,26 +146,16 @@ const LoginForm = () => {
       setIsLoading(false);
       const { token, refreshToken, user } = response.data;
 
-      // Validate selected branch for non-Super Admin users
-      if (user.role !== 'Super Admin') {
-        const userBranchId = user.branchId;
-        if (!selectedBranchId || String(userBranchId) !== String(selectedBranchId)) {
-          toast.error('Select a correct branch', {
-            position: 'top-right',
-            theme: 'dark'
-          });
-          return;
-        }
-      }
+      const activeLoggedInBranch = user.branchId || selectedBranchId || 'All';
 
       // Save credentials to localStorage
       localStorage.setItem('token', token);
       localStorage.setItem('refreshToken', refreshToken);
       localStorage.setItem('user', JSON.stringify(user));
-      if (user.role === 'Super Admin') {
-        localStorage.setItem('selected_branch', selectedBranchId);
-      } else {
-        localStorage.setItem('selected_branch', user.branchId || 'All');
+      localStorage.setItem('selected_branch', activeLoggedInBranch);
+
+      if (adminState && typeof adminState.setSelectedBranch === 'function') {
+        adminState.setSelectedBranch(activeLoggedInBranch);
       }
 
       if (fetchData) {
