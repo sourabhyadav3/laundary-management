@@ -6,7 +6,23 @@ import { formatCurrency } from '../../utils/exportUtils';
 const CustomerTable = ({ customers, onView, onEdit }) => {
   const columns = [
     { header: 'Customer ID', accessor: 'displayId' },
-    { header: 'Name', accessor: 'name' },
+    {
+      header: 'Name',
+      accessor: 'name',
+      cell: (row) => {
+        const isSub = row.isSubscriber === true || (row.isSubscriber !== false && Number(row.insuranceAmount || 0) >= 20);
+        return (
+          <div className="flex items-center gap-1.5">
+            <span className="font-semibold text-primary">{row.name}</span>
+            {isSub && (
+              <span className="text-amber-400 text-lg leading-none select-none drop-shadow" title="Subscriber">
+                ⭐
+              </span>
+            )}
+          </div>
+        );
+      }
+    },
     { header: 'Phone', accessor: 'phone' },
     { header: 'Email', accessor: 'email', format: (val) => val || 'N/A' },
     { header: 'Total Orders', accessor: 'totalOrders' },

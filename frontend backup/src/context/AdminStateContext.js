@@ -398,8 +398,10 @@ export const AdminStateProvider = ({ children }) => {
       const res = await api.post('/customers', customer);
       setCustomers(prev => [res.data, ...prev]);
       toast.success('Customer registered successfully');
+      return res.data;
     } catch (e) {
       toast.error(e.response?.data?.message || 'Failed to create customer');
+      return null;
     }
   };
 
@@ -595,6 +597,18 @@ export const AdminStateProvider = ({ children }) => {
       toast.success(`Payment status updated to: ${paymentStatus}`);
     } catch (e) {
       toast.error(e.response?.data?.message || 'Failed to update payment status');
+    }
+  };
+
+  const editOrder = async (orderId, editData) => {
+    try {
+      const res = await api.put(`/orders/${orderId}/edit`, editData);
+      await fetchData();
+      toast.success('Invoice updated successfully');
+      return res.data;
+    } catch (e) {
+      toast.error(e.response?.data?.message || 'Failed to edit invoice');
+      return null;
     }
   };
 
@@ -808,6 +822,7 @@ export const AdminStateProvider = ({ children }) => {
     updateOrderStatus,
     bulkUpdateOrderStatus,
     updateOrderPaymentStatus,
+    editOrder,
     deleteOrder,
     setOrders,
 

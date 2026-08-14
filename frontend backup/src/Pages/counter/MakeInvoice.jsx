@@ -33,12 +33,16 @@ const CARD_COLORS_DARK = [
   'bg-emerald-950/40 border-emerald-900/40 text-emerald-200',
   'bg-amber-950/40 border-amber-900/40 text-amber-200',
   'bg-purple-950/40 border-purple-900/40 text-purple-200',
-  'bg-rose-950/40 border-rose-900/40 text-rose-200',
   'bg-cyan-950/40 border-cyan-900/40 text-cyan-200',
 ];
 
+const DEFAULT_AREAS = [
+  'Salmiya', 'Hawally', 'Mishrif', 'Kuwait City', 'Rumaithiya', 'Jabriya',
+  'Fahaheel', 'Farwaniya', 'Mahboula', 'Egaila', 'Ahmadi', 'Jahra', 'Khaitan', 'Bneid Al-Gar'
+];
+
 const MakeInvoice = () => {
-  const { customers, orders, addOrder, setCustomers, catalog, setCatalog, selectedBranch, payments, setPayments, services } = useContext(AdminStateContext);
+  const { customers, orders, addOrder, setCustomers, catalog, setCatalog, selectedBranch, payments, setPayments, services, addCustomer } = useContext(AdminStateContext);
   const navigate = useNavigate();
   const { language, t, tr } = useLanguage();
   const { theme } = useTheme();
@@ -97,6 +101,80 @@ const MakeInvoice = () => {
       deliveryMode: parsed.deliveryMode || (parsed.isHomeDelivery ? 'home' : 'branch'),
     };
   });
+
+  const getInitialQuickCustomerForm = (query = '') => {
+    const trimmed = String(query || '').trim();
+    const isDigits = /^\d+$/.test(trimmed);
+    return {
+      customerNo: 'Auto-generated',
+      englishName: isDigits ? '' : trimmed,
+      arabicName: '',
+      phone: isDigits ? trimmed : '',
+      phones: [isDigits ? trimmed : '', '', '', ''],
+      areaName: '',
+      partNo: '',
+      street: '',
+      jadda: '',
+      houseNo: '',
+      flatNo: '',
+      levelNo: '',
+      paciNo: '',
+      addressNotes: '',
+      insuranceAmount: '0.000',
+      isSubscriber: false,
+      customDiscountRate: '',
+      date: new Date().toISOString().split('T')[0],
+      invoicesCount: 0,
+      lastInvoiceDate: '',
+      freeBalance: 0,
+      freeTotal: 0,
+      email: '',
+      status: 'Active',
+      notes: '',
+    };
+  };
+
+  // Quick Add Customer Modal state
+  const [showQuickAddCustomerModal, setShowQuickAddCustomerModal] = useState(false);
+  const [quickCustomerForm, setQuickCustomerForm] = useState(() => getInitialQuickCustomerForm(''));
+  const [isSavingQuickCustomer, setIsSavingQuickCustomer] = useState(false);
+
+  const handleOpenQuickAddCustomer = (query = '') => {
+    setQuickCustomerForm(getInitialQuickCustomerForm(query));
+    setShowSearchResults(false);
+    setShowQuickAddCustomerModal(true);
+  };
+
+  const handleSaveQuickCustomer = async (e) => {
+    if (e && e.preventDefault) e.preventDefault();
+    const mainName = (quickCustomerForm.englishName || quickCustomerForm.name || '').trim();
+    const mainPhone = (quickCustomerForm.phones?.[0] || quickCustomerForm.phone || '').trim();
+
+    if (!mainName || !mainPhone) {
+      toast.error(language === 'ar' ? 'يرجى إدخال الاسم ورقم الهاتف' : 'Customer Name and Phone Number are required.');
+      return;
+    }
+    setIsSavingQuickCustomer(true);
+    try {
+      const payload = {
+        ...quickCustomerForm,
+        name: mainName,
+        englishName: mainName,
+        phone: mainPhone,
+        phones: (quickCustomerForm.phones || [mainPhone]).map(p => String(p).trim()).filter(Boolean),
+        branchId: selectedBranch?._id || selectedBranch?.id || '',
+      };
+      const created = await addCustomer(payload);
+      if (created) {
+        handleSelectCustomer(created);
+        setShowQuickAddCustomerModal(false);
+      }
+    } catch (err) {
+      toast.error('Failed to create customer');
+    } finally {
+      setIsSavingQuickCustomer(false);
+    }
+  };
 
   const [activeGarmentIdx, setActiveGarmentIdx] = useState(null);
   const [draggedIdx, setDraggedIdx] = useState(null);
@@ -522,6 +600,7 @@ const MakeInvoice = () => {
       number: orderNo,
       customerId: customerObj.id,
       customerName: customerObj.name,
+      isSubscriber: customerObj.isSubscriber || Number(customerObj.insuranceAmount || 0) >= 20,
       serviceType: quickServiceMode,
       status: 'Waiting',
       deliveryStatus: 'Waiting',
@@ -611,6 +690,7 @@ const MakeInvoice = () => {
       number: orderNo,
       customerId: customerObj.id,
       customerName: customerObj.name,
+      isSubscriber: customerObj.isSubscriber || Number(customerObj.insuranceAmount || 0) >= 20,
       serviceType: quickServiceMode,
       status: 'Waiting',
       deliveryStatus: 'Waiting',
@@ -678,6 +758,7 @@ const MakeInvoice = () => {
       number: orderNo,
       customerId: customerObj.id,
       customerName: customerObj.name,
+      isSubscriber: customerObj.isSubscriber || Number(customerObj.insuranceAmount || 0) >= 20,
       serviceType: quickServiceMode,
       status: 'Waiting',
       deliveryStatus: 'Waiting',
@@ -771,6 +852,7 @@ const MakeInvoice = () => {
       number: orderNo,
       customerId: customerObj.id,
       customerName: customerObj.name,
+      isSubscriber: customerObj.isSubscriber || Number(customerObj.insuranceAmount || 0) >= 20,
       serviceType: quickServiceMode,
       status: 'Waiting',
       deliveryStatus: 'Waiting',
@@ -1092,33 +1174,72 @@ const MakeInvoice = () => {
 
             {/* Live Autocomplete Results */}
             {showSearchResults && (
-              <div className="absolute left-0 right-0 mt-1 max-h-40 overflow-y-auto bg-surface border border-border rounded-lg shadow-xl z-50">
-                {filteredCustomersList.length > 0 ? (
-                  filteredCustomersList.map((c) => (
-                    <button
-                      key={c.id}
-                      type="button"
-                      onClick={() => handleSelectCustomer(c)}
-                      className="w-full text-left px-3 py-2 text-xs hover:bg-surface-alt border-b border-border/40 flex justify-between items-center"
-                    >
-                      <span className="font-semibold text-primary">{c.name}</span>
-                      <span className="text-secondary font-mono text-[10px]">{c.phone}</span>
-                    </button>
-                  ))
-                ) : (
-                  <div className="p-3 text-center text-xs text-secondary">
-                    {t('counter.makeInvoice.noCustomerMatch') || "No customer matches query."}
-                  </div>
-                )}
+              <div className="absolute left-0 right-0 mt-1 bg-surface border border-border rounded-xl shadow-2xl z-50 overflow-hidden flex flex-col">
+                <div className="max-h-48 overflow-y-auto divide-y divide-border/40">
+                  {filteredCustomersList.length > 0 ? (
+                    filteredCustomersList.map((c) => {
+                      const isSub = c.isSubscriber || Number(c.insuranceAmount || 0) >= 20;
+                      return (
+                        <button
+                          key={c.id}
+                          type="button"
+                          onClick={() => handleSelectCustomer(c)}
+                          className={`w-full text-left px-3 py-2 text-xs flex justify-between items-center transition-colors ${
+                            isSub
+                              ? 'bg-amber-100 dark:bg-amber-950/80 hover:bg-amber-200 dark:hover:bg-amber-900/90 text-amber-900 dark:text-amber-100 font-bold border-l-4 border-l-amber-500'
+                              : 'hover:bg-surface-alt text-primary'
+                          }`}
+                        >
+                          <div className="flex items-center gap-1.5 min-w-0">
+                            <span className="font-semibold truncate">{c.name}</span>
+                            {isSub && (
+                              <span className="text-amber-500 text-xs shrink-0 select-none" title="Subscriber">⭐</span>
+                            )}
+                          </div>
+                          <span className="text-secondary font-mono text-[10px] shrink-0 ml-1">{c.phone}</span>
+                        </button>
+                      );
+                    })
+                  ) : (
+                    <div className="p-3 text-center text-xs text-secondary">
+                      {t('counter.makeInvoice.noCustomerMatch') || "No customer matches query."}
+                    </div>
+                  )}
+                </div>
+                <button
+                  type="button"
+                  onClick={() => handleOpenQuickAddCustomer(customerSearchQuery)}
+                  className="w-full py-1.5 px-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white text-[11px] font-bold flex items-center justify-center gap-1.5 border-t border-border/40 transition-all shadow-sm shrink-0 cursor-pointer"
+                >
+                  <span className="text-xs">➕</span>
+                  <span className="whitespace-nowrap">{language === 'ar' ? 'إضافة عميل جديد' : 'Add New Customer'}</span>
+                  {customerSearchQuery.trim() && (
+                    <span className="bg-black/25 px-1.5 py-0.5 rounded text-[10px] font-mono font-normal truncate max-w-[100px]">
+                      "{customerSearchQuery.trim()}"
+                    </span>
+                  )}
+                </button>
               </div>
             )}
 
             {/* Display selected details */}
-            {selectedCustomerObj && (
-              <p className="mt-1 text-[11px] text-emerald-500 truncate font-medium">
-                {t('counter.makeInvoice.selectedLabel') || "Selected"}: {selectedCustomerObj.name} ({selectedCustomerObj.phone})
-              </p>
-            )}
+            {selectedCustomerObj && (() => {
+              const isSub = selectedCustomerObj.isSubscriber || Number(selectedCustomerObj.insuranceAmount || 0) >= 20;
+              return (
+                <div className={`mt-1.5 p-2 rounded-lg border text-[11px] font-medium flex items-center justify-between gap-2 shadow-sm ${
+                  isSub
+                    ? 'bg-gradient-to-r from-amber-500/20 via-yellow-400/20 to-amber-500/10 border-amber-500 text-amber-900 dark:text-amber-200 font-bold shadow-md'
+                    : 'bg-emerald-50 dark:bg-emerald-950/40 border-emerald-400/60 text-emerald-600 dark:text-emerald-400'
+                }`}>
+                  <div className="flex items-center gap-1.5 truncate">
+                    <span>{t('counter.makeInvoice.selectedLabel') || "Selected"}: <strong>{selectedCustomerObj.name}</strong> ({selectedCustomerObj.phone})</span>
+                  </div>
+                  {isSub && (
+                    <span className="text-amber-500 text-base shrink-0 select-none" title="Subscriber">⭐</span>
+                  )}
+                </div>
+              );
+            })()}
           </div>
 
           {/* Quick Phone Search */}
@@ -1272,50 +1393,105 @@ const MakeInvoice = () => {
             </button>
           </div>
 
-          {/* Delivery Method dropdown — shown after item selection */}
+          {/* Delivery Method & Time Clock Card — shown after item selection */}
           {orderItems.length > 0 && (
-            <div className="mb-3 p-2 bg-surface-alt/10 border border-border/50 rounded-xl flex flex-col gap-1.5 shrink-0 shadow-sm">
-              <div className="flex items-center justify-between">
+            <div className="mb-3 p-2.5 bg-surface-alt/10 border border-border/50 rounded-xl flex flex-col gap-2 shrink-0 shadow-sm">
+              {/* Delivery Mode Tabs */}
+              <div className="flex items-center justify-between gap-2">
                 <label className="text-[10px] font-bold text-secondary uppercase tracking-wider">
                   {t('counter.makeInvoice.deliveryType') || "Delivery Type"}
                 </label>
-                <select
-                  value={form.deliveryMode}
-                  onChange={(e) => setForm((prev) => ({ ...prev, deliveryMode: e.target.value }))}
-                  className="text-[11px] font-semibold px-1.5 py-1 rounded-lg border border-border bg-surface text-primary focus:outline-none focus:ring-2 focus:ring-blue-500 min-w-[130px] h-7"
-                >
-                  <option value="branch">🏪 {t('counter.makeInvoice.branchPickup') || "Branch Pickup"}</option>
-                  <option value="home">🏠 {t('counter.makeInvoice.homeDelivery') || "Home Delivery"}</option>
-                </select>
+                <div className="flex bg-surface-alt p-0.5 rounded-lg border border-border/60">
+                  <button
+                    type="button"
+                    onClick={() => setForm((prev) => ({ ...prev, deliveryMode: 'branch' }))}
+                    className={`px-2.5 py-1 text-[11px] font-semibold rounded-md transition-all ${
+                      form.deliveryMode === 'branch'
+                        ? 'bg-blue-600 text-white shadow-sm'
+                        : 'text-secondary hover:text-primary'
+                    }`}
+                  >
+                    🏪 {t('counter.makeInvoice.branchPickup') || "Branch Pickup"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setForm((prev) => ({ ...prev, deliveryMode: 'home' }))}
+                    className={`px-2.5 py-1 text-[11px] font-semibold rounded-md transition-all ${
+                      form.deliveryMode === 'home'
+                        ? 'bg-blue-600 text-white shadow-sm'
+                        : 'text-secondary hover:text-primary'
+                    }`}
+                  >
+                    🏠 {t('counter.makeInvoice.homeDelivery') || "Home Delivery"}
+                  </button>
+                </div>
               </div>
 
-              {form.deliveryMode === 'home' && (
-                <div className="flex flex-col gap-1.5 pt-1.5 border-t border-border/35">
-                  <div className="flex items-center justify-between">
+              {/* Date & Time Edit Controls */}
+              <div className="flex flex-col gap-2 pt-2 border-t border-border/35">
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="flex flex-col gap-1">
                     <label className="text-[10px] font-bold text-secondary uppercase tracking-wider">
-                      {language === 'ar' ? 'تاريخ التوصيل المتوقع' : 'Expected Delivery Date'}
+                      📅 {language === 'ar' ? 'تاريخ التجهيز المتوقع' : 'Expected Ready Date'}
                     </label>
                     <input
                       type="date"
                       value={form.expectedDeliveryDate || ''}
                       onChange={(e) => setForm((prev) => ({ ...prev, expectedDeliveryDate: e.target.value }))}
-                      className="text-[11px] font-semibold px-1.5 py-1 rounded-lg border border-border bg-surface text-primary focus:outline-none focus:ring-2 focus:ring-blue-500 h-7"
+                      className="text-[11px] font-semibold px-2 py-1 rounded-lg border border-border bg-surface text-primary focus:outline-none focus:ring-2 focus:ring-blue-500 h-8"
                     />
                   </div>
-                  <div className="flex items-center justify-between">
+                  <div className="flex flex-col gap-1">
                     <label className="text-[10px] font-bold text-secondary uppercase tracking-wider">
-                      {language === 'ar' ? 'وقت التوصيل المتوقع' : 'Expected Delivery Time'}
+                      ⏰ {language === 'ar' ? 'وقت التجهيز (Clock Time)' : 'Editable Time Clock'}
                     </label>
                     <input
-                      type="text"
-                      placeholder="e.g. 06:00 PM / 2 hours"
+                      type="time"
                       value={form.expectedDeliveryTime || ''}
                       onChange={(e) => setForm((prev) => ({ ...prev, expectedDeliveryTime: e.target.value }))}
-                      className="text-[11px] font-semibold px-2 py-1 rounded-lg border border-border bg-surface text-primary focus:outline-none focus:ring-2 focus:ring-blue-500 h-7 w-[140px] text-right"
+                      className="text-[11px] font-semibold px-2 py-1 rounded-lg border border-border bg-surface text-primary focus:outline-none focus:ring-2 focus:ring-blue-500 h-8 text-center"
                     />
                   </div>
                 </div>
-              )}
+
+                {/* Preset Quick Time Pills */}
+                <div className="flex items-center gap-1 overflow-x-auto pt-1 pb-0.5 no-scrollbar" style={{ msOverflowStyle: 'none', scrollbarWidth: 'none' }}>
+                  <span className="text-[9px] font-bold text-secondary uppercase shrink-0">
+                    ⚡ {language === 'ar' ? 'وقت سريع:' : 'Quick Time:'}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setForm((prev) => ({ ...prev, expectedDeliveryTime: '' }))}
+                    className={`px-2 py-0.5 text-[10px] font-medium rounded-md border transition-all ${
+                      !form.expectedDeliveryTime
+                        ? 'bg-blue-500/15 border-blue-500 text-blue-600 font-bold'
+                        : 'bg-surface border-border text-secondary hover:text-primary'
+                    }`}
+                  >
+                    {language === 'ar' ? 'افتراضي' : 'Default'}
+                  </button>
+                  {[
+                    { label: '09:00 AM', value: '09:00' },
+                    { label: '12:00 PM', value: '12:00' },
+                    { label: '03:00 PM', value: '15:00' },
+                    { label: '06:00 PM', value: '18:00' },
+                    { label: '09:00 PM', value: '21:00' },
+                  ].map((preset) => (
+                    <button
+                      key={preset.value}
+                      type="button"
+                      onClick={() => setForm((prev) => ({ ...prev, expectedDeliveryTime: preset.value }))}
+                      className={`px-2 py-0.5 text-[10px] font-medium rounded-md border shrink-0 transition-all ${
+                        form.expectedDeliveryTime === preset.value
+                          ? 'bg-blue-600 text-white border-blue-600 font-bold shadow-xs'
+                          : 'bg-surface border-border text-secondary hover:text-primary'
+                      }`}
+                    >
+                      {preset.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
             </div>
           )}
 
@@ -2227,6 +2403,325 @@ const MakeInvoice = () => {
           </div>
         );
         })(),
+        document.body
+      )}
+
+      {/* ===== FULL OFFICIAL ADD CUSTOMER MODAL ===== */}
+      {showQuickAddCustomerModal && createPortal(
+        <div
+          className="fixed inset-0 z-[999999] flex items-center justify-center p-4"
+          style={{
+            backdropFilter: 'blur(8px)',
+            backgroundColor: theme === 'light' ? 'rgba(15,23,42,0.4)' : 'rgba(0,0,0,0.75)'
+          }}
+          onClick={() => setShowQuickAddCustomerModal(false)}
+        >
+          <div
+            className="relative w-full max-w-2xl bg-surface border border-border rounded-3xl shadow-2xl overflow-hidden text-primary max-h-[90vh] flex flex-col animate-in fade-in zoom-in-95 duration-150"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div className="flex items-center justify-between px-6 py-4 border-b border-border/60 bg-surface-alt/40 shrink-0">
+              <h2 className="text-lg font-extrabold tracking-tight text-primary">
+                {language === 'ar' ? 'إضافة عميل جديد' : 'Add Customer'}
+              </h2>
+              <button
+                type="button"
+                onClick={() => setShowQuickAddCustomerModal(false)}
+                className="text-secondary hover:text-rose-500 p-1.5 rounded-full hover:bg-surface-alt transition-colors"
+              >
+                <FiX className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Scrollable Form Body */}
+            <div className="p-6 overflow-y-auto space-y-6 text-xs">
+              {/* Section 1: Customer Identity */}
+              <div className="border-b border-border/50 pb-4">
+                <h4 className="text-xs font-bold uppercase tracking-wider text-secondary mb-3">Customer Identity</h4>
+                <div className="grid gap-3 sm:grid-cols-2 md:grid-cols-4">
+                  <div>
+                    <label className="block text-[10px] font-bold text-secondary uppercase">Discount Value (%)</label>
+                    <input
+                      type="number"
+                      value={quickCustomerForm.customDiscountRate || ''}
+                      onChange={(e) => setQuickCustomerForm(prev => ({ ...prev, customDiscountRate: e.target.value }))}
+                      placeholder="e.g. 25"
+                      className="mt-1 w-full rounded-lg border border-border bg-surface px-2.5 py-1.5 text-primary text-xs focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-bold text-secondary uppercase">Customer No</label>
+                    <input
+                      type="text"
+                      value={quickCustomerForm.customerNo || 'Auto-generated'}
+                      readOnly
+                      className="mt-1 w-full rounded-lg border border-border bg-surface-alt px-2.5 py-1.5 text-secondary cursor-not-allowed text-xs font-mono"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-bold text-secondary uppercase">Arabic Name</label>
+                    <input
+                      type="text"
+                      value={quickCustomerForm.arabicName || ''}
+                      onChange={(e) => setQuickCustomerForm(prev => ({ ...prev, arabicName: e.target.value }))}
+                      className="mt-1 w-full rounded-lg border border-border bg-surface px-2.5 py-1.5 text-primary text-xs focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-bold text-secondary uppercase">English Name *</label>
+                    <input
+                      type="text"
+                      required
+                      value={quickCustomerForm.englishName || ''}
+                      onChange={(e) => setQuickCustomerForm(prev => ({ ...prev, englishName: e.target.value, name: e.target.value }))}
+                      className="mt-1 w-full rounded-lg border border-border bg-surface px-2.5 py-1.5 text-primary text-xs focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Section 2: Phone Numbers */}
+              <div className="border border-purple-500/20 bg-purple-500/5 rounded-2xl p-4">
+                <h4 className="text-xs font-bold uppercase tracking-wider text-purple-600 dark:text-purple-400 mb-3">Phone Numbers</h4>
+                <div className="grid gap-3 sm:grid-cols-2 md:grid-cols-4">
+                  {quickCustomerForm.phones.map((phone, idx) => (
+                    <div key={idx}>
+                      <label className="block text-[10px] font-bold text-secondary uppercase">
+                        {idx === 0 ? 'Phone No. *' : `Alternate No. ${idx}`}
+                      </label>
+                      <input
+                        type="tel"
+                        required={idx === 0}
+                        value={phone}
+                        onChange={(e) => {
+                          const updated = [...quickCustomerForm.phones];
+                          updated[idx] = e.target.value;
+                          setQuickCustomerForm(prev => ({ ...prev, phones: updated, phone: updated[0] }));
+                        }}
+                        className="mt-1 w-full rounded-lg border border-border bg-surface px-2.5 py-1.5 text-primary text-xs focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Section 3: Address & Location */}
+              <div className="border-b border-border/50 pb-4">
+                <h4 className="text-xs font-bold uppercase tracking-wider text-secondary mb-3">Address & Location</h4>
+                <div className="grid gap-3 sm:grid-cols-2 md:grid-cols-4">
+                  <div>
+                    <label className="block text-[10px] font-bold text-secondary uppercase">Area Name</label>
+                    <select
+                      value={quickCustomerForm.areaName || ''}
+                      onChange={(e) => setQuickCustomerForm(prev => ({ ...prev, areaName: e.target.value }))}
+                      className="mt-1 w-full rounded-lg border border-border bg-surface px-2 py-1.5 text-primary text-xs focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    >
+                      <option value="">Select Area</option>
+                      {DEFAULT_AREAS.map((area) => (
+                        <option key={area} value={area}>{area}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-bold text-secondary uppercase">Part No (Block)</label>
+                    <input
+                      type="text"
+                      value={quickCustomerForm.partNo || ''}
+                      onChange={(e) => setQuickCustomerForm(prev => ({ ...prev, partNo: e.target.value }))}
+                      className="mt-1 w-full rounded-lg border border-border bg-surface px-2.5 py-1.5 text-primary text-xs focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-bold text-secondary uppercase">Street</label>
+                    <input
+                      type="text"
+                      value={quickCustomerForm.street || ''}
+                      onChange={(e) => setQuickCustomerForm(prev => ({ ...prev, street: e.target.value }))}
+                      className="mt-1 w-full rounded-lg border border-border bg-surface px-2.5 py-1.5 text-primary text-xs focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-bold text-secondary uppercase">Jadda (Avenue)</label>
+                    <input
+                      type="text"
+                      value={quickCustomerForm.jadda || ''}
+                      onChange={(e) => setQuickCustomerForm(prev => ({ ...prev, jadda: e.target.value }))}
+                      className="mt-1 w-full rounded-lg border border-border bg-surface px-2.5 py-1.5 text-primary text-xs focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-bold text-secondary uppercase">House No</label>
+                    <input
+                      type="text"
+                      value={quickCustomerForm.houseNo || ''}
+                      onChange={(e) => setQuickCustomerForm(prev => ({ ...prev, houseNo: e.target.value }))}
+                      className="mt-1 w-full rounded-lg border border-border bg-surface px-2.5 py-1.5 text-primary text-xs focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-bold text-secondary uppercase">Flat No (Apartment)</label>
+                    <input
+                      type="text"
+                      value={quickCustomerForm.flatNo || ''}
+                      onChange={(e) => setQuickCustomerForm(prev => ({ ...prev, flatNo: e.target.value }))}
+                      className="mt-1 w-full rounded-lg border border-border bg-surface px-2.5 py-1.5 text-primary text-xs focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-bold text-secondary uppercase">Level No (Floor)</label>
+                    <input
+                      type="text"
+                      value={quickCustomerForm.levelNo || ''}
+                      onChange={(e) => setQuickCustomerForm(prev => ({ ...prev, levelNo: e.target.value }))}
+                      className="mt-1 w-full rounded-lg border border-border bg-surface px-2.5 py-1.5 text-primary text-xs focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-bold text-secondary uppercase">Paci No.</label>
+                    <input
+                      type="text"
+                      value={quickCustomerForm.paciNo || ''}
+                      onChange={(e) => setQuickCustomerForm(prev => ({ ...prev, paciNo: e.target.value }))}
+                      className="mt-1 w-full rounded-lg border border-border bg-surface px-2.5 py-1.5 text-primary text-xs focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                  <div className="col-span-full">
+                    <label className="block text-[10px] font-bold text-secondary uppercase">Address Notes</label>
+                    <textarea
+                      rows="2"
+                      value={quickCustomerForm.addressNotes || ''}
+                      onChange={(e) => setQuickCustomerForm(prev => ({ ...prev, addressNotes: e.target.value }))}
+                      className="mt-1 w-full rounded-lg border border-border bg-surface px-2.5 py-1.5 text-primary text-xs focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Section 4: Billing & Financial Details */}
+              <div className="border border-border/60 bg-surface-alt/20 rounded-2xl p-4">
+                <h4 className="text-xs font-bold uppercase tracking-wider text-secondary mb-3">Billing & Financial Details</h4>
+                <div className="grid gap-3 sm:grid-cols-2 md:grid-cols-4">
+                  <div>
+                    <label className="block text-[10px] font-bold text-secondary uppercase">Date</label>
+                    <input
+                      type="date"
+                      value={quickCustomerForm.date || ''}
+                      onChange={(e) => setQuickCustomerForm(prev => ({ ...prev, date: e.target.value }))}
+                      className="mt-1 w-full rounded-lg border border-border bg-surface px-2.5 py-1.5 text-primary text-xs focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-bold text-secondary uppercase">Insurance Paid</label>
+                    <input
+                      type="number"
+                      step="0.001"
+                      value={quickCustomerForm.insuranceAmount || '0.000'}
+                      onChange={(e) => setQuickCustomerForm(prev => ({ ...prev, insuranceAmount: e.target.value }))}
+                      className="mt-1 w-full rounded-lg border border-border bg-surface px-2.5 py-1.5 text-primary text-xs focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                  <div className="flex items-center gap-2 pt-5">
+                    <input
+                      type="checkbox"
+                      id="counterMakeInvoiceSubscriberFull"
+                      checked={!!quickCustomerForm.isSubscriber}
+                      onChange={(e) => setQuickCustomerForm(prev => ({ ...prev, isSubscriber: e.target.checked }))}
+                      className="w-4 h-4 text-amber-500 border-border rounded focus:ring-amber-500 cursor-pointer"
+                    />
+                    <label htmlFor="counterMakeInvoiceSubscriberFull" className="text-[11px] font-bold text-amber-600 dark:text-amber-400 uppercase cursor-pointer select-none">
+                      ⭐ Old Subscriber / مشترك
+                    </label>
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-bold text-secondary uppercase">Invoices Count</label>
+                    <input
+                      type="number"
+                      value={quickCustomerForm.invoicesCount || 0}
+                      readOnly
+                      className="mt-1 w-full rounded-lg border border-border bg-surface-alt px-2.5 py-1.5 text-secondary cursor-not-allowed text-xs font-mono"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-bold text-secondary uppercase">Last Invoice Date</label>
+                    <input
+                      type="date"
+                      value={quickCustomerForm.lastInvoiceDate || ''}
+                      onChange={(e) => setQuickCustomerForm(prev => ({ ...prev, lastInvoiceDate: e.target.value }))}
+                      className="mt-1 w-full rounded-lg border border-border bg-surface px-2.5 py-1.5 text-primary text-xs focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-bold text-secondary uppercase">Free Balance</label>
+                    <input
+                      type="number"
+                      value={quickCustomerForm.freeBalance || 0}
+                      onChange={(e) => setQuickCustomerForm(prev => ({ ...prev, freeBalance: e.target.value }))}
+                      className="mt-1 w-full rounded-lg border border-border bg-surface px-2.5 py-1.5 text-primary text-xs focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-bold text-secondary uppercase">Free Total</label>
+                    <input
+                      type="number"
+                      value={quickCustomerForm.freeTotal || 0}
+                      readOnly
+                      className="mt-1 w-full rounded-lg border border-border bg-surface-alt px-2.5 py-1.5 text-secondary cursor-not-allowed text-xs font-mono"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-bold text-secondary uppercase">Email</label>
+                    <input
+                      type="email"
+                      value={quickCustomerForm.email || ''}
+                      onChange={(e) => setQuickCustomerForm(prev => ({ ...prev, email: e.target.value }))}
+                      className="mt-1 w-full rounded-lg border border-border bg-surface px-2.5 py-1.5 text-primary text-xs focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-bold text-secondary uppercase">Status</label>
+                    <select
+                      value={quickCustomerForm.status || 'Active'}
+                      onChange={(e) => setQuickCustomerForm(prev => ({ ...prev, status: e.target.value }))}
+                      className="mt-1 w-full rounded-lg border border-border bg-surface px-2 py-1.5 text-primary text-xs focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    >
+                      <option value="Active">Active</option>
+                      <option value="Inactive">Inactive</option>
+                    </select>
+                  </div>
+                  <div className="col-span-3">
+                    <label className="block text-[10px] font-bold text-secondary uppercase">General Notes</label>
+                    <input
+                      type="text"
+                      value={quickCustomerForm.notes || ''}
+                      onChange={(e) => setQuickCustomerForm(prev => ({ ...prev, notes: e.target.value }))}
+                      className="mt-1 w-full rounded-lg border border-border bg-surface px-2.5 py-1.5 text-primary text-xs focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Actions */}
+            <div className="flex gap-3 px-6 py-4 border-t border-border/60 bg-surface-alt/40 shrink-0">
+              <button
+                type="button"
+                onClick={handleSaveQuickCustomer}
+                disabled={isSavingQuickCustomer}
+                className="flex-1 py-2.5 rounded-xl font-bold bg-blue-600 hover:bg-blue-700 text-white text-xs shadow-md transition-all active:scale-95 disabled:opacity-50"
+              >
+                {isSavingQuickCustomer ? (language === 'ar' ? 'جاري الحفظ...' : 'Saving...') : (language === 'ar' ? 'حفظ العميل' : 'Save Customer')}
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowQuickAddCustomerModal(false)}
+                className="px-6 py-2.5 rounded-xl font-bold border border-border bg-surface-alt text-secondary hover:text-primary text-xs transition-colors"
+              >
+                {language === 'ar' ? 'إلغاء / خروج' : 'Cancel / Exit'}
+              </button>
+            </div>
+          </div>
+        </div>,
         document.body
       )}
 

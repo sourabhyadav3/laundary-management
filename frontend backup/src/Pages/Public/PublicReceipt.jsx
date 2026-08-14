@@ -195,6 +195,12 @@ const PublicReceipt = () => {
             <span className="font-bold text-gray-700">Customer / العميل:</span>
             <span className="font-semibold text-gray-900">{order.customerName || 'N/A'}</span>
           </div>
+          {order.isSubscriber && (
+            <div className="flex justify-between text-sm bg-amber-100 border border-amber-400 p-2 rounded-lg my-1 text-amber-900 font-extrabold">
+              <span>Subscriber Status / الاشتراك:</span>
+              <span className="text-amber-800 font-extrabold text-base">⭐</span>
+            </div>
+          )}
           <div className="flex justify-between text-sm">
             <span className="font-bold text-gray-700">Staff / الموظف:</span>
             <span className="font-semibold text-gray-900">{order.staffName || order.createdBy || 'N/A'}</span>

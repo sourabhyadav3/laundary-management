@@ -1,5 +1,5 @@
 import React, { useContext, useState, useMemo } from 'react';
-import { FiSearch, FiEye, FiChevronDown, FiDownload, FiPrinter, FiTrash2 } from 'react-icons/fi';
+import { FiSearch, FiEye, FiChevronDown, FiDownload, FiPrinter, FiTrash2, FiEdit2, FiPlus } from 'react-icons/fi';
 import { AdminStateContext } from '../../context/AdminStateContext';
 import ReusableTable from '../../Components/ReusableTable';
 import Modal from '../../Components/Modal';
@@ -12,7 +12,7 @@ const statusOrder = ORDER_STATUSES;
 const PAYMENT_STATUSES = ['Paid', 'Pending', 'Partial'];
 
 const Invoices = () => {
-  const { orders, catalog, updateOrderStatus, updateOrderPaymentStatus, deleteOrder, selectedBranch, branches, addPayment } = useContext(AdminStateContext);
+  const { orders, catalog, updateOrderStatus, updateOrderPaymentStatus, editOrder, deleteOrder, selectedBranch, branches, addPayment } = useContext(AdminStateContext);
   const [searchTerm, setSearchTerm] = useState('');
   
   const getBranchName = (branchIdOrName) => {
@@ -23,6 +23,11 @@ const Invoices = () => {
   const [statusFilter, setStatusFilter] = useState('All');
   const [paymentFilter, setPaymentFilter] = useState('All');
   const [selectedOrder, setSelectedOrder] = useState(null);
+  
+  // Edit Invoice State
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editOrderData, setEditOrderData] = useState(null);
+
   
   const activeOrder = useMemo(() => {
     if (!selectedOrder) return null;
@@ -176,6 +181,75 @@ const Invoices = () => {
     });
   };
 
+  const handleEditClick = (order) => {
+    setEditOrderData(JSON.parse(JSON.stringify(order))); // deep copy
+    setShowEditModal(true);
+    setShowModal(false); // Close view modal if open
+  };
+
+  const handleEditItemChange = (index, field, value) => {
+    const newItems = [...editOrderData.itemDetails];
+    newItems[index][field] = value;
+    setEditOrderData({ ...editOrderData, itemDetails: newItems });
+  };
+
+  const handleEditItemRemove = (index) => {
+    const newItems = [...editOrderData.itemDetails];
+    newItems.splice(index, 1);
+    setEditOrderData({ ...editOrderData, itemDetails: newItems });
+  };
+
+  const handleEditItemAdd = () => {
+    setEditOrderData({
+      ...editOrderData,
+      itemDetails: [...editOrderData.itemDetails, { name: '', quantity: 1, unitPrice: 0, modifiers: '' }]
+    });
+  };
+
+  const handleSaveEdit = async () => {
+    if (!editOrderData.itemDetails || editOrderData.itemDetails.length === 0) {
+      toast.error('Invoice must have at least one item');
+      return;
+    }
+    
+    for (let item of editOrderData.itemDetails) {
+      if (!item.name || item.name.trim() === '') {
+        toast.error('All items must have a name');
+        return;
+      }
+      if (item.quantity <= 0) {
+        toast.error('Quantity must be greater than 0');
+        return;
+      }
+      if (item.unitPrice < 0) {
+        toast.error('Unit price cannot be negative');
+        return;
+      }
+    }
+
+    const payload = {
+      itemDetails: editOrderData.itemDetails.map(item => ({
+        name: item.name,
+        quantity: Number(item.quantity),
+        unitPrice: Number(item.unitPrice),
+        modifiers: item.modifiers || ''
+      })),
+      notes: editOrderData.notes,
+      serviceType: editOrderData.serviceType,
+      discountAmount: Number(editOrderData.discountAmount || 0)
+    };
+
+    const res = await editOrder(editOrderData.id || editOrderData._id, payload);
+
+    if (res) {
+      setShowEditModal(false);
+      setEditOrderData(null);
+      if (selectedOrder && (selectedOrder.id === res.id || selectedOrder._id === res.id)) {
+        setSelectedOrder(res);
+      }
+    }
+  };
+
   const handlePrintInvoice = (order) => {
     generateInvoicePDF(order);
     toast.success('Invoice generated');
@@ -257,6 +331,13 @@ const Invoices = () => {
             title="View Details"
           >
             <FiEye size={16} />
+          </button>
+          <button
+            onClick={() => handleEditClick(row)}
+            className="icon-button-small text-amber-500"
+            title="Edit Invoice"
+          >
+            <FiEdit2 size={16} />
           </button>
           <button
             onClick={() => handleDeleteOrder(row.id)}
@@ -475,17 +556,24 @@ const Invoices = () => {
             </div>
 
             {/* Actions */}
-            <div className="border-t border-border pt-6 flex gap-3">
+            <div className="border-t border-border pt-6 flex gap-3 flex-wrap">
               <button
                 onClick={() => handlePrintInvoice(activeOrder)}
-                className="flex-1 rounded-lg border border-blue-500/30 bg-blue-500/10 py-2 font-semibold text-blue-600 transition hover:bg-blue-500/20 flex items-center justify-center gap-2"
+                className="flex-1 rounded-lg border border-blue-500/30 bg-blue-500/10 py-2 font-semibold text-blue-600 transition hover:bg-blue-500/20 flex items-center justify-center gap-2 min-w-[120px]"
               >
                 <FiPrinter size={16} />
                 Print Invoice
               </button>
               <button
+                onClick={() => handleEditClick(activeOrder)}
+                className="flex-1 rounded-lg border border-amber-500/30 bg-amber-500/10 py-2 font-semibold text-amber-600 transition hover:bg-amber-500/20 flex items-center justify-center gap-2 min-w-[120px]"
+              >
+                <FiEdit2 size={16} />
+                Edit Invoice
+              </button>
+              <button
                 onClick={() => setShowModal(false)}
-                className="flex-1 rounded-lg border border-border bg-surface py-2 font-semibold text-primary transition hover:bg-surface-alt"
+                className="flex-1 rounded-lg border border-border bg-surface py-2 font-semibold text-primary transition hover:bg-surface-alt min-w-[120px]"
               >
                 Close
               </button>
@@ -522,6 +610,172 @@ const Invoices = () => {
             </button>
           </div>
         </div>
+      </Modal>
+
+      {/* Edit Invoice Modal */}
+      <Modal
+        isOpen={showEditModal}
+        onClose={() => { setShowEditModal(false); setEditOrderData(null); }}
+        title="Edit Invoice (Admin Only)"
+        size="3xl"
+      >
+        {editOrderData && (
+          <div className="space-y-6">
+            <div className="bg-amber-500/10 border border-amber-500/30 rounded-xl p-4 text-amber-700 dark:text-amber-400">
+              <p className="text-sm font-semibold mb-1 flex items-center gap-2">
+                <FiEdit2 /> Editing Invoice: {editOrderData.number}
+              </p>
+              <p className="text-xs">Modifying items will recalculate the invoice total. Payments and balances will be adjusted automatically.</p>
+            </div>
+            
+            <div className="space-y-4">
+              <h3 className="font-semibold text-primary">Invoice Items</h3>
+              
+              <div className="overflow-x-auto rounded-xl border border-border bg-surface">
+                <table className="w-full text-left text-sm">
+                  <thead className="bg-surface-alt">
+                    <tr>
+                      <th className="p-3 font-semibold text-secondary">Item Name</th>
+                      <th className="p-3 font-semibold text-secondary w-24">Qty</th>
+                      <th className="p-3 font-semibold text-secondary w-32">Unit Price</th>
+                      <th className="p-3 font-semibold text-secondary w-32">Total</th>
+                      <th className="p-3 w-16"></th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-border">
+                    {editOrderData.itemDetails?.map((item, idx) => (
+                      <tr key={idx} className="group hover:bg-surface-alt/50 transition-colors">
+                        <td className="p-3">
+                          <input
+                            type="text"
+                            value={item.name}
+                            onChange={(e) => handleEditItemChange(idx, 'name', e.target.value)}
+                            className="w-full bg-transparent border-b border-border focus:border-blue-500 focus:outline-none py-1"
+                            placeholder="Item Name"
+                          />
+                        </td>
+                        <td className="p-3">
+                          <input
+                            type="number"
+                            min="1"
+                            value={item.quantity}
+                            onChange={(e) => handleEditItemChange(idx, 'quantity', e.target.value)}
+                            className="w-full bg-transparent border-b border-border focus:border-blue-500 focus:outline-none py-1"
+                          />
+                        </td>
+                        <td className="p-3">
+                          <input
+                            type="number"
+                            min="0"
+                            step="0.001"
+                            value={item.unitPrice}
+                            onChange={(e) => handleEditItemChange(idx, 'unitPrice', e.target.value)}
+                            className="w-full bg-transparent border-b border-border focus:border-blue-500 focus:outline-none py-1"
+                          />
+                        </td>
+                        <td className="p-3 font-mono text-primary">
+                          {formatCurrency(Number(item.quantity || 0) * Number(item.unitPrice || 0))}
+                        </td>
+                        <td className="p-3 text-center">
+                          <button
+                            onClick={() => handleEditItemRemove(idx)}
+                            className="text-rose-500 hover:text-rose-700 p-1.5 rounded-lg hover:bg-rose-500/10 transition-colors"
+                            title="Remove Item"
+                          >
+                            <FiTrash2 size={16} />
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              
+              <button
+                onClick={handleEditItemAdd}
+                className="flex items-center gap-2 text-blue-600 font-semibold text-sm hover:text-blue-700 hover:bg-blue-500/10 px-3 py-1.5 rounded-lg transition-colors"
+              >
+                <FiPlus /> Add New Item
+              </button>
+            </div>
+
+            <div className="grid grid-cols-2 gap-6 pt-4 border-t border-border">
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-xs font-semibold uppercase tracking-wider text-secondary mb-1">Service Type</label>
+                  <input
+                    type="text"
+                    value={editOrderData.serviceType}
+                    onChange={(e) => setEditOrderData({...editOrderData, serviceType: e.target.value})}
+                    className="w-full rounded-xl border border-border bg-surface px-3 py-2 text-primary focus:outline-none focus:ring-2 focus:ring-blue-400"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold uppercase tracking-wider text-secondary mb-1">Discount Amount (KWD)</label>
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.001"
+                    value={editOrderData.discountAmount || 0}
+                    onChange={(e) => setEditOrderData({...editOrderData, discountAmount: e.target.value})}
+                    className="w-full rounded-xl border border-border bg-surface px-3 py-2 text-primary focus:outline-none focus:ring-2 focus:ring-blue-400"
+                  />
+                </div>
+              </div>
+              
+              <div className="bg-surface-alt p-4 rounded-xl border border-border space-y-2">
+                <h4 className="font-semibold text-primary mb-3">Live Recalculation</h4>
+                {(() => {
+                  const newAmount = editOrderData.itemDetails?.reduce((sum, item) => sum + (Number(item.quantity || 0) * Number(item.unitPrice || 0)), 0) || 0;
+                  const discount = Number(editOrderData.discountAmount || 0);
+                  const subtotal = Math.max(0, newAmount - discount);
+                  const originalTaxRate = editOrderData.amount > 0 ? (editOrderData.tax / editOrderData.amount) : 0;
+                  const newTax = subtotal * originalTaxRate;
+                  const newTotal = subtotal + newTax;
+                  
+                  return (
+                    <>
+                      <div className="flex justify-between text-sm">
+                        <span className="text-secondary">Subtotal (Items):</span>
+                        <span>{formatCurrency(newAmount)}</span>
+                      </div>
+                      <div className="flex justify-between text-sm text-rose-500">
+                        <span>Discount:</span>
+                        <span>-{formatCurrency(discount)}</span>
+                      </div>
+                      <div className="flex justify-between text-sm">
+                        <span className="text-secondary">Tax (auto-calculated):</span>
+                        <span>{formatCurrency(newTax)}</span>
+                      </div>
+                      <div className="flex justify-between font-bold text-lg pt-2 border-t border-border mt-2">
+                        <span>New Total:</span>
+                        <span className="text-emerald-500">{formatCurrency(newTotal)}</span>
+                      </div>
+                      <div className="text-xs text-secondary text-right mt-1">
+                        Previous Total: {formatCurrency(editOrderData.totalAmount)}
+                      </div>
+                    </>
+                  );
+                })()}
+              </div>
+            </div>
+
+            <div className="flex gap-3 pt-4 border-t border-border">
+              <button
+                onClick={() => { setShowEditModal(false); setEditOrderData(null); }}
+                className="flex-1 rounded-xl border border-border bg-surface py-2.5 font-semibold text-primary transition hover:bg-surface-alt"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSaveEdit}
+                className="flex-1 rounded-xl bg-blue-600 py-2.5 font-semibold text-white transition hover:bg-blue-700 shadow-lg shadow-blue-500/30"
+              >
+                Save Changes
+              </button>
+            </div>
+          </div>
+        )}
       </Modal>
 
       {/* ===== SETTLE & PAY MODAL ===== */}

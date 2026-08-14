@@ -600,12 +600,32 @@ export const getExpectedDeliveryInfo = (order) => {
     }
   } catch (e) {}
 
-  let estimatedTime = order?.expectedDeliveryTime || order?.deliveryTime || matchedService?.estimatedTime || (isExpress ? '2 hours' : '24 hours');
+  const rawTime = String(order?.expectedDeliveryTime || order?.deliveryTime || '').trim();
+  let estimatedTime = rawTime || matchedService?.estimatedTime || (isExpress ? '2 hours' : '24 hours');
 
   let estTimeEn = estimatedTime;
   let estTimeAr = estimatedTime;
   
-  if (estimatedTime.toLowerCase().includes('hour')) {
+  const clockMatch = estimatedTime.match(/^([0-1]?[0-9]|2[0-3]):([0-5][0-9])$/);
+  const ampmMatch = estimatedTime.match(/^([0-1]?[0-9]):([0-5][0-9])\s*(AM|PM|am|pm)$/i);
+
+  if (clockMatch) {
+    let hours = parseInt(clockMatch[1], 10);
+    const minutes = clockMatch[2];
+    const period = hours >= 12 ? 'PM' : 'AM';
+    const periodAr = hours >= 12 ? 'م' : 'ص';
+    const hours12 = hours % 12 || 12;
+    const formattedHours = String(hours12).padStart(2, '0');
+    estTimeEn = `${formattedHours}:${minutes} ${period}`;
+    estTimeAr = `${formattedHours}:${minutes} ${periodAr}`;
+  } else if (ampmMatch) {
+    const hours = ampmMatch[1].padStart(2, '0');
+    const minutes = ampmMatch[2];
+    const period = ampmMatch[3].toUpperCase();
+    const periodAr = period === 'PM' ? 'م' : 'ص';
+    estTimeEn = `${hours}:${minutes} ${period}`;
+    estTimeAr = `${hours}:${minutes} ${periodAr}`;
+  } else if (estimatedTime.toLowerCase().includes('hour')) {
     const num = estimatedTime.replace(/[^0-9]/g, '');
     estTimeEn = `${num || estimatedTime} Hours`;
     estTimeAr = `${num || estimatedTime} ساعة`;
@@ -960,6 +980,12 @@ export const generateInvoicePDF = (order, { showPaidTotal = false } = {}) => {
               <span class="info-label">Customer / العميل:</span>
               <span class="info-value">${order?.customerName || 'N/A'}</span>
             </div>
+            ${(customerObj?.isSubscriber || Number(customerObj?.insuranceAmount || 0) >= 20 || order?.isSubscriber) ? `
+            <div class="info-row" style="background-color: #fef08a; padding: 2px 4px; border-radius: 4px; font-weight: 800; border: 1px solid #eab308; margin-bottom: 4px; margin-top: 2px;">
+              <span class="info-label" style="color: #854d0e !important; font-weight: 800;">Subscriber Status / الاشتراك:</span>
+              <span class="info-value" style="color: #854d0e !important; font-weight: 800;">⭐</span>
+            </div>
+            ` : ''}
             <div class="info-row">
               <span class="info-label">Customer ID / رقم العميل:</span>
               <span class="info-value">${customerIdStr}</span>

@@ -2,17 +2,17 @@ import React, { useContext, useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AdminStateContext } from '../../context/AdminStateContext';
 import { ORDER_STATUSES, ORDER_STATUS_AR, normalizeOrderStatus } from '../../constants/statusStyles';
-import { FiTv, FiMaximize2, FiMinimize2, FiGrid, FiList, FiRefreshCw, FiArrowLeft, FiClock, FiSun, FiMoon } from 'react-icons/fi';
+import { FiTv, FiMaximize2, FiMinimize2, FiGrid, FiList, FiRefreshCw, FiArrowLeft, FiClock, FiSun, FiMoon, FiTruck } from 'react-icons/fi';
 import { useLanguage } from '../../context/LanguageContext';
 
 const LcdDisplay = () => {
-  const { orders, setOrders, selectedBranch, branches } = useContext(AdminStateContext);
+  const { orders, deliveries, pickups, selectedBranch, branches } = useContext(AdminStateContext);
   const { language } = useLanguage();
   const navigate = useNavigate();
 
   // Local storage polling/listening state
   const [localOrders, setLocalOrders] = useState(orders);
-  const [viewMode, setViewMode] = useState('board'); // 'board' or 'table'
+  const [viewMode, setViewMode] = useState('board'); // 'board', 'table', 'express', 'delivery'
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [isDark, setIsDark] = useState(true);
   const [time, setTime] = useState(new Date());
@@ -25,18 +25,18 @@ const LcdDisplay = () => {
     if (saved) {
       try {
         const parsed = JSON.parse(saved);
-        setLocalOrders(parsed);
-        // Sync back to context if different
-        if (JSON.stringify(parsed) !== JSON.stringify(orders)) {
-          setOrders(parsed);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          setLocalOrders(parsed);
+        } else {
+          setLocalOrders(orders);
         }
       } catch (e) {
-        console.error("Failed to parse orders_list in LCD display", e);
+        setLocalOrders(orders);
       }
     } else {
       setLocalOrders(orders);
     }
-    setTimeout(() => setIsRefreshing(false), 600);
+    setTimeout(() => setIsRefreshing(false), 400);
   };
 
   // Auto refresh interval (every 5 seconds)
@@ -108,14 +108,150 @@ const LcdDisplay = () => {
     day: 'numeric'
   });
 
+  // Combine context orders, localOrders, deliveries, and pickups so data is 100% comprehensive and dynamic
+  const allAvailableOrders = useMemo(() => {
+    const list = [];
+    const seen = new Set();
+
+    // 1. Add context orders
+    (orders || []).forEach(o => {
+      if (o && (o.id || o._id || o.number)) {
+        const key = (o.id || o._id || o.number).toString();
+        seen.add(key);
+        if (o.number) seen.add(o.number.toString());
+        list.push(o);
+      }
+    });
+
+    // 2. Add localOrders
+    (localOrders || []).forEach(o => {
+      if (o && (o.id || o._id || o.number)) {
+        const key = (o.id || o._id || o.number).toString();
+        if (!seen.has(key)) {
+          seen.add(key);
+          if (o.number) seen.add(o.number.toString());
+          list.push(o);
+        }
+      }
+    });
+
+    // 3. Add Home Service deliveries list
+    (deliveries || []).forEach(d => {
+      if (d) {
+        const id = (d.id || d._id || d.deliveryId || '').toString();
+        const num = (d.deliveryId || d.orderNumber || d.number || '').toString();
+        if ((id && !seen.has(id)) || (num && !seen.has(num))) {
+          if (id) seen.add(id);
+          if (num) seen.add(num);
+          list.push({
+            id: id || `del-${Math.random()}`,
+            number: num || 'DEL-ORD',
+            customerName: d.customer || d.customerName || 'Customer',
+            phone: d.contactNumber || d.phone || '',
+            serviceType: d.serviceType || 'Home Delivery',
+            status: d.status || 'Pending',
+            deliveryMode: 'home',
+            isHomeDelivery: true,
+            address: d.address || '',
+            areaName: d.areaName || '',
+            street: d.street || '',
+            houseNo: d.houseNo || '',
+            driverName: d.assignedStaff || d.driverName || '',
+            expectedDeliveryTime: d.deliveryDate || d.expectedDeliveryTime || '',
+            branch: d.branch || 'Home Service',
+            branchId: d.branchId || '',
+            createdFromInvoice: true,
+          });
+        }
+      }
+    });
+
+    // 4. Add Home Service pickups list
+    (pickups || []).forEach(p => {
+      if (p) {
+        const id = (p.id || p._id || p.pickupId || '').toString();
+        const num = (p.pickupId || p.requestId || p.number || '').toString();
+        if ((id && !seen.has(id)) || (num && !seen.has(num))) {
+          if (id) seen.add(id);
+          if (num) seen.add(num);
+          list.push({
+            id: id || `pick-${Math.random()}`,
+            number: num || 'PICK-ORD',
+            customerName: p.customer || p.customerName || 'Customer',
+            phone: p.contactNumber || p.phone || '',
+            serviceType: p.serviceType || 'Home Pickup',
+            status: p.status || 'Pending',
+            deliveryMode: 'home',
+            isHomeDelivery: true,
+            address: p.address || '',
+            areaName: p.areaName || '',
+            street: p.street || '',
+            houseNo: p.houseNo || '',
+            driverName: p.assignedStaff || p.driverName || '',
+            expectedDeliveryTime: p.pickupDate || p.expectedDeliveryTime || '',
+            branch: p.branch || 'Home Service',
+            branchId: p.branchId || '',
+            createdFromInvoice: true,
+          });
+        }
+      }
+    });
+
+    return list;
+  }, [orders, localOrders, deliveries, pickups]);
+
+  // Keep localOrders synced with context orders
+  useEffect(() => {
+    if (Array.isArray(orders) && orders.length > 0) {
+      setLocalOrders(orders);
+    }
+  }, [orders]);
+
   const filteredLocalOrders = useMemo(() => {
-    return localOrders.filter(order => {
+    return allAvailableOrders.filter(order => {
+      if (!order) return false;
       if (selectedBranch && selectedBranch !== 'All') {
-        return order.branchId === selectedBranch || order.branch === selectedBranch;
+        const branchObj = branches?.find(b => (b.id || b._id)?.toString() === selectedBranch.toString());
+        const branchName = branchObj ? branchObj.name : selectedBranch;
+
+        // Check direct branch match
+        const matchesBranchId = (order.branchId || '').toString() === selectedBranch.toString();
+        const matchesBranchName = String(order.branch || '').toLowerCase() === String(branchName || '').toLowerCase();
+
+        // Check Home Service branch match
+        const isHomeServiceSelected = String(branchName || '').toLowerCase().includes('home service') || String(selectedBranch || '').toLowerCase().includes('home');
+
+        if (isHomeServiceSelected) {
+          // ONLY FOR HOME SERVICE BRANCH: Include ALL home delivery orders across ALL branches
+          const isHomeDeliveryOrder =
+            order.deliveryMode === 'home' ||
+            order.isHomeDelivery === true ||
+            String(order.deliveryType || '').toLowerCase() === 'home' ||
+            String(order.branch || '').toLowerCase().includes('home') ||
+            matchesBranchId ||
+            matchesBranchName ||
+            order.createdFromInvoice === true ||
+            Boolean(order.isDelivery) ||
+            order.deliveryMode !== 'branch';
+
+          return isHomeDeliveryOrder;
+        }
+
+        // FOR ALL OTHER BRANCHES: Only show orders belonging specifically to that branch
+        return matchesBranchId || matchesBranchName;
       }
       return true;
     });
-  }, [localOrders, selectedBranch]);
+  }, [allAvailableOrders, selectedBranch, branches]);
+
+  // Pending delivery orders for Home Service / Delivery view
+  const pendingDeliveryOrders = useMemo(() => {
+    return filteredLocalOrders.filter(order => {
+      const normStatus = normalizeOrderStatus(order.status || 'Waiting');
+      const statusLower = String(order.status || '').toLowerCase();
+      return normStatus !== 'Delivered' && normStatus !== 'Store' && statusLower !== 'delivered' && statusLower !== 'completed';
+    });
+  }, [filteredLocalOrders]);
 
   // Group orders by status
   const ordersByStatus = useMemo(() => {
@@ -244,6 +380,20 @@ const LcdDisplay = () => {
               </span>
               <span className="hidden sm:inline">{language === 'ar' ? 'مستعجل' : 'Express'}</span>
             </button>
+            <button
+              onClick={() => setViewMode('delivery')}
+              className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-all duration-200 ${
+                viewMode === 'delivery'
+                  ? 'bg-amber-600 text-white shadow-lg shadow-amber-600/25'
+                  : (isDark ? 'text-slate-400 hover:text-white' : 'text-slate-600 hover:text-slate-900')
+              }`}
+            >
+              <FiTruck size={16} />
+              <span className="hidden sm:inline">{language === 'ar' ? 'التوصيل المعلق' : 'Pending Delivery'}</span>
+              <span className="ml-0.5 text-[10px] px-1.5 py-0.5 rounded-full bg-white/20 font-bold">
+                {pendingDeliveryOrders.length}
+              </span>
+            </button>
           </div>
 
           {/* Theme Toggle Button */}
@@ -272,7 +422,103 @@ const LcdDisplay = () => {
 
       {/* Main Container Content */}
       <main className="flex-1 p-6 overflow-y-auto">
-        {viewMode === 'board' ? (
+        {viewMode === 'delivery' ? (
+          /* DEDICATED PENDING DELIVERY LCD MONITOR */
+          <div className={`border rounded-3xl p-6 shadow-2xl overflow-hidden transition-colors duration-300 ${isDark ? 'bg-slate-900/60 border-slate-800/80' : 'bg-white border-slate-200'}`}>
+            <div className="flex flex-col md:flex-row items-start md:items-center justify-between pb-4 mb-4 border-b border-slate-800/60 gap-3">
+              <div className="flex items-center gap-3">
+                <div className="p-3 bg-amber-500/10 border border-amber-500/30 rounded-2xl text-amber-400">
+                  <FiTruck size={24} />
+                </div>
+                <div>
+                  <h2 className={`text-lg font-extrabold tracking-wide uppercase ${isDark ? 'text-amber-400' : 'text-amber-700'}`}>
+                    {language === 'ar' ? 'شاشة التوصيل المعلق' : 'Pending Delivery Board'}
+                  </h2>
+                  <p className="text-xs text-slate-400">
+                    {language === 'ar' ? 'عرض فوري للطلبات المعلقة للتوصيل فقط' : 'Live status view for active pending delivery orders'}
+                  </p>
+                </div>
+              </div>
+              <span className="px-4 py-1.5 rounded-full text-xs font-mono font-extrabold bg-amber-500/20 text-amber-400 border border-amber-500/30 shadow-inner">
+                {pendingDeliveryOrders.length} {language === 'ar' ? 'طلب معلق' : 'Pending Orders'}
+              </span>
+            </div>
+
+            <div className="overflow-x-auto">
+              <table className="w-full text-left border-collapse">
+                <thead>
+                  <tr className={`border-b-2 text-xs font-extrabold uppercase tracking-wider ${isDark ? 'border-slate-800 text-slate-400' : 'border-slate-200 text-slate-500'}`}>
+                    <th className="pb-4 pt-2 px-4 font-mono">{language === 'ar' ? 'رقم الطلب' : 'Order No'}</th>
+                    <th className="pb-4 pt-2 px-4">{language === 'ar' ? 'العميل والهاتف' : 'Customer & Phone'}</th>
+                    <th className="pb-4 pt-2 px-4">{language === 'ar' ? 'عنوان التوصيل' : 'Delivery Address'}</th>
+                    <th className="pb-4 pt-2 px-4">{language === 'ar' ? 'وقت التسليم' : 'Expected Delivery'}</th>
+                    <th className="pb-4 pt-2 px-4">{language === 'ar' ? 'الحالة' : 'Status'}</th>
+                    <th className="pb-4 pt-2 px-4">{language === 'ar' ? 'السائق' : 'Driver'}</th>
+                  </tr>
+                </thead>
+                <tbody className={`divide-y ${isDark ? 'divide-slate-800/60' : 'divide-slate-200'}`}>
+                  {pendingDeliveryOrders.map(order => {
+                    const status = normalizeOrderStatus(order.status || 'Waiting');
+                    let statusLabelClass = 'bg-amber-500/10 text-amber-400 border-amber-500/20';
+                    if (status === 'Ready for delivery' || status === 'Ready') {
+                      statusLabelClass = 'bg-teal-500/15 text-teal-400 border-teal-500/30 font-extrabold animate-pulse';
+                    } else if (status === 'With Driver') {
+                      statusLabelClass = 'bg-blue-500/15 text-blue-400 border-blue-500/30 font-extrabold';
+                    }
+
+                    const addressParts = [
+                      order.areaName || order.area,
+                      order.street ? `Street: ${order.street}` : '',
+                      order.houseNo ? `House: ${order.houseNo}` : '',
+                      order.partNo ? `Block: ${order.partNo}` : ''
+                    ].filter(Boolean);
+                    const addressText = addressParts.length > 0 ? addressParts.join(', ') : (order.address || 'N/A');
+
+                    return (
+                      <tr key={order.id} className={`transition-colors font-medium ${isExpress(order) ? (isDark ? 'bg-rose-950/15' : 'bg-rose-50/50') : ''}`}>
+                        <td className={`py-4 px-4 font-mono font-extrabold text-base tracking-wider ${isDark ? 'text-white' : 'text-slate-800'}`}>
+                          <div className="flex items-center gap-2">
+                            <span>{order.number}</span>
+                            {isExpress(order) && (
+                              <span className="text-[9px] font-extrabold uppercase px-2 py-0.5 rounded-full bg-rose-500/20 text-rose-400 border border-rose-500/30 animate-pulse">
+                                {language === 'ar' ? 'مستعجل' : 'EXPRESS'}
+                              </span>
+                            )}
+                          </div>
+                        </td>
+                        <td className={`py-4 px-4 text-sm font-bold ${isDark ? 'text-slate-200' : 'text-slate-700'}`}>
+                          <div>{order.customerName || order.customer}</div>
+                          <div className="text-xs font-mono text-slate-400 font-normal">{order.phone || order.customerPhone || ''}</div>
+                        </td>
+                        <td className={`py-4 px-4 text-xs font-medium ${isDark ? 'text-slate-300' : 'text-slate-600'} max-w-[240px] truncate`} title={addressText}>
+                          📍 {addressText}
+                        </td>
+                        <td className={`py-4 px-4 text-xs font-mono font-bold ${isDark ? 'text-amber-400' : 'text-amber-700'}`}>
+                          🕒 {order.expectedDeliveryTime || order.deliveryTime || 'Standard'}
+                        </td>
+                        <td className="py-4 px-4">
+                          <span className={`inline-flex items-center px-3.5 py-1.5 rounded-full text-xs font-bold border ${statusLabelClass}`}>
+                            {translateStatus(status)}
+                          </span>
+                        </td>
+                        <td className={`py-4 px-4 text-xs font-bold ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
+                          👤 {order.driverName || order.driver || (language === 'ar' ? 'غير معين' : 'Unassigned')}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                  {pendingDeliveryOrders.length === 0 && (
+                    <tr>
+                      <td colSpan="6" className={`p-12 text-center text-sm font-bold ${isDark ? 'text-slate-500' : 'text-slate-400'}`}>
+                        {language === 'ar' ? 'لا توجد طلبات توصيل معلقة.' : 'No pending delivery orders found.'}
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        ) : viewMode === 'board' ? (
           /* GRID BOARD VIEW (Grouped columns layout) */
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
             {ORDER_STATUSES.map(status => {

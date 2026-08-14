@@ -82,7 +82,8 @@ const Customers = () => {
       addressNotes: '',
       automaticAddressNo: '0',
       date: new Date().toISOString().split('T')[0],
-      insuranceAmount: '20.000',
+      insuranceAmount: '0.000',
+      isSubscriber: false,
       invoicesCount: '0',
       lastInvoiceDate: '',
       freeBalance: '0',
@@ -109,12 +110,13 @@ const Customers = () => {
       addressNotes: '',
       automaticAddressNo: '0',
       date: new Date().toISOString().split('T')[0],
-      insuranceAmount: '20.000',
+      insuranceAmount: '0.000',
       invoicesCount: '0',
       lastInvoiceDate: '',
       freeBalance: '0',
       freeTotal: '0',
       ...customer,
+      isSubscriber: customer.isSubscriber === true || (customer.isSubscriber !== false && Number(customer.insuranceAmount || 0) >= 20),
       englishName: customer.englishName || customer.name || '',
       phones: (() => {
         const p = customer.phones || [];
@@ -227,10 +229,18 @@ const Customers = () => {
       branch: (selectedBranch !== 'All' ? selectedBranch : null) || storedUser.branchId || storedUser.branch || null
     };
 
-    if (!finalCustomer.englishName) {
-      toast.error('English Name is required');
-      return;
+    // Check for duplicate email
+    if (finalCustomer.email && finalCustomer.email.trim()) {
+      const duplicateEmail = customers.find(c => {
+        if (isEditing && String(c.id) === String(formData.id)) return false;
+        return c.email && c.email.trim().toLowerCase() === finalCustomer.email.trim().toLowerCase();
+      });
+      if (duplicateEmail) {
+        toast.error(`A customer with this email already exists: ${duplicateEmail.name}`);
+        return;
+      }
     }
+
     if (!finalCustomer.phone) {
       toast.error('At least one Phone Number is required');
       return;
@@ -246,8 +256,29 @@ const Customers = () => {
   };
 
   const handleFormChange = (e) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
+    const { name, value, type, checked } = e.target;
+    const val = type === 'checkbox' ? checked : value;
+
+    setFormData(prev => {
+      const next = { ...prev, [name]: val };
+      if (name === 'insuranceAmount') {
+        if (Number(val) >= 20) {
+          next.isSubscriber = true;
+        } else if (Number(val) === 0) {
+          next.isSubscriber = false;
+        }
+      } else if (name === 'isSubscriber') {
+        if (val) {
+          if (!next.insuranceAmount || Number(next.insuranceAmount) === 0) {
+            next.insuranceAmount = '20.000';
+          }
+        } else {
+          next.isSubscriber = false;
+          next.insuranceAmount = '0.000';
+        }
+      }
+      return next;
+    });
 
     if (name === 'lastInvoiceDate' && value) {
       toast.info(`Please note: Subscription will end on ${value}`);
@@ -291,7 +322,23 @@ const Customers = () => {
 
   const tableColumns = [
     { header: 'Customer ID', accessor: 'customerNo', cell: (row) => row.customerNo || row.displayId || row.id },
-    { header: 'Name', accessor: 'name' },
+    {
+      header: 'Name',
+      accessor: 'name',
+      cell: (row) => {
+        const isSub = row.isSubscriber === true || (row.isSubscriber !== false && Number(row.insuranceAmount || 0) >= 20);
+        return (
+          <div className="flex items-center gap-1.5">
+            <span className="font-semibold text-primary">{row.name}</span>
+            {isSub && (
+              <span className="text-amber-400 text-lg leading-none select-none drop-shadow" title="Subscriber">
+                ⭐
+              </span>
+            )}
+          </div>
+        );
+      }
+    },
     { header: 'Phone', accessor: 'phone' },
     { header: 'Email', accessor: 'email', format: (val) => val || tr('N/A') },
     { header: 'Total Orders', accessor: 'totalOrders' },
@@ -496,6 +543,7 @@ const Customers = () => {
                   <h4 className="text-sm font-semibold uppercase tracking-wider text-secondary mb-3">Billing & Financial Details</h4>
                   <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-3">
                     {renderField("Registration Date", selectedCustomer.registrationDate, (val) => formatDate(val))}
+                    {renderField("Subscriber Status", (selectedCustomer.isSubscriber || Number(selectedCustomer.insuranceAmount || 0) >= 20) ? "⭐ YES (Subscriber)" : "No")}
                     {renderField("Insurance Paid", selectedCustomer.insuranceAmount, (val) => formatCurrency(val))}
                     {renderField("Invoices Count", selectedCustomer.invoicesCount)}
                     {renderField("Last Invoice Date", selectedCustomer.lastInvoiceDate, (val) => formatDate(val))}
@@ -643,6 +691,16 @@ const Customers = () => {
                   </select>
                 </div>
                 <div>
+                  <label className="block text-xs font-semibold text-secondary uppercase">Part No (Block)</label>
+                  <input
+                    type="text"
+                    name="partNo"
+                    value={formData.partNo || ''}
+                    onChange={handleFormChange}
+                    className="mt-1 w-full rounded-lg border border-border bg-surface px-3 py-1.5 text-primary focus:outline-none focus:ring-2 focus:ring-blue-400/40 text-sm"
+                  />
+                </div>
+                <div>
                   <label className="block text-xs font-semibold text-secondary uppercase">Street</label>
                   <input
                     type="text"
@@ -653,31 +711,11 @@ const Customers = () => {
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-secondary uppercase">Part No</label>
-                  <input
-                    type="text"
-                    name="partNo"
-                    value={formData.partNo || ''}
-                    onChange={handleFormChange}
-                    className="mt-1 w-full rounded-lg border border-border bg-surface px-3 py-1.5 text-primary focus:outline-none focus:ring-2 focus:ring-blue-400/40 text-sm"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-semibold text-secondary uppercase">Jadda</label>
+                  <label className="block text-xs font-semibold text-secondary uppercase">Jadda (Avenue)</label>
                   <input
                     type="text"
                     name="jadda"
                     value={formData.jadda || ''}
-                    onChange={handleFormChange}
-                    className="mt-1 w-full rounded-lg border border-border bg-surface px-3 py-1.5 text-primary focus:outline-none focus:ring-2 focus:ring-blue-400/40 text-sm"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-semibold text-secondary uppercase">Level No</label>
-                  <input
-                    type="text"
-                    name="levelNo"
-                    value={formData.levelNo || ''}
                     onChange={handleFormChange}
                     className="mt-1 w-full rounded-lg border border-border bg-surface px-3 py-1.5 text-primary focus:outline-none focus:ring-2 focus:ring-blue-400/40 text-sm"
                   />
@@ -693,7 +731,7 @@ const Customers = () => {
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-secondary uppercase">Flat No</label>
+                  <label className="block text-xs font-semibold text-secondary uppercase">Flat No (Apartment)</label>
                   <input
                     type="text"
                     name="flatNo"
@@ -702,7 +740,16 @@ const Customers = () => {
                     className="mt-1 w-full rounded-lg border border-border bg-surface px-3 py-1.5 text-primary focus:outline-none focus:ring-2 focus:ring-blue-400/40 text-sm"
                   />
                 </div>
-
+                <div>
+                  <label className="block text-xs font-semibold text-secondary uppercase">Level No (Floor)</label>
+                  <input
+                    type="text"
+                    name="levelNo"
+                    value={formData.levelNo || ''}
+                    onChange={handleFormChange}
+                    className="mt-1 w-full rounded-lg border border-border bg-surface px-3 py-1.5 text-primary focus:outline-none focus:ring-2 focus:ring-blue-400/40 text-sm"
+                  />
+                </div>
                 <div>
                   <label className="block text-xs font-semibold text-secondary uppercase">Paci No.</label>
                   <input
@@ -745,11 +792,24 @@ const Customers = () => {
                   <input
                     type="number"
                     name="insuranceAmount"
-                    value={formData.insuranceAmount || '20.000'}
+                    value={formData.insuranceAmount || '0.000'}
                     onChange={handleFormChange}
                     step="0.001"
                     className="mt-1 w-full rounded-lg border border-border bg-surface px-3 py-1.5 text-primary focus:outline-none focus:ring-2 focus:ring-blue-400/40 text-sm"
                   />
+                </div>
+                <div className="flex items-center gap-2 pt-6">
+                  <input
+                    type="checkbox"
+                    id="isSubscriber"
+                    name="isSubscriber"
+                    checked={!!formData.isSubscriber}
+                    onChange={handleFormChange}
+                    className="w-4 h-4 text-amber-600 border-border rounded focus:ring-amber-500 cursor-pointer"
+                  />
+                  <label htmlFor="isSubscriber" className="text-xs font-bold text-amber-600 dark:text-amber-400 uppercase cursor-pointer select-none">
+                    ⭐ Old Subscriber / مشترك
+                  </label>
                 </div>
                 <div>
                   <label className="block text-xs font-semibold text-secondary uppercase">Invoices Count</label>
